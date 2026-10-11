@@ -46,6 +46,27 @@ unset AGENT_HUB_EFFORT_DEFAULTS AGENT_HUB_DEFAULT_EFFORT
 spawn h5 --model haiku; wait_dead h5
 last_argv | grep -q -- '--model haiku --effort high'; check $? 0 "haiku: no setting at all: high"
 
+# ---- 1b. a resume gives an agent with no effort on record (spawned before haiku took one: `effort: null`) the effort a
+# spawn would, checks it against the effort rules like a spawn, and records it; an effort on record is kept
+nulleffort(){ python3 -c "import json,sys; f=sys.argv[1]; m=json.load(open(f)); m['effort']=None; json.dump(m, open(f,'w'))" $R/stage-a/agents/$1/meta.json; }
+spawn lg1 --model haiku; wait_dead lg1; nulleffort lg1
+check "$(meta lg1 'm["effort"]')" None "legacy meta: a haiku agent with effort null"
+AGENT_HUB_EFFORT_DEFAULTS='{"haiku": "medium"}' $B/agent send lg1 "again" > $R/lg1.out 2>&1; check $? 0 "resume of the legacy agent"; wait_dead lg1
+last_argv | grep -q -- '--resume .* --model haiku --effort medium'; check $? 0 "…passes the effort a spawn would: its AGENT_HUB_EFFORT_DEFAULTS entry"
+check "$(meta lg1 'm["effort"]')" medium "…and records it"
+spawn lg2 --model haiku; wait_dead lg2; nulleffort lg2
+$B/agent send lg2 "again" > $R/lg2.out 2>&1; check $? 0 "resume of a legacy agent with no setting at all"; wait_dead lg2
+last_argv | grep -q -- '--resume .* --model haiku --effort high'; check "$? $(meta lg2 'm["effort"]')" "0 high" "…high, passed and recorded"
+spawn lg3 --model haiku --effort medium; wait_dead lg3
+AGENT_HUB_EFFORT_DEFAULTS='{"haiku": "xhigh"}' $B/agent send lg3 "again" > /dev/null 2>&1; wait_dead lg3
+last_argv | grep -q -- '--resume .* --model haiku --effort medium'; check "$? $(meta lg3 'm["effort"]')" "0 medium" "control: an effort on record is kept, not replaced by the defaults"
+spawn lg4 --model haiku; wait_dead lg4; nulleffort lg4
+runs=$(wc -l < $W/argv.log); inbox=$(wc -l < $R/stage-a/agents/lg4/inbox.md)
+AGENT_HUB_EFFORT_RULES='{"haiku": "medium|xhigh"}' $B/agent send lg4 "again" > $R/lg4.out 2>&1; check $? 2 "negative: the effort rules refuse the effort the legacy agent would get (high)"
+grep -q 'haiku runs only at effort medium or xhigh' $R/lg4.out; check $? 0 "…naming the rule"
+check "$(wc -l < $W/argv.log):$(wc -l < $R/stage-a/agents/lg4/inbox.md):$(meta lg4 'm["effort"]')" "$runs:$inbox:None" "…nothing was resumed, queued or recorded"
+AGENT_HUB_EFFORT_RULES='{"haiku": "high"}' $B/agent send lg4 "again" > /dev/null 2>&1; check $? 0 "positive control: a rule that allows high lets the same resume through"; wait_dead lg4
+
 # ---- 2. a reason above the default (default policy: warn)
 spawn r1 --model opus --effort xhigh; check $? 0 "above the default without a reason: spawn goes on"
 grep -q 'effort xhigh is above the default high.*--reason' $R/r1.err; check $? 0 "…with one warning naming the effort and the flag"

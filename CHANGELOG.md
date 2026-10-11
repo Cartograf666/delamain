@@ -11,7 +11,8 @@
   or the call is refused when it cannot be read). Probed: Haiku 4.5 also accepts `--effort` and ignores it, so the flag
   is safe on every supported CLI. `hub effort` reads a Haiku 5.5 session like any other (its record, hook input and
   `$CLAUDE_EFFORT` carry the turn's effort); only a Haiku turn that recorded no effort (Haiku 4.5) is still treated as
-  having none. The example subagent policy keeps Haiku free at any type but denies it at `low` (Haiku runs at high, medium
+  having none. A resume (`agent send`) of a Haiku agent spawned before this change, with no effort on record, gets the
+  effort a spawn would (same defaults and `AGENT_HUB_EFFORT_RULES` check) and records it. The example subagent policy keeps Haiku free at any type but denies it at `low` (Haiku runs at high, medium
   allowed); the docs add no low default for Haiku.
 
 ## 1.0.2 — 2026-10-08

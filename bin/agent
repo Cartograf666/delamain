@@ -932,6 +932,21 @@ def cmd_send(a) -> int:
         return _send_locked(stage, a, msg)
 
 
+def legacy_effort(meta: dict) -> None:
+    """A Claude agent spawned while Haiku took no effort has `effort: null` on record, and its resume would leave the effort
+    to the CLI's own setting. Give it the effort a spawn would (AGENT_HUB_EFFORT_DEFAULTS, AGENT_HUB_DEFAULT_EFFORT, high),
+    refuse what AGENT_HUB_EFFORT_RULES refuses, and put it in `meta` (launch saves it)."""
+    if meta.get("effort"):
+        return
+    import subagent_rules  # noqa: E402
+    cwd, model, resolved = Path(meta["cwd"]), meta["model"], meta.get("resolved_model") or meta["model"]
+    effort = spawn_policy.default_effort(list(dict.fromkeys([model, resolved])), EFFORTS, cwd)
+    denied = subagent_rules.check_spawn(model, resolved, effort, cwd)
+    if denied:
+        raise hc.UsageError(denied)
+    meta["effort"] = effort
+
+
 def _send_locked(stage: str, a, msg: str) -> int:
     meta = load_meta(stage, a.role)
     if a.role not in hc.roles_load(stage)["roles"]:
@@ -940,6 +955,7 @@ def _send_locked(stage: str, a, msg: str) -> int:
     if not live:
         if meta.get("engine", "claude") == "claude":
             bg_wait_ceiling(meta["cwd"])  # the resume would refuse a bad setting: refuse before the message is queued
+            legacy_effort(meta)  # likewise a rule that refuses the effort it would get
         if not a.resume_anyway:
             limit, ctx = spawn_policy.resume_max_ctx(meta["cwd"]), read_log(Path(meta["dir"]) / "log.jsonl")["ctx"]
             if limit and ctx > limit:  # refused before the message is queued
