@@ -31,6 +31,20 @@ grep -q 'AGENT_HUB_EFFORT_DEFAULTS' $R/d7.err; check $? 0 "…naming the setting
 AGENT_HUB_EFFORT_DEFAULTS='[1]' spawn d8 --model opus; check $? 0 "a setting of the wrong shape is ignored (and reported), the spawn goes on"
 grep -q 'JSON object' $R/d8.err; check $? 0 "…with a note"; wait_dead d8
 unset AGENT_HUB_EFFORT_DEFAULTS
+# haiku decides its effort by the same path as every model: --effort, else its AGENT_HUB_EFFORT_DEFAULTS entry, else
+# AGENT_HUB_DEFAULT_EFFORT, else high (Haiku 5.5 has the setting; Haiku 4.5 takes the flag)
+export AGENT_HUB_EFFORT_DEFAULTS='{"haiku": "high"}' AGENT_HUB_DEFAULT_EFFORT=medium
+spawn h1 --model haiku; check $? 0 "spawn haiku"; wait_dead h1
+last_argv | grep -q -- '--model haiku --effort high'; check "$? $(meta h1 'm["effort"]')" "0 high" "haiku: its AGENT_HUB_EFFORT_DEFAULTS entry is the effort passed and recorded"
+spawn h2 --model haiku --effort medium; wait_dead h2
+last_argv | grep -q -- '--model haiku --effort medium'; check $? 0 "haiku: --effort beats the entry"
+AGENT_HUB_EFFORT_DEFAULTS='{"opus": "xhigh"}' spawn h3 --model haiku; wait_dead h3
+last_argv | grep -q -- '--model haiku --effort medium'; check $? 0 "haiku: an entry of another model is not its own — AGENT_HUB_DEFAULT_EFFORT"
+AGENT_HUB_MODEL_MAP=quick=claude-haiku-5-5 spawn h4 --model quick; wait_dead h4
+last_argv | grep -q -- '--model claude-haiku-5-5 --effort high'; check $? 0 "haiku: a key matches the id an alias maps to"
+unset AGENT_HUB_EFFORT_DEFAULTS AGENT_HUB_DEFAULT_EFFORT
+spawn h5 --model haiku; wait_dead h5
+last_argv | grep -q -- '--model haiku --effort high'; check $? 0 "haiku: no setting at all: high"
 
 # ---- 2. a reason above the default (default policy: warn)
 spawn r1 --model opus --effort xhigh; check $? 0 "above the default without a reason: spawn goes on"
@@ -43,7 +57,8 @@ check "$(meta r2 'm["reason"]')" "cross-module refactor, medium missed it twice"
 grep 'started headless agent r2' $(journal stage-a) | grep -q 'reason: cross-module refactor, medium missed it twice'; check $? 0 "…and in the journal start line"
 wait_dead r2
 spawn r3 --model opus --effort high; grep -q 'above the default' $R/r3.err; check $? 1 "negative: the default effort itself needs no reason"; wait_dead r3
-spawn r4 --model haiku --effort max; grep -q 'above the default' $R/r4.err; check $? 1 "negative: haiku takes no effort, nothing to explain"; wait_dead r4
+spawn r4 --model haiku --effort max; grep -q 'effort max is above the default high.*--reason' $R/r4.err; check $? 0 "haiku: an effort above the default needs a reason like any model (positive control)"; wait_dead r4
+spawn r4b --model haiku --effort high; grep -q 'above the default' $R/r4b.err; check $? 1 "negative: haiku at the default effort needs none"; wait_dead r4b
 AGENT_HUB_REASON_POLICY=refuse spawn r5 --model opus --effort max; check $? 2 "policy refuse: above the default without a reason is refused"
 grep -q 'above the default' $R/r5.err; check $? 0 "…saying why"
 [ ! -e $R/stage-a/agents/r5 ]; check $? 0 "…and nothing was started"

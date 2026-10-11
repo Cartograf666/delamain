@@ -403,7 +403,8 @@ Sol reviewer for Sol-authored work, bring that entry into line with the approved
   (`git worktree remove <path>`).
 - Model and effort: choose per agent. Claude supports `opus|sonnet|haiku|fable` aliases and optional
   `AGENT_HUB_MODEL_MAP` pins. Codex supports available model ids and optional `AGENT_HUB_CODEX_MODEL_MAP` aliases;
-  omit the model to use `AGENT_HUB_CODEX_DEFAULT_MODEL` or the CLI configuration. Choose effort supported by that model.
+  omit the model to use `AGENT_HUB_CODEX_DEFAULT_MODEL` or the CLI configuration. Choose effort supported by that model. Every Claude alias takes `--effort`, `haiku` included (Haiku 5.5 from Claude
+  Code 2.1.296 has the setting; Haiku 4.5 ignores the flag).
   Before the first detached Codex launch for a selected CLI/model in a stage, check that CLI's `--version` and
   `debug models` catalog (use `CODEX_BIN` when configured), including its configured default when omitting `--model`.
   Desktop model availability does not establish standalone CLI availability. Ordinary implementation uses an

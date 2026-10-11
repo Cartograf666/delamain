@@ -256,7 +256,12 @@ call --bg argv | grep -q -- "--model opus --effort xhigh --settings"; check "$? 
 setup; echo '{"AGENT_HUB_SUCCESSOR_EFFORT": "medium"}' > $R/config.json; succeed --model opus > /dev/null 2>&1
 call --bg argv | grep -q -- "--model opus --effort medium --settings"; check $? 0 "effort: the hub home's config.json sets it"
 setup; succeed --model haiku > /dev/null 2>&1
-call --bg argv | grep -q -- "--effort"; check $? 1 "effort: Haiku gets no --effort"
+call --bg argv | grep -q -- "--model haiku --effort high --settings"; check "$? $(pending effort)" "0 high" "effort: Haiku gets an effort like any model — the hub's own"
+setup; succeed --model haiku --effort medium > /dev/null 2>&1
+call --bg argv | grep -q -- "--model haiku --effort medium --settings"; check "$? $(pending effort)" "0 medium" "effort: …--effort beats it for Haiku too"
+setup; AGENT_HUB_SUCCESSOR_EFFORT=xhigh succeed --model haiku > /dev/null 2>&1
+call --bg argv | grep -q -- "--model haiku --effort xhigh --settings"; check "$? $(pending effort)" "0 xhigh" "effort: …and so does AGENT_HUB_SUCCESSOR_EFFORT"
+setup; succeed --model haiku --headless > /dev/null 2>&1; check "$(meta_effort):$(pending effort)" "high:high" "effort: a headless Haiku hub (agent spawn) gets it as well"
 setup; succeed --model opus --effort bogus > $R/bad.out 2>&1; check "$?:$(call --bg count)" "2:none" "effort: an unknown --effort is refused, nothing started"
 setup; AGENT_HUB_SUCCESSOR_EFFORT=bogus succeed --model opus > $R/bad.out 2>&1; check "$?:$(grep -c "AGENT_HUB_SUCCESSOR_EFFORT 'bogus'" $R/bad.out):$(call --bg count)" "2:1:none" "effort: an unknown AGENT_HUB_SUCCESSOR_EFFORT is refused, nothing started"
 setup; succeed --model opus --effort xhigh --dry-run > $R/dry.out 2>&1; grep -qF -- "--model opus --effort xhigh --settings" $R/dry.out; check "$?:$(call --bg count)" "0:none" "effort: the dry run shows it"
@@ -292,17 +297,27 @@ env -u CLAUDE_EFFORT PATH=$NO_PS:$PATH $B/hub succeed --stage stage-a --handoff 
 call --bg argv | grep -q -- "--model opus --effort low --settings"; check $? 0 "effort: …but --effort given needs no reading"
 setup; env -u CLAUDE_EFFORT PATH=$NO_PS:$PATH AGENT_HUB_SUCCESSOR_EFFORT=medium $B/hub succeed --stage stage-a --handoff $H --cwd $W --model opus > /dev/null 2>&1
 call --bg argv | grep -q -- "--model opus --effort medium --settings"; check $? 0 "effort: …and so does AGENT_HUB_SUCCESSOR_EFFORT"
-setup; env -u CLAUDE_EFFORT PATH=$NO_PS:$PATH $B/hub succeed --stage stage-a --handoff $H --cwd $W --model haiku > /dev/null 2>&1
-call --bg argv | grep -q -- "--effort"; check "$?:$(call --bg count)" "1:1" "effort: Haiku has no effort to inherit — it starts, with no --effort"
-# a hub on Haiku has no effort: the $CLAUDE_EFFORT its Bash shows is an ancestor's leftover (probed), not inherited
+setup; env -u CLAUDE_EFFORT PATH=$NO_PS:$PATH $B/hub succeed --stage stage-a --handoff $H --cwd $W --model haiku > $R/hkref.out 2>&1; rc=$?
+check "$rc:$(call --bg count):$(grep -c 'cannot determine the effort of this session' $R/hkref.out)" "1:none:1" "effort: negative — an unreadable effort refuses a Haiku successor like any other, nothing starts"
+# a hub on Haiku 4.5 has no effort: the $CLAUDE_EFFORT its Bash shows is an ancestor's leftover (probed), not inherited
 TRH=$HOME/.claude/projects/p/$HUB1.jsonl; mkdir -p $(dirname $TRH); [ -f $TRH ] && cp $TRH $TRH.keep
 echo '{"type":"assistant","message":{"model":"claude-haiku-4-5-20251001","usage":{"input_tokens":5}}}' > $TRH
 setup; CLAUDE_CODE_SESSION_ID=$HUB1 CLAUDE_EFFORT=xhigh succeed --model opus > $R/hk.out 2>&1
-check "$?:$(call --bg count):$(grep -c 'which has no effort setting' $R/hk.out)" "1:none:1" "effort: a Haiku hub handing over to Opus — its inherited \$CLAUDE_EFFORT is not used, nothing starts"
+check "$?:$(call --bg count):$(grep -c 'which recorded no effort' $R/hk.out)" "1:none:1" "effort: a Haiku 4.5 hub handing over to Opus — its inherited \$CLAUDE_EFFORT is not used, nothing starts"
 setup; CLAUDE_CODE_SESSION_ID=$HUB1 CLAUDE_EFFORT=xhigh succeed --model opus --effort high > /dev/null 2>&1
 call --bg argv | grep -q -- "--model opus --effort high --settings"; check $? 0 "effort: …unless --effort says it"
+setup; CLAUDE_CODE_SESSION_ID=$HUB1 CLAUDE_EFFORT=xhigh succeed > $R/hk2.out 2>&1
+check "$?:$(call --bg count):$(grep -c 'which recorded no effort' $R/hk2.out)" "1:none:1" "effort: …and so is a Haiku successor of a Haiku 4.5 hub (the hub's effort is unreadable)"
+setup; CLAUDE_CODE_SESSION_ID=$HUB1 CLAUDE_EFFORT=xhigh succeed --effort medium > /dev/null 2>&1
+call --bg argv | grep -q -- "--model claude-haiku-4-5-20251001 --effort medium --settings"; check $? 0 "effort: …unless --effort says it: a Haiku successor of a Haiku hub is started with it"
+# a Haiku 5.5 hub has the setting: its record carries the effort and its $CLAUDE_EFFORT is the turn's (probed, CLI 2.1.296)
+echo '{"type":"assistant","message":{"model":"claude-haiku-5-5","usage":{"input_tokens":5}},"effort":"medium","perTurnEffort":"medium"}' > $TRH
+setup; CLAUDE_CODE_SESSION_ID=$HUB1 CLAUDE_EFFORT=xhigh succeed --model opus > /dev/null 2>&1
+call --bg argv | grep -q -- "--model opus --effort xhigh --settings"; check "$? $(pending effort)" "0 xhigh" "effort: positive control — a Haiku 5.5 hub's \$CLAUDE_EFFORT is inherited (a Haiku 4.5 hub's is not)"
+setup; env -u CLAUDE_EFFORT CLAUDE_CODE_SESSION_ID=$HUB1 PATH=$NO_PS:$PATH $B/hub succeed --stage stage-a --handoff $H --cwd $W --model opus > /dev/null 2>&1
+call --bg argv | grep -q -- "--model opus --effort medium --settings"; check "$? $(pending effort)" "0 medium" "effort: …and so is the effort in its transcript"
 setup; CLAUDE_CODE_SESSION_ID=$HUB1 CLAUDE_EFFORT=xhigh succeed > /dev/null 2>&1
-call --bg argv | grep -q -- "--effort"; check "$?:$(call --bg argv | grep -c -- '--model claude-haiku-4-5-20251001')" "1:1" "effort: …and a Haiku successor of a Haiku hub starts with no --effort"
+call --bg argv | grep -q -- "--model claude-haiku-5-5 --effort xhigh --settings"; check "$? $(pending effort)" "0 xhigh" "effort: …a Haiku 5.5 successor of a Haiku 5.5 hub starts with the effort too"
 rm -f $TRH; [ -f $TRH.keep ] && mv $TRH.keep $TRH
 # a hub that is a `claude --bg` session: its environment is the daemon's, so the job's respawnFlags answer, not $CLAUDE_EFFORT
 JD=$HOME/.claude/jobs/${HUB1:0:8}; mkdir -p $JD

@@ -37,7 +37,8 @@ EFFORTS = ("low", "medium", "high", "xhigh", "max")  # what `claude --effort` ta
 MODEL_ALIASES = ("opus", "sonnet", "haiku", "fable")
 # The oldest supported Claude Code CLI: it runs the agent-top mod (2.1.287) and resolves the aliases to the latest models
 # (sonnet-5-5, opus-5-5, haiku-4-5, fable-5-1, as 2.1.285 did); an older CLI is unsupported and resolves the same aliases
-# to older models. The plugin pins no ids: the alias follows the CLI.
+# to older models. `haiku` is haiku-5-5 only from 2.1.296; the minimum is not raised for it, since both Haiku models take
+# `--effort`. The plugin pins no ids: the alias follows the CLI.
 MIN_CLI_VERSION = (2, 1, 287)
 # A full model id, `claude-` plus letters, digits and . _ : @ [ ] - ("claude-opus-4-7[1m]", the Vertex id
 # "claude-sonnet-4-5@20250929"): nothing a shell treats as syntax, so an id from a repository's config cannot carry a
