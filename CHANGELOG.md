@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **Haiku takes an effort like every other model.** Claude Haiku 5.5 has an effort setting (`low` to `max`), and
+  Claude Code 2.1.296 resolves the alias `haiku` to it (2.1.287 to 2.1.295 still give Haiku 4.5; the minimum supported
+  version is unchanged). `agent spawn` no longer drops the effort of a haiku model: `--effort`, else the
+  `AGENT_HUB_EFFORT_DEFAULTS` entry, else `AGENT_HUB_DEFAULT_EFFORT`, else `high` goes to the CLI, is recorded in
+  `meta.json` and the journal start line, counts for `--reason` and is seen by `AGENT_HUB_EFFORT_RULES`. The same for a
+  haiku `agent` reviewer in `hub reviewer` and for a Haiku successor of `hub succeed` (the hub's own effort is inherited,
+  or the call is refused when it cannot be read). Probed: Haiku 4.5 also accepts `--effort` and ignores it, so the flag
+  is safe on every supported CLI. `hub effort` reads a Haiku 5.5 session like any other (its record, hook input and
+  `$CLAUDE_EFFORT` carry the turn's effort); only a Haiku turn that recorded no effort (Haiku 4.5) is still treated as
+  having none. A resume (`agent send`) of a Haiku agent spawned before this change, with no effort on record, gets the
+  effort a spawn would (same defaults and `AGENT_HUB_EFFORT_RULES` check) and records it. The example subagent policy keeps Haiku free at any type but denies it at `low` (Haiku runs at high, medium
+  allowed); the docs add no low default for Haiku.
+
 ## 1.0.2 — 2026-10-08
 
 - **Codex `tell` supports immediate delivery through the public app-server proxy.** A verified active turn uses

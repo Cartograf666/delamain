@@ -373,6 +373,9 @@ while IFS='|' read -r want tool typ model what; do
   check "$got" "$want" "example policy: $what"
 done <<'EOF'
 allow|Agent|Explore|haiku|any type on haiku
+deny|Agent|delamain:worker-low|haiku|haiku never at low
+allow|Agent|delamain:worker-medium|haiku|haiku at medium
+allow|Agent|delamain:worker-high|haiku|haiku at high
 deny|Agent|fork|haiku|fork is always denied
 deny|Agent|general-purpose|opus|unpinned definition inherits the session effort
 deny|Agent||opus|no type = general-purpose

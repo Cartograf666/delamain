@@ -27,11 +27,13 @@ plugin's bin/ first on PATH and in $HUB_BIN (the brief footer names jlog as "$HU
 an old same-named tool ahead; every resume rebuilds the variable, so it follows a plugin update); it is recorded in `roles` (kind headless, pid).
 Model: an alias (opus, sonnet, haiku, fable) or a full id claude-…. An alias follows the CLI: a current Claude Code
 resolves it to the latest model of that family; Claude Code 2.1.287 is the minimum supported version (an older one
-resolves it to an older model), and spawn warns about it. The id the run reports in its init event is recorded (meta resolved_model) and shown by status, the journal line
+resolves it to an older model), and spawn warns about it. `haiku` is Haiku 5.5 from Claude Code 2.1.296, Haiku 4.5
+before it. The id the run reports in its init event is recorded (meta resolved_model) and shown by status, the journal line
 and agent-top. $AGENT_HUB_MODEL_MAP pins aliases to ids ("sonnet=claude-sonnet-x-y,opus=…") — an opt-in, since a pin
 goes stale with the next model release.
 Effort: --effort, else the model's entry in $AGENT_HUB_EFFORT_DEFAULTS, else $AGENT_HUB_DEFAULT_EFFORT, else high;
-haiku gets no effort flag. An effort above the model's default, or a model of $AGENT_HUB_REASON_MODELS, needs
+the same for every model, haiku included (Haiku 5.5 has the setting; Haiku 4.5 takes the flag and ignores it). An
+effort above the model's default, or a model of $AGENT_HUB_REASON_MODELS, needs
 --reason "…" (warning, or refusal with AGENT_HUB_REASON_POLICY=refuse); the reason goes into the journal start line
 and meta.json (bin/spawn_policy.py). The title registered for the agent is `<role> — <the brief's first heading,
 without a leading "Brief:"> (<stage>)`, unless --title says otherwise.
@@ -506,10 +508,9 @@ def cmd_spawn(a) -> int:
     allowed_efforts = EFFORTS if engine == "claude" else engines.CODEX_EFFORTS
     model_names = [n for n in dict.fromkeys([given or "CLI default", a.model or "CLI default"])]
     default_effort = spawn_policy.default_effort(model_names, allowed_efforts, cwd)
-    effective_effort = a.effort or default_effort
-    if effective_effort not in allowed_efforts:
-        raise hc.UsageError(f"effort {effective_effort!r} ({engine}): one of {allowed_efforts}")
-    effort = None if engine == "claude" and "haiku" in a.model else effective_effort
+    effort = a.effort or default_effort
+    if effort not in allowed_efforts:
+        raise hc.UsageError(f"effort {effort!r} ({engine}): one of {allowed_efforts}")
     reason = spawn_policy.clean_reason(a.reason)
     above_default = spawn_policy.check_reason(model_names, effort, default_effort, allowed_efforts, reason, cwd,
                                               model_unknown=engine == "codex" and not a.model)
@@ -931,6 +932,21 @@ def cmd_send(a) -> int:
         return _send_locked(stage, a, msg)
 
 
+def legacy_effort(meta: dict) -> None:
+    """A Claude agent spawned while Haiku took no effort has `effort: null` on record, and its resume would leave the effort
+    to the CLI's own setting. Give it the effort a spawn would (AGENT_HUB_EFFORT_DEFAULTS, AGENT_HUB_DEFAULT_EFFORT, high),
+    refuse what AGENT_HUB_EFFORT_RULES refuses, and put it in `meta` (launch saves it)."""
+    if meta.get("effort"):
+        return
+    import subagent_rules  # noqa: E402
+    cwd, model, resolved = Path(meta["cwd"]), meta["model"], meta.get("resolved_model") or meta["model"]
+    effort = spawn_policy.default_effort(list(dict.fromkeys([model, resolved])), EFFORTS, cwd)
+    denied = subagent_rules.check_spawn(model, resolved, effort, cwd)
+    if denied:
+        raise hc.UsageError(denied)
+    meta["effort"] = effort
+
+
 def _send_locked(stage: str, a, msg: str) -> int:
     meta = load_meta(stage, a.role)
     if a.role not in hc.roles_load(stage)["roles"]:
@@ -939,6 +955,7 @@ def _send_locked(stage: str, a, msg: str) -> int:
     if not live:
         if meta.get("engine", "claude") == "claude":
             bg_wait_ceiling(meta["cwd"])  # the resume would refuse a bad setting: refuse before the message is queued
+            legacy_effort(meta)  # likewise a rule that refuses the effort it would get
         if not a.resume_anyway:
             limit, ctx = spawn_policy.resume_max_ctx(meta["cwd"]), read_log(Path(meta["dir"]) / "log.jsonl")["ctx"]
             if limit and ctx > limit:  # refused before the message is queued
@@ -1129,7 +1146,7 @@ def main(argv: list) -> int:
     s.add_argument("--sandbox-policy", help="Codex rollout sandbox JSON; preserve supported roots/network/temp restrictions")
     s.add_argument("--model", help="opus | sonnet | haiku | fable (passed to the CLI, which resolves them to its "
                    "latest models; $AGENT_HUB_MODEL_MAP pins them to ids instead) or a full id claude-…")
-    s.add_argument("--effort", choices=tuple(dict.fromkeys(EFFORTS + engines.CODEX_EFFORTS)), help="default: $AGENT_HUB_EFFORT_DEFAULTS for the model, else $AGENT_HUB_DEFAULT_EFFORT, else high; ignored for haiku")
+    s.add_argument("--effort", choices=tuple(dict.fromkeys(EFFORTS + engines.CODEX_EFFORTS)), help="default: $AGENT_HUB_EFFORT_DEFAULTS for the model, else $AGENT_HUB_DEFAULT_EFFORT, else high")
     s.add_argument("--permission-mode", help=f"default: $AGENT_HUB_PERMISSION_MODE or {DEFAULT_PERMISSION_MODE}")
     s.add_argument("--brief", required=True)
     s.add_argument("--worktree", nargs="?", const="", default=None, metavar="BRANCH",

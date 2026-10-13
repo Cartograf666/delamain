@@ -18,7 +18,8 @@ grep -q '^start: agent spawn --role review-agent --cwd <REPO> --model opus --eff
 grep -q -- '--worktree' $P/d.out; check $? 1 "negative: no --worktree (a reviewer only reads)"
 check "$(wc -c < $P/d.err | tr -d ' ')" 0 "default: nothing on stderr"
 check "$(AGENT_HUB_REVIEW_MODEL=sonnet AGENT_HUB_REVIEW_EFFORT=xhigh rv | sed -n 's/^start: .*--model \([a-z]*\) --effort \([a-z]*\) .*/\1 \2/p')" "sonnet xhigh" "AGENT_HUB_REVIEW_MODEL / _EFFORT set the default agent reviewer"
-check "$(AGENT_HUB_REVIEW_MODEL=haiku rv | grep -c -- '--effort')" 0 "a haiku reviewer gets no --effort (agent spawn ignores it)"
+check "$(AGENT_HUB_REVIEW_MODEL=haiku rv | sed -n 's/^start: .*--model \([a-z]*\) --effort \([a-z]*\) .*/\1 \2/p')" "haiku high" "a haiku reviewer gets --effort like any model (Haiku 5.5 has the setting)"
+check "$(AGENT_HUB_REVIEW_MODEL=haiku AGENT_HUB_REVIEW_EFFORT=medium rv | sed -n 's/^start: .*--model \([a-z]*\) --effort \([a-z]*\) .*/\1 \2/p')" "haiku medium" "…at the effort the settings name"
 check "$(AGENT_HUB_REVIEW_EFFORT=turbo rv 2>$P/e.err | sed -n 's/^start: .*--effort \([a-z]*\) .*/\1/p')" high "negative: an unknown effort falls back to high…"
 grep -q 'AGENT_HUB_REVIEW_EFFORT' $P/e.err; check $? 0 "…and is reported"
 

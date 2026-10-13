@@ -22,7 +22,7 @@ kill -0 $PID 2>/dev/null; check $? 0 "agent alive after the spawning process gro
 check "$(ps -o pgid= -p $PID | tr -d ' ')" "$PID" "agent leads its own process group"
 $B/agent status probe | grep -q 'ALIVE'; check $? 0 "status: alive"
 grep -q 'started headless agent probe' $(journal stage-a); check $? 0 "spawn journals a start line"
-grep -q -- '--model haiku' $W/argv.log && ! grep -q -- '--effort' $W/argv.log; check $? 0 "haiku: alias passed through, no effort flag"
+grep -q -- '--model haiku --effort high' $W/argv.log; check $? 0 "haiku: alias passed through, with the default effort like any model"
 grep -q -- '--permission-mode bypassPermissions' $W/argv.log; check $? 0 "default permission mode"
 $B/agent-send probe "inbox check" > $R/send1.out; grep -q 'inbox check' $R/stage-a/agents/probe/inbox.md; check $? 0 "send while alive -> inbox"
 grep -q '@probe inbox check' $(journal stage-a); check $? 0 "send while alive -> journal @tag line"

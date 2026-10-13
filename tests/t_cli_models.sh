@@ -135,6 +135,23 @@ $B/agent spawn --role fab2 --cwd $W --model fable --effort medium --brief $W/b.m
 grep -q 'fable runs only at effort high or xhigh' $P/fab2.out; check $? 0 "…naming the rule"
 $B/agent spawn --role fab3 --cwd $W --model fable --effort xhigh --brief $W/b.md > /dev/null 2>&1; check $? 0 "positive control: fable at xhigh is allowed"
 wait_dead fab3; rm $W/.agent-hub/config.json
+# ---- haiku takes an effort like the others; the alias is Haiku 5.5 from CLI 2.1.296, Haiku 4.5 before it
+# (the stand-in resolves the alias by FAKE_VERSION, as the real CLI does). Both generations get the flag.
+for pair in "hk295 2.1.295 claude-haiku-4-5-20251001" "hk296 2.1.296 claude-haiku-5-5"; do
+  set -- $pair
+  FAKE_VERSION=$2 AGENT_HUB_STATE_DIR=$P/st-$1 $B/agent spawn --role $1 --cwd $W --model haiku --effort medium --brief $W/b.md > $P/$1.out 2>&1; check $? 0 "spawn --model haiku --effort medium on CLI $2"
+  wait_dead $1
+  tail -1 $W/argv.log | grep -q -- '--model haiku --effort medium'; check $? 0 "…the CLI got --effort medium"
+  check "$(meta $1 'm["resolved_model"]')/$(meta $1 'm["effort"]')" "$3/medium" "…the alias resolved to $3, the effort is on record"
+  grep -qF "started headless agent $1 ($3/medium, asked for haiku)" $(journal stage-a); check $? 0 "…and the start line shows both"
+done
+# the effort rules see the effort of haiku (a repository may require "never below medium")
+echo '{"AGENT_HUB_EFFORT_RULES": {"haiku": "medium|high"}}' > $W/.agent-hub/config.json
+$B/agent spawn --role hkr1 --cwd $W --model haiku --effort low --brief $W/b.md > $P/hkr1.out 2>&1; check $? 2 "the effort rules see the effort of haiku: haiku at low is denied"
+grep -q 'haiku runs only at effort medium or high' $P/hkr1.out; check $? 0 "…naming the rule"
+$B/agent spawn --role hkr2 --cwd $W --model haiku --brief $W/b.md > /dev/null 2>&1; check $? 0 "positive control: haiku without --effort lands on the default (high), which the rule allows"
+tail -1 $W/argv.log | grep -q -- '--model haiku --effort high'; check $? 0 "…and the CLI got --effort high"
+wait_dead hkr2; rm $W/.agent-hub/config.json
 AGENT_HUB_REVIEW_MODEL=fable $B/hub reviewer > $P/rev.out 2> $P/rev.err; check $? 0 "hub reviewer takes fable as AGENT_HUB_REVIEW_MODEL"
 grep -q 'agent fable/high' $P/rev.out && ! grep -q 'using opus' $P/rev.err; check $? 0 "…and keeps it (no fallback to opus)"
 grep -q -- '--model fable' $P/rev.out; check $? 0 "…and the start line names it"

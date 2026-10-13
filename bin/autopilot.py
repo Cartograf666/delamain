@@ -369,17 +369,17 @@ def codex_policy(given: Optional[str], context: dict, cwd: Path) -> tuple:
     return sandbox, "never"
 
 
-def successor_effort(given: Optional[str], model: Optional[str] = None, notes: Optional[list] = None,
-                     hook: Optional[str] = None) -> Optional[str]:
+def successor_effort(given: Optional[str], notes: Optional[list] = None, hook: Optional[str] = None) -> str:
     """--effort, else AGENT_HUB_SUCCESSOR_EFFORT, else the effort this session runs at now (session_effort); when that
     cannot be read, a refusal (hc.Failure) — a guess would start the hub below its predecessor and nobody would see it.
-    A model without an effort setting (Haiku) gets None. `notes` receives where an inherited effort came from; `hook` is
+    The successor's model does not matter: a Haiku successor gets an effort like any other (Haiku 5.5 has the setting,
+    Haiku 4.5 takes the flag and ignores it). `notes` receives where an inherited effort came from; `hook` is
     `effort.level` of the hook input this runs for."""
     if given is not None and given not in hc.EFFORTS:
         raise hc.UsageError(f"--effort {given!r}: one of {', '.join(hc.EFFORTS)}")
     effort = given or configured_effort()
-    if effort or (model and "haiku" in model.lower()):
-        return effort or None
+    if effort:
+        return effort
     try:
         found = session_effort.resolve(hook=hook)
     except hc.Failure as e:
@@ -455,7 +455,7 @@ def instruction(stage: str, model: Optional[str], mode: Optional[str], cwd: Opti
                 "only when the successor is dead. A chain limit stops automatic launches until the owner responds. "
                 f"At {block_k} only handoff/succeed, jlog/jwait and the HANDOFF file pass.")
     effort = configured_effort() or effort
-    unread = ("" if effort or (model and "haiku" in model.lower()) else
+    unread = ("" if effort else
               " (your own effort could not be read here: `hub succeed` reads it itself and stops if it cannot — then "
               "add --effort <your effort>)")
     return (f"Autopilot is on (AGENT_HUB_AUTO_HANDOFF). {when}: (1) `{tool('hub')} handoff --stage {stage}` and fill "
@@ -512,7 +512,7 @@ class Successor:
         self.cwd = self.root or cwd
         self.k, self.limit = k, limit
         self.cli_model = hc.model_map(cwd).get(model, model)  # `claude --bg` gets the id an AGENT_HUB_MODEL_MAP alias names
-        self.effort = successor_effort(effort, self.cli_model)
+        self.effort = successor_effort(effort)
         self.succ = succ or n + 1
         self.worktree: Optional[Path] = None  # the successor's worktree once started
         self.tag = f"hub-{n}"
@@ -577,7 +577,7 @@ class Successor:
             argv += ["--worktree", self.wt_name]
         argv += hc.add_dir_args(cwd or self.cwd)
         argv += ["--model", self.cli_model]
-        if self.effort:  # none for Haiku, which has no effort setting (`agent spawn` skips it too)
+        if self.effort:
             argv += ["--effort", self.effort]
         if flag:
             argv += ["--permission-mode", flag]
@@ -1176,7 +1176,7 @@ def succeed(stage: str, n: int, handoff: Path, model: Optional[str], mode: Optio
                                 "AGENT_HUB_SUCCESSOR_MODEL is not set)")
         # --again without a new --effort: the previous attempt's effort, not the hub's own now
         effort = successor_effort(effort_arg or (retry.get("effort") if retry.get("engine") != "codex" else None),
-                                  hc.model_map(cwd).get(model, model), effort_notes)
+                                  effort_notes)
         problem = hc.model_problem(model, cwd)
         mode = successor_mode(mode or (retry.get("mode") if replace else None))
         if mode not in MODES:
@@ -1768,7 +1768,7 @@ def fallback(stage: str, n: int, why: Optional[str], succ: Optional[int] = None)
             return 1
         bg = dict(pend, kind="bg") if pend.get("kind") == "falling-back" else pend  # a stale run of --fallback
         # a bad setting, or an effort that cannot be read, is refused before the reservation is saved
-        effort = successor_effort(bg.get("effort"), hc.model_map(Path(bg.get("cwd") or os.getcwd())).get(bg["model"], bg["model"]))
+        effort = successor_effort(bg.get("effort"))
         reservation = dict(bg, kind="falling-back", at=now, bg_at=bg.get("bg_at") or bg.get("at"))
         data["pending"] = reservation
         save_state(stage, data)

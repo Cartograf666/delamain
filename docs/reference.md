@@ -185,8 +185,10 @@ A full working day, step by step: [docs/a-day-with-delamain.md](a-day-with-delam
   priced at what the stage's agents' own results show per model (±20 %); Codex agents show tokens only, never dollars.
 - **Agents run on the latest models if Claude Code is current.** `--model opus|sonnet|haiku|fable` goes to the CLI,
   which resolves the alias to the newest model of that family: Claude Code 2.1.287 (the minimum supported version) and
-  later gives `claude-sonnet-5-5`, `claude-opus-5-5`, `claude-haiku-4-5-20251001` and `claude-fable-5-1`, an older CLI
-  gives older models. Keep Claude Code updated; `agent spawn` and `hub start` warn when the CLI is older than 2.1.287,
+  later gives `claude-sonnet-5-5`, `claude-opus-5-5` and `claude-fable-5-1`, an older CLI gives older models. `haiku`
+  is `claude-haiku-5-5` only from Claude Code 2.1.296; 2.1.287 to 2.1.295 give `claude-haiku-4-5-20251001` (the minimum
+  is not raised for it). Haiku 5.5 has an effort setting, so `--effort` and the effort defaults apply to it like to
+  any other model; Haiku 4.5 accepts the flag and ignores it. Keep Claude Code updated; `agent spawn` and `hub start` warn when the CLI is older than 2.1.287,
   and without `CLAUDE_BIN` they start the
   newer of `claude` on `PATH` and the CLI bundled with Claude Desktop (`agent spawn` prints which). The plugin pins no
   ids, since a pin goes stale with the next release: the id each run reports is shown by `agent status`, the journal's
@@ -417,7 +419,7 @@ Settings are environment variables; each can also be set in a `config.json` (bel
 | `HUB_TAG` | from `roles` | Journal tag of the caller (set for agents automatically; environment only). Without it the tag is the registry entry of this session's id; for a Claude Desktop session whose CLI restarted (a new `$CLAUDE_CODE_SESSION_ID` under the same `local_…` id) it is found through `$CLAUDE_CODE_HOST_SESSION_ID`, provided Desktop's own record of that session names this CLI session, and the registry's CLI id is refreshed. |
 | `AGENT_HUB_TZ` | local zone | IANA time zone of journal times and deadlines. Hub-wide. |
 | `AGENT_HUB_MODEL_MAP` | none | Opt-in pin of aliases to model ids (without it an alias follows the CLI, which resolves it to its latest model), e.g. `sonnet=claude-sonnet-…,opus=claude-opus-…` (in JSON also `{"sonnet": "…"}`). A model id may use letters, digits and `. _ : @ [ ] / -` only (a Bedrock id or an ARN is fine); a pair outside that is reported and left out. |
-| `AGENT_HUB_DEFAULT_EFFORT` | `high` | Effort for `agent spawn` without `--effort` and without an `AGENT_HUB_EFFORT_DEFAULTS` entry for the model (haiku gets none). |
+| `AGENT_HUB_DEFAULT_EFFORT` | `high` | Effort for `agent spawn` without `--effort` and without an `AGENT_HUB_EFFORT_DEFAULTS` entry for the model, for every model including `haiku`. |
 | `AGENT_HUB_EFFORT_DEFAULTS` | none | JSON object `{"<model>": "<effort>", …}`: the effort of `agent spawn` without `--effort`, per model, for both engines (Codex by its own names and efforts). A key is a glob or a plain word matched anywhere in the model name; the alias given and the id it maps to are both tried, the first matching key wins. A repository may set it. It is also the yardstick of `--reason`: an effort ranked above it needs one. |
 | `AGENT_HUB_REASON_MODELS` | none | Hub-wide. JSON list of models (globs or plain words) that count as above the default: `agent spawn` of one needs `--reason "…"`. A Codex spawn without `--model` and without `AGENT_HUB_CODEX_DEFAULT_MODEL` has an unknown model (the plugin does not reproduce the Codex CLI's config layers): with this list set, policy `refuse` refuses it ("the model the Codex CLI will choose cannot be checked: pass --model", a `--reason` does not help) and `warn` prints one warning that the model check was skipped; with the list empty (the default) nothing changes. The per-model effort default of an unknown model is the general one. `hub succeed` passes a reason of its own, so a refusing policy never stops the autopilot chain. |
 | `AGENT_HUB_REASON_POLICY` | `warn` | Hub-wide. What an `agent spawn` above the default (an effort above the model's default, or a model of `AGENT_HUB_REASON_MODELS`) gets when it has no `--reason`: `warn` (one stderr line, the agent starts), `refuse` (usage error, nothing starts), `off`. The reason goes into the journal's start line and the agent's `meta.json`. |
@@ -697,7 +699,7 @@ The environment still wins for every key, so whatever sets environment variables
 | `AGENT_HUB_AUTO_HANDOFF` | `off` | hub home only | `on` (or JSON `true`): [autopilot](#autopilot-the-hub-hands-over-by-itself) — the stage hub hands over to a successor by itself. |
 | `AGENT_HUB_AUTO_HANDOFF_CHAIN` | `10` | hub home only | Automatic handoffs in a row without the owner; `0` = never start a successor. |
 | `AGENT_HUB_SUCCESSOR_MODEL` | the hub's own | hub home only | The successor's model (alias or `claude-…` id); default: the model of the hub's last turn. |
-| `AGENT_HUB_SUCCESSOR_EFFORT` | the hub's own | hub home only | The Claude successor's `--effort` (`low`…`max`); `hub succeed --effort` overrides it. Unset: the effort the hub runs at now, read from its session (`hub effort`); if it cannot be read `hub succeed` refuses instead of guessing. A Haiku successor gets no effort. Codex successors inherit the hub's effort. |
+| `AGENT_HUB_SUCCESSOR_EFFORT` | the hub's own | hub home only | The Claude successor's `--effort` (`low`…`max`); `hub succeed --effort` overrides it. Unset: the effort the hub runs at now, read from its session (`hub effort`); if it cannot be read `hub succeed` refuses instead of guessing. Codex successors inherit the hub's effort. |
 | `AGENT_HUB_SUCCESSOR_PERMISSION_MODE` | `inherit` | hub home only | The successor's `--permission-mode`; `inherit` = the hub's own (plan mode starts it in the default mode). |
 | `AGENT_HUB_SUCCESSOR_TIMEOUT` | `600` | hub home only | Seconds to wait for the successor's takeover line before the headless fallback. |
 | `AGENT_HUB_POLL_GUARD` | `on` | repo or home | `off` disables the polling guard (e.g. in a repository with its own). |
@@ -725,7 +727,7 @@ match allows (each set on its own — see `AGENT_HUB_EFFORT_RULES` above). A rul
 | `defined` | `true` when a definition was found (project `.claude/agents`, `~/.claude/agents`, installed plugins' `agents/`) |
 | `model` | the call's `model`, else the definition's `model:`, else `inherit`; for `agent spawn` the alias and the id it maps to |
 | `model_from` | `param`, `definition` or `inherit` |
-| `effort` | the definition's pinned `effort:`, else `inherit`; for `agent spawn` the effort used (`none` when the model takes none) |
+| `effort` | the definition's pinned `effort:`, else `inherit`; for `agent spawn` the effort used |
 
 ```json
 {"AGENT_HUB_EFFORT_RULES": [
@@ -742,7 +744,7 @@ denial names the rule (`[AGENT_HUB_EFFORT_RULES rule 1]`); `delegation try --typ
 the rules say about a call without making it. A malformed list is reported on stderr and ignored.
 
 [docs/examples/subagent-policy.json](examples/subagent-policy.json) is a complete example for a user whose
-sessions run at a high effort: the smallest model free at any type, every other model only through a pinned-effort
+sessions run at a high effort: the smallest model free at any type but never at `low` (high by default, medium allowed), every other model only through a pinned-effort
 worker with an explicit model, one mid-size model only at high or xhigh, forks denied, level 0 closing `Agent` and
 `Workflow`.
 
@@ -777,7 +779,7 @@ The Claude-specific facilities below apply when the selected host/engine is Clau
 - macOS and Linux only (`fcntl`, `setsid`, `ps`, `curses`). Windows is not supported and WSL is untested; Claude Code
   itself runs natively on Windows. Python 3.10+ for Claude, 3.11+ for Codex; standard library only.
 - The selected CLI must be on `PATH` (or set `CLAUDE_BIN` / `CODEX_BIN`); on macOS the CLI bundled with Claude Desktop is used when it
-  is newer. Model aliases follow the CLI; Claude Code older than 2.1.287 is unsupported (its aliases resolve to older models).
+  is newer. Model aliases follow the CLI; Claude Code older than 2.1.287 is unsupported (its aliases resolve to older models), and `haiku` is Haiku 5.5 only from 2.1.296.
 - Headless agents run with `bypassPermissions` by default. Give every agent a brief that says what it must not
   touch, or set `AGENT_HUB_PERMISSION_MODE`.
 - The hub home must be writable without a prompt, so keep it out of `.claude`, which Claude Code protects (the legacy

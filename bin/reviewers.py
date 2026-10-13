@@ -316,7 +316,7 @@ def start_line(entry: Entry, stage: str | None = None) -> str:
     if entry.kind == "skill":
         return (f"load skill `{entry.skill}`; give it the brief file, the repository, the base sha and the head ref "
                 "(the skill reviewer contract: docs/reviewers.md)")
-    effort = "" if "haiku" in (entry.model or "") else f" --effort {shlex.quote(entry.effort)}"
+    effort = f" --effort {shlex.quote(entry.effort)}"
     engine = f" --engine {entry.engine}" if entry.explicit_engine or entry.engine == "codex" else ""
     sandbox = " --sandbox read-only" if entry.engine == "codex" else ""
     model = f" --model {shlex.quote(entry.model)}" if entry.model else ""

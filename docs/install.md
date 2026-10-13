@@ -7,7 +7,7 @@ Windows ([setup](https://code.claude.com/docs/en/setup)); the limit is Delamain'
 Follow the [README's three-step recipe](../README.md#start): install, set up the project, then give the hub a job.
 If you start the hub first, it offers `delamain:setup` when the repository has no `.agent-hub/`.
 
-**Claude Code:** Python 3.10+ and Claude Code 2.1.287+; older CLI versions are unsupported.
+**Claude Code:** Python 3.10+ and Claude Code 2.1.287+; older CLI versions are unsupported. The alias `haiku` is Haiku 5.5 from Claude Code 2.1.296 (Haiku 4.5 before).
 
 ```text
 /plugin marketplace add ilya-kozyrev/delamain
