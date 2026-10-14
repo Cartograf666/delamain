@@ -151,7 +151,8 @@ clean worktree with no commits of its own is fast-forwarded to origin's default 
 `mcp__ccd_directory__change_directory`; Codex: run later commands with that workdir) and the command line to re-run.
 Desktop applies `change_directory` when the turn ends and first asks the owner to trust the folder (it trusts on its own
 only the worktrees it creates); an unanswered prompt expires in 5 minutes and the session stays under "No folder", so the
-hub ends that turn asking the owner to confirm the prompt, starts no background command first, and checks `pwd` next turn.
+hub ends that turn at once asking the owner to confirm the prompt, starts no background command first, and next turn
+checks `pwd` before it re-runs the command.
 With nothing that names a project it exits 4 with `NO PROJECT:`: re-run with `--repo <the project's main clone>`, or with
 `--no-project` for a stage that has no repository (it starts in place and is recorded as such). The environment variable
 `AGENT_HUB_NO_PROJECT=1` does the same silently, for scripted environments and the test suite (environment only: a cloned

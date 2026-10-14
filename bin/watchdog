@@ -1129,21 +1129,11 @@ def shim_path() -> Path:
     return wd_dir() / "run.sh"
 
 
-def default_claude_config(value) -> bool:
-    """Whether CLAUDE_CONFIG_DIR names ~/.claude. Not a neutral value: unset, the claude CLI reads ~/.claude.json;
-    set, <dir>/.claude.json — for ~/.claude a near-empty file with no trusted folders and no login, so every
-    `claude --bg --resume` of a wake fails with "Workspace not trusted" (a shim written from a Codex shell, 08.10)."""
-    try:
-        return bool(value) and Path(value).expanduser().resolve() == (Path.home() / ".claude").resolve()
-    except OSError:
-        return False
-
-
 def render_shim() -> str:
     env = {"AGENT_HUB_HOME": str(hc.root()), "PATH": os.environ.get("PATH", "")}
     for name in ("AGENT_HUB_TZ", "AGENT_HUB_NIGHT", "AGENT_HUB_STATE_DIR", "CLAUDE_CONFIG_DIR", "CODEX_HOME") + KEYS:
-        if name == "CLAUDE_CONFIG_DIR" and default_claude_config(os.environ.get(name)):
-            continue  # left unset: the CLI then reads ~/.claude.json, as in the owner's own terminal
+        if name == "CLAUDE_CONFIG_DIR" and hc.misleading_claude_config(os.environ.get(name)):
+            continue  # unset below: the CLI then reads ~/.claude.json, as in the owner's own terminal
         if os.environ.get(name):  # what the installing shell set; config.json is read by the job itself
             env[name] = os.environ[name]
     try:
@@ -1157,6 +1147,8 @@ def render_shim() -> str:
         env["CODEX_BIN"] = codex
     lines = ["#!/bin/sh", "# delamain watchdog: written by `watchdog install`; run it again after a plugin update",
              f"# bin: {hc.BIN}"] + [f"export {k}={shlex.quote(v)}" for k, v in env.items()]
+    if "CLAUDE_CONFIG_DIR" not in env:  # nor inherited from launchd or cron (`launchctl setenv`)
+        lines.append("unset CLAUDE_CONFIG_DIR")
     lines.append(f"exec {shlex.quote(sys.executable)} {shlex.quote(str(hc.BIN / 'watchdog'))} run")
     return "\n".join(lines) + "\n"
 
@@ -1282,7 +1274,10 @@ def shim_claude_config():
     """The CLAUDE_CONFIG_DIR an installed shim exports, None when it exports none."""
     for line in shim_lines():
         if line.startswith("export CLAUDE_CONFIG_DIR="):
-            words = shlex.split(line[len("export CLAUDE_CONFIG_DIR="):])
+            try:
+                words = shlex.split(line[len("export CLAUDE_CONFIG_DIR="):])
+            except ValueError:  # a quoted value split by a newline in the path: not the default directory
+                return ""
             return words[0] if words else ""
     return None
 
@@ -1304,7 +1299,7 @@ def cmd_status(a) -> int:
     if installed and recorded and Path(recorded).resolve() != hc.BIN.resolve():
         print(f"job runs the plugin at {recorded}, this tool is {hc.BIN}: install again")
     config = shim_claude_config()
-    if installed and default_claude_config(config):
+    if installed and hc.misleading_claude_config(config):
         print(f"job sets CLAUDE_CONFIG_DIR={config}: the claude CLI then reads {config}/.claude.json instead of "
               "~/.claude.json (no trusted folders, no login) and every wake fails as \"Workspace not trusted\": "
               "install again")

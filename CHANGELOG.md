@@ -6,12 +6,15 @@
   installing shell into the job's `run.sh`, and a Codex shell sets it to `~/.claude`. That value is not neutral: with
   it the claude CLI reads `~/.claude/.claude.json` instead of `~/.claude.json`, with no trusted folders and no login,
   so from 09.10 every `claude --bg --resume` of a wake failed with "Workspace not trusted" (49 times in one hub home).
-  `install` now leaves a `CLAUDE_CONFIG_DIR` that names `~/.claude` unset (another directory is still exported), and
-  `watchdog status` says `install again` for a job written before the fix.
+  `install` now unsets a `CLAUDE_CONFIG_DIR` that names `~/.claude` while `~/.claude.json` exists (another directory,
+  or `~/.claude` without `~/.claude.json`, is still exported), and `watchdog status` says `install again` for a job
+  written before the fix. Every claude CLI call of the tools (`agent spawn`, a manual `watchdog run`, `hub succeed`)
+  drops the same value from its environment.
 - **A hub that takes over in a Desktop session under "No folder" lands in its project's folder.** Desktop applies
   `change_directory` to the hub's worktree at the end of the turn only after the owner trusts the folder, and drops the
   move when the prompt goes unanswered for 5 minutes. The `MOVE` instructions of `hub takeover` and the hub skill now
-  say: start no background command, end the turn asking the owner to confirm the prompt, check `pwd` next turn.
+  say: start no background command, end the turn at once asking the owner to confirm the prompt, and next turn
+  check `pwd` before the re-run.
 
 - **Haiku takes an effort like every other model.** Claude Haiku 5.5 has an effort setting (`low` to `max`), and
   Claude Code 2.1.296 resolves the alias `haiku` to it (2.1.287 to 2.1.295 still give Haiku 4.5; the minimum supported

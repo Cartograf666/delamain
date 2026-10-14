@@ -92,7 +92,8 @@ command exits 4 with `MOVE <path>`, move as it prints — Claude Code: `EnterWor
 (the session was launched outside the repository, e.g. a Desktop session under "No folder")
 `mcp__ccd_directory__change_directory` with that path (it takes effect when the turn ends: use absolute paths until then;
 Desktop first asks the owner to trust the folder and drops the move when nobody answers within 5 minutes, so start no
-background command, end the turn after the re-run asking the owner to confirm that prompt, and check `pwd` next turn);
+background command, end the turn at once asking the owner to confirm that prompt, and next turn check `pwd`
+before the re-run);
 Codex: run every later command with that workdir — then run the command line it prints again. `NO PROJECT`: find the
 project the task is about (its main clone under `~/repos/`, or where the brief points) and re-run with
 `--repo <main clone>`; `--no-project` is only for a stage that has no repository at all.
