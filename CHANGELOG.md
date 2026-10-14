@@ -6,8 +6,9 @@
   defaults (and one with an "accept all three?" popup), not the companion `grilling` skill: free-text Russian did not
   load the skill, and the hub skill capped grilling at "stop once the business result is clear". The prompt hook
   (`delegation.py prompt`, both engines) now names the skill when the owner's prompt asks for grilling (грилинг,
-  грилл ми, погриль, grill; not a bare «гриль»), and the hub skill says an owner-requested grilling runs as written
-  until the topic's frontier is empty, open owner questions included.
+  грилл ми, погриль, grill me, grilling; not «гриль», «грили», "grilled" or a skills/grilling/ path), and the hub
+  skill says an owner-requested grilling runs as written until the topic's frontier is empty, open owner questions
+  included; its questions wait for the owner's answers instead of taking the recommendation on silence.
 
 ## 1.0.3 — 2026-10-14
 

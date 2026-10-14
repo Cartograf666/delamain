@@ -59,9 +59,10 @@ LEVELS = range(0, 6)
 # (Haiku did, CLI 2.1.289).
 FORMER_PLUGIN = sr.LEGACY_PLUGIN_NAME  # rename:transition
 # rename:transition
-# The owner asking to be grilled, in Russian or English: «грилинг», «грилл ми», «погриль», "grill me". Not a bare
-# «гриль» (a barbecue grill).
-GRILL_RE = re.compile(r"грил(?!ь\b)|погриль|grill", re.IGNORECASE)
+# The owner asking to be grilled, in Russian or English: «грилинг», «грилл ми», «погриль», «грильни», "grill me",
+# "grilling", /…:grill-me. Not a barbecue grill («гриль», «грили», "grilled cheese") nor a path (skills/grilling/).
+GRILL_RE = re.compile(r"грилл?инг|грилл?\s*ми|погрилл?[ьи]|грилл?ьн|\bgrill\s+me\b|\bgrilling\b(?![/.])|:grill-me\b",
+                      re.IGNORECASE)
 FORMER_COMMAND_RE = re.compile(r"\s*/" + re.escape(FORMER_PLUGIN) + r":([A-Za-z0-9][A-Za-z0-9_-]*)(?=\s|\Z)")
 BUILTIN_LEVELS = {
     0: ("OFF", "Do everything yourself. No subagents (the Agent and Workflow tools are blocked by a hook) and no "
@@ -208,13 +209,14 @@ def grilling_context(prompt) -> str | None:
     the hook names it; the text is engine-neutral and decides nothing else."""
     if not isinstance(prompt, str) or not GRILL_RE.search(prompt):
         return None
-    return ("The owner asks for grilling. Before replying, load the companion grilling skill (Claude Code: the Skill "
-            "tool with `mattpocock-skills:grilling`; Codex: the `grilling` skill) and run it as written: rounds of "
-            "numbered questions, each with a recommended answer, in its format, until the frontier of the topic the "
-            "owner named is empty; facts you can look up are yours, not questions. A hub's own question format "
-            "(A/B with a default and a due time) and its \"stop once the business result is clear\" limit do not "
-            "apply to a grilling the owner asked for. If the skill is not installed, say so once and follow the same "
-            "method.")
+    return ("The owner's prompt looks like a request for grilling. If it is one, before replying load the companion "
+            "grilling skill (Claude Code: the Skill tool with `mattpocock-skills:grilling`; Codex: the `grilling` "
+            "skill) and run it as written: rounds of numbered questions, each with a recommended answer, in its "
+            "format, until the frontier of the topic the owner named is empty; facts you can look up are yours, not "
+            "questions. A hub's own question format (A/B with a default and a due time) and its \"stop once the "
+            "business result is clear\" limit do not apply to a grilling the owner asked for, and its decisions wait "
+            "for the owner's answers: a recommendation is not a default taken on silence. If the prompt only mentions "
+            "grilling, ignore this note. If the skill is not installed, say so once and follow the same method.")
 
 
 def emit(event: str, **fields) -> None:

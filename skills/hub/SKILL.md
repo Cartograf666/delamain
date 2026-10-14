@@ -277,8 +277,9 @@ you need. When you go quiet on purpose (a long wait for the owner, a pause), say
   default you take if no answer comes.
 - Grilling on request: when the owner asks for grilling in any words (грилинг, погриль, грилл ми, grill me), load the
   companion `grilling` skill before replying and run it as written — rounds of numbered questions, each with a
-  recommended answer, until the frontier of the topic the owner named is empty; the recommended answer is the default
-  you record with `ask add`. The planning limit below ("stop once the business result is clear") and the A/B question
+  recommended answer, until the frontier of the topic the owner named is empty. A question you record with `ask add`
+  keeps the recommendation as a recommendation: its default is waiting for the owner's answer, never acting on
+  silence. The planning limit below ("stop once the business result is clear") and the A/B question
   format do not shorten it. A set of open owner questions is put as such a round too, not as one "accept all?" item.
 
 ## Planning a stage: agree the business result before autonomous work
