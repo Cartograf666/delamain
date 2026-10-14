@@ -654,9 +654,13 @@ def check_location(stage: str, n: int, rerun: str, repo_arg: Optional[str] = Non
     else:
         print(f"{'[plan] would create' if dry_run else 'Created'} the worktree {path} on a new branch from {base} {sha[:7]}.")
     print("Move this session there before anything else:\n"
-          f"  Claude Code: EnterWorktree with path={path}; if it refuses (the session was launched outside the "
-          "repository, e.g. a Desktop session under \"No folder\"), mcp__ccd_directory__change_directory with that "
-          "path (it takes effect when the turn ends: use absolute paths until then).\n"
+          f"  Claude Code: EnterWorktree with path={path}. If it refuses (the session was launched outside the "
+          "repository, e.g. a Desktop session under \"No folder\"): mcp__ccd_directory__change_directory with "
+          f"path={R} — the main clone, not the worktree: Desktop files a session in the sidebar under the folder it "
+          "moved to, and the main clone is usually trusted already (a new worktree waits for the owner's trust prompt, "
+          "which expires in 5 minutes). It applies when the turn ends: start no background command, end the turn "
+          f"at once; next turn check `pwd` is {R}, call EnterWorktree with path={path}, make no edits in the main "
+          "clone.\n"
           f"  Codex: run every later command with the workdir {path}.\n"
           f"Then re-run: {rerun}")
     return Located(LOCATION_EXIT, R, "")
@@ -981,10 +985,26 @@ def truthy(raw: Optional[str]) -> bool:
     return (raw or "").strip().lower() in ("1", "true", "yes", "on")
 
 
+def misleading_claude_config(value) -> bool:
+    """Whether CLAUDE_CONFIG_DIR names ~/.claude while ~/.claude.json exists. Not a neutral value: unset, the claude
+    CLI reads ~/.claude.json; set, <dir>/.claude.json — here a file without the owner's trusted folders and login, so
+    every `claude --bg --resume` failed "Workspace not trusted" (a watchdog job installed from a Codex shell, 08.10).
+    Without ~/.claude.json the directory may hold the real config, and it is kept."""
+    try:
+        home = Path.home()
+        return (bool(value) and Path(value).expanduser().resolve() == (home / ".claude").resolve()
+                and (home / ".claude.json").exists())
+    except (OSError, RuntimeError):
+        return False
+
+
 def child_env(extra: Optional[dict] = None) -> dict:
     """Environment for calling the sibling tools and the agents: the resolved home pinned in $AGENT_HUB_HOME (a child
-    in another directory must not resolve another one), this bin/ first on PATH and in $HUB_BIN."""
+    in another directory must not resolve another one), this bin/ first on PATH and in $HUB_BIN; a misleading
+    CLAUDE_CONFIG_DIR (misleading_claude_config) is dropped, so the claude CLI reads the owner's own config."""
     env = dict(os.environ)
+    if misleading_claude_config(env.get("CLAUDE_CONFIG_DIR")):
+        del env["CLAUDE_CONFIG_DIR"]
     env["AGENT_HUB_HOME"] = str(root())
     env["PATH"] = str(BIN) + os.pathsep + env.get("PATH", "")
     env["HUB_BIN"] = str(BIN)  # for a brief written by an older run: rebuilt at every spawn and resume, so it follows updates
