@@ -149,6 +149,11 @@ clean worktree with no commits of its own is fast-forwarded to origin's default 
 `<repo>/.claude/worktrees/<stage>-hub-<n>` on a new branch from origin's default branch, and the command exits 4 with
 `MOVE <path>`, how to move the session there (Claude Code: `EnterWorktree` with `path=<path>`, else
 `mcp__ccd_directory__change_directory`; Codex: run later commands with that workdir) and the command line to re-run.
+From a Desktop session under "No folder" the move goes through the project's main clone: `change_directory` to the
+main clone (Desktop files a session in the sidebar under the folder it moved to — a worktree path gets a folder of its
+own — and asks the owner to trust a folder it did not create, a prompt that expires in 5 minutes; the main clone is
+usually trusted already), applied when the turn ends, so the hub starts no background command and ends that turn at
+once; next turn it checks `pwd`, calls `EnterWorktree` with the worktree and re-runs the command.
 With nothing that names a project it exits 4 with `NO PROJECT:`: re-run with `--repo <the project's main clone>`, or with
 `--no-project` for a stage that has no repository (it starts in place and is recorded as such). The environment variable
 `AGENT_HUB_NO_PROJECT=1` does the same silently, for scripted environments and the test suite (environment only: a cloned
@@ -567,7 +572,8 @@ worker subagents.
 ```text
  SessionStart ────────── delegation.py session-start   inject the delegation level's policy        (dial on)
  UserPromptSubmit ────┬─ delegation.py prompt          re-inject it after the level changed         (dial on); point the
-                      │                                command used before the rename at its skill
+                      │                                command used before the rename at its skill; when the owner
+                      │                                asks for grilling (грилинг, grill me), name the grilling skill
                       └─ context_budget.py             warn once per step above the warn threshold
  PreToolUse  Bash ────── polling_guard.py              deny foreground wait loops, long sleeps,
                                                        self-matching pgrep -f, one-off CI status reads

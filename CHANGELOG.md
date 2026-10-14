@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+- **Optional rules for Codex-coordinated stages.** A documented example combines a shared home, detached workers
+  with explicit model and effort, separate writer worktrees, visible launch results and preservation of the approved
+  goal through handoffs. Home inspection preserves the owner's existing selection; structured worker status verifies
+  the engine explicitly. Adoption is explicit; shared files retain an engine condition and Claude defaults are unchanged.
+
+## 1.0.4 — 2026-10-14
+
+- **Hubs grill when the owner asks.** On 14.10 two of two hubs answered «грилинг» with one batch of A/B questions with
+  defaults (and one with an "accept all three?" popup), not the companion `grilling` skill: free-text Russian did not
+  load the skill, and the hub skill capped grilling at "stop once the business result is clear". The prompt hook
+  (`delegation.py prompt`, both engines) now names the skill when the owner's prompt asks for grilling (грилинг,
+  грилл ми, погриль, grill me, grilling; not «гриль», «грили», "grilled" or a skills/grilling/ path), and the hub
+  skill says an owner-requested grilling runs as written until the topic's frontier is empty, open owner questions
+  included; its questions wait for the owner's answers instead of taking the recommendation on silence.
+
+- **Portable Python selection.** `bin/run-python` chooses a compatible interpreter on `PATH`, or validates an
+  explicit `DELAMAIN_PYTHON` override. Native Codex hooks require 3.11+ through this launcher; terminal tools can
+  request 3.10+ or 3.11+ without editing installed files. Claude hooks and CLI shebangs are unchanged. Detached
+  agents write their exit journal with the interpreter that launched them, preserving their original exit code.
+
+## 1.0.3 — 2026-10-14
+
+- **The watchdog wakes Claude background hubs again.** `watchdog install` copied `CLAUDE_CONFIG_DIR` from the
+  installing shell into the job's `run.sh`, and a Codex shell sets it to `~/.claude`. That value is not neutral: with
+  it the claude CLI reads `~/.claude/.claude.json` instead of `~/.claude.json`, with no trusted folders and no login,
+  so from 09.10 every `claude --bg --resume` of a wake failed with "Workspace not trusted" (49 times in one hub home).
+  `install` now unsets a `CLAUDE_CONFIG_DIR` that names `~/.claude` while `~/.claude.json` exists (another directory,
+  or `~/.claude` without `~/.claude.json`, is still exported), and `watchdog status` says `install again` for a job
+  written before the fix. Every claude CLI call of the tools (`agent spawn`, a manual `watchdog run`, `hub succeed`)
+  drops the same value from its environment.
+- **A hub that takes over in a Desktop session under "No folder" lands in its project's folder.** `change_directory`
+  straight to the hub's worktree waited for the owner's folder-trust prompt (dropped after 5 minutes unanswered) and,
+  once applied, filed the session in the sidebar under a folder of its own named after the worktree. The `MOVE`
+  instructions of `hub takeover` and the hub skill now go through the main clone: `change_directory` to it (trusted,
+  filed under the project), end the turn with no background command, next turn `EnterWorktree` into the worktree.
+  Probed 14.10 on the Dolya hub.
+
 - **Haiku takes an effort like every other model.** Claude Haiku 5.5 has an effort setting (`low` to `max`), and
   Claude Code 2.1.296 resolves the alias `haiku` to it (2.1.287 to 2.1.295 still give Haiku 4.5; the minimum supported
   version is unchanged). `agent spawn` no longer drops the effort of a haiku model: `--effort`, else the
@@ -14,11 +51,6 @@
   having none. A resume (`agent send`) of a Haiku agent spawned before this change, with no effort on record, gets the
   effort a spawn would (same defaults and `AGENT_HUB_EFFORT_RULES` check) and records it. The example subagent policy keeps Haiku free at any type but denies it at `low` (Haiku runs at high, medium
   allowed); the docs add no low default for Haiku.
-
-- **Optional rules for Codex-coordinated stages.** A documented example combines a shared home, detached workers
-  with explicit model and effort, separate writer worktrees, visible launch results and preservation of the approved
-  goal through handoffs. Home inspection preserves the owner's existing selection; structured worker status verifies
-  the engine explicitly. Adoption is explicit; shared files retain an engine condition and Claude defaults are unchanged.
 
 ## 1.0.2 — 2026-10-08
 
