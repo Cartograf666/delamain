@@ -656,7 +656,10 @@ def check_location(stage: str, n: int, rerun: str, repo_arg: Optional[str] = Non
     print("Move this session there before anything else:\n"
           f"  Claude Code: EnterWorktree with path={path}; if it refuses (the session was launched outside the "
           "repository, e.g. a Desktop session under \"No folder\"), mcp__ccd_directory__change_directory with that "
-          "path (it takes effect when the turn ends: use absolute paths until then).\n"
+          "path (it takes effect when the turn ends: use absolute paths until then). Desktop first asks the owner to "
+          "trust that folder, and the prompt expires in 5 minutes, leaving the session under \"No folder\": start no "
+          "background command, end the turn after the re-run with one line asking the owner to confirm the "
+          "folder-trust prompt, and next turn check with `pwd` that the session is in that folder.\n"
           f"  Codex: run every later command with the workdir {path}.\n"
           f"Then re-run: {rerun}")
     return Located(LOCATION_EXIT, R, "")
