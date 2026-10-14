@@ -12,11 +12,12 @@
   or `~/.claude` without `~/.claude.json`, is still exported), and `watchdog status` says `install again` for a job
   written before the fix. Every claude CLI call of the tools (`agent spawn`, a manual `watchdog run`, `hub succeed`)
   drops the same value from its environment.
-- **A hub that takes over in a Desktop session under "No folder" lands in its project's folder.** Desktop applies
-  `change_directory` to the hub's worktree at the end of the turn only after the owner trusts the folder, and drops the
-  move when the prompt goes unanswered for 5 minutes. The `MOVE` instructions of `hub takeover` and the hub skill now
-  say: start no background command, end the turn at once asking the owner to confirm the prompt, and next turn
-  check `pwd` before the re-run.
+- **A hub that takes over in a Desktop session under "No folder" lands in its project's folder.** `change_directory`
+  straight to the hub's worktree waited for the owner's folder-trust prompt (dropped after 5 minutes unanswered) and,
+  once applied, filed the session in the sidebar under a folder of its own named after the worktree. The `MOVE`
+  instructions of `hub takeover` and the hub skill now go through the main clone: `change_directory` to it (trusted,
+  filed under the project), end the turn with no background command, next turn `EnterWorktree` into the worktree.
+  Probed 14.10 on the Dolya hub.
 
 - **Haiku takes an effort like every other model.** Claude Haiku 5.5 has an effort setting (`low` to `max`), and
   Claude Code 2.1.296 resolves the alias `haiku` to it (2.1.287 to 2.1.295 still give Haiku 4.5; the minimum supported

@@ -654,12 +654,13 @@ def check_location(stage: str, n: int, rerun: str, repo_arg: Optional[str] = Non
     else:
         print(f"{'[plan] would create' if dry_run else 'Created'} the worktree {path} on a new branch from {base} {sha[:7]}.")
     print("Move this session there before anything else:\n"
-          f"  Claude Code: EnterWorktree with path={path}; if it refuses (the session was launched outside the "
-          "repository, e.g. a Desktop session under \"No folder\"), mcp__ccd_directory__change_directory with that "
-          "path (it takes effect when the turn ends: use absolute paths until then). Desktop first asks the owner to "
-          "trust that folder, and the prompt expires in 5 minutes, leaving the session under \"No folder\": start no "
-          "background command, end the turn at once with one line asking the owner to confirm the folder-trust "
-          "prompt, and next turn check with `pwd` that the session is in that folder before the re-run.\n"
+          f"  Claude Code: EnterWorktree with path={path}. If it refuses (the session was launched outside the "
+          "repository, e.g. a Desktop session under \"No folder\"): mcp__ccd_directory__change_directory with "
+          f"path={R} — the main clone, not the worktree: Desktop files a session in the sidebar under the folder it "
+          "moved to, and the main clone is usually trusted already (a new worktree waits for the owner's trust prompt, "
+          "which expires in 5 minutes). It applies when the turn ends: start no background command, end the turn "
+          f"at once; next turn check `pwd` is {R}, call EnterWorktree with path={path}, make no edits in the main "
+          "clone.\n"
           f"  Codex: run every later command with the workdir {path}.\n"
           f"Then re-run: {rerun}")
     return Located(LOCATION_EXIT, R, "")
