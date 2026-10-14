@@ -12,6 +12,11 @@
   skill says an owner-requested grilling runs as written until the topic's frontier is empty, open owner questions
   included; its questions wait for the owner's answers instead of taking the recommendation on silence.
 
+- **Portable Python selection.** `bin/run-python` chooses a compatible interpreter on `PATH`, or validates an
+  explicit `DELAMAIN_PYTHON` override. Native Codex hooks require 3.11+ through this launcher; terminal tools can
+  request 3.10+ or 3.11+ without editing installed files. Claude hooks and CLI shebangs are unchanged. Detached
+  agents write their exit journal with the interpreter that launched them, preserving their original exit code.
+
 ## 1.0.3 — 2026-10-14
 
 - **The watchdog wakes Claude background hubs again.** `watchdog install` copied `CLAUDE_CONFIG_DIR` from the
