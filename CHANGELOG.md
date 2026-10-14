@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Portable Python selection.** `bin/run-python` chooses a compatible interpreter on `PATH`, or validates an
+  explicit `DELAMAIN_PYTHON` override. Native Codex hooks require 3.11+ through this launcher; terminal tools can
+  request 3.10+ or 3.11+ without editing installed files. Claude hooks and CLI shebangs are unchanged. Detached
+  agents write their exit journal with the interpreter that launched them, preserving their original exit code.
+
 - **Haiku takes an effort like every other model.** Claude Haiku 5.5 has an effort setting (`low` to `max`), and
   Claude Code 2.1.296 resolves the alias `haiku` to it (2.1.287 to 2.1.295 still give Haiku 4.5; the minimum supported
   version is unchanged). `agent spawn` no longer drops the effort of a haiku model: `--effort`, else the

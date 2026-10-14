@@ -415,9 +415,9 @@ def launch(meta: dict, prompt: str, resume: bool) -> int:
         argv = claude_argv(meta, resume)
     log = d / "log.jsonl"
     offset = log.stat().st_size if log.exists() else 0
-    note = 'marker=$1; shift; "$@"; c=$?; python3 "$0" exit-note "$AGENT_ROLE" --stage "$HUB_STAGE" --code "$c" >&2; exit $c'
+    note = 'marker=$1; python=$2; shift 2; "$@"; c=$?; "$python" "$0" exit-note "$AGENT_ROLE" --stage "$HUB_STAGE" --code "$c" >&2; exit $c'
     token = meta.get("process_token") or meta["session_id"]
-    argv = ["/bin/sh", "-c", note, str(Path(__file__).resolve()), token] + argv
+    argv = ["/bin/sh", "-c", note, str(Path(__file__).resolve()), token, sys.executable] + argv
     env = child_env(meta["stage"], meta["tag"])
     env.update({"AGENT_ROLE": meta["role"], "AGENT_SESSION_ID": meta["session_id"], "AGENT_HUB_ENGINE": engine})
     if engine == "claude":
