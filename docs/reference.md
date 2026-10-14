@@ -572,7 +572,8 @@ worker subagents.
 ```text
  SessionStart ────────── delegation.py session-start   inject the delegation level's policy        (dial on)
  UserPromptSubmit ────┬─ delegation.py prompt          re-inject it after the level changed         (dial on); point the
-                      │                                command used before the rename at its skill
+                      │                                command used before the rename at its skill; when the owner
+                      │                                asks for grilling (грилинг, grill me), name the grilling skill
                       └─ context_budget.py             warn once per step above the warn threshold
  PreToolUse  Bash ────── polling_guard.py              deny foreground wait loops, long sleeps,
                                                        self-matching pgrep -f, one-off CI status reads

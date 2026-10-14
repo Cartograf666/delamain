@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Hubs grill when the owner asks.** On 14.10 two of two hubs answered «грилинг» with one batch of A/B questions with
+  defaults (and one with an "accept all three?" popup), not the companion `grilling` skill: free-text Russian did not
+  load the skill, and the hub skill capped grilling at "stop once the business result is clear". The prompt hook
+  (`delegation.py prompt`, both engines) now names the skill when the owner's prompt asks for grilling (грилинг,
+  грилл ми, погриль, grill; not a bare «гриль»), and the hub skill says an owner-requested grilling runs as written
+  until the topic's frontier is empty, open owner questions included.
+
 ## 1.0.3 — 2026-10-14
 
 - **The watchdog wakes Claude background hubs again.** `watchdog install` copied `CLAUDE_CONFIG_DIR` from the
