@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.3 — 2026-10-14
+
 - **The watchdog wakes Claude background hubs again.** `watchdog install` copied `CLAUDE_CONFIG_DIR` from the
   installing shell into the job's `run.sh`, and a Codex shell sets it to `~/.claude`. That value is not neutral: with
   it the claude CLI reads `~/.claude/.claude.json` instead of `~/.claude.json`, with no trusted folders and no login,
