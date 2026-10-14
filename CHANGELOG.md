@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.4 — 2026-10-14
+
 - **Hubs grill when the owner asks.** On 14.10 two of two hubs answered «грилинг» with one batch of A/B questions with
   defaults (and one with an "accept all three?" popup), not the companion `grilling` skill: free-text Russian did not
   load the skill, and the hub skill capped grilling at "stop once the business result is clear". The prompt hook
