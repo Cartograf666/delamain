@@ -121,6 +121,45 @@ Codex launches with `codex exec --json`; its `thread.started` event supplies the
 is appended to its inbox, which the brief tells it to read after each major step. No Claude cross-session API is
 needed. See [non-interactive Codex](https://learn.chatgpt.com/docs/non-interactive-mode).
 
+### Optional shared-home workflow
+
+For stages coordinated from Codex, an owner can adopt the [example hub rules](examples/codex-hub-rules.md).
+They collect a shared home, detached workers with separate worktrees, visible launch results and continuity of
+the approved goal. They are optional instructions, not new plugin defaults, and apply only to coordinators that
+explicitly adopt this workflow. Claude coordinators keep their existing rules and engine settings.
+
+Select the desired rules in the hub home's, repository's or stage's `hub-rules.md`; these files follow the
+[configuration layers](reference.md#configuration-layers). Keep the engine condition when putting them in a
+home shared with Claude. Do not set `AGENT_HUB_ENGINE=codex` in shared configuration merely to adopt the example;
+pass the engine for each worker instead. Mixed-engine workers remain an explicit owner choice.
+
+Before starting a stage, confirm the home from that project's directory:
+
+```sh
+export AGENT_HUB_HOME="$HOME/agent-hub"
+hub home --cwd /absolute/path/to/project --json
+```
+
+Use the installed plugin's `bin/hub` and `bin/agent` paths if those commands are absent or shadowed on PATH.
+Register the stage through the [hub workflow](../skills/hub/SKILL.md#starting-a-stage) before launching a worker.
+Replace the paths, model and effort below with the approved brief and values supported by the selected CLI:
+
+```sh
+agent spawn --engine codex --stage shared-work --role builder --tag build \
+  --cwd /absolute/path/to/project --brief /absolute/path/to/brief.md \
+  --model AVAILABLE_MODEL_ID --effort SUPPORTED_EFFORT --worktree
+agent status builder --stage shared-work
+```
+
+The brief records the owned files, protected work, required checks and stopping condition. Choose permissions
+and hook trust under [Full access and hook trust](#full-access-and-hook-trust); this example does not change
+the detached launch defaults. Report a worker as started only after the launcher succeeds and its recorded
+status identifies the intended role and engine. A prepared brief alone is not a running worker.
+
+At a handoff, carry the owner's goal and authorization sources, accepted decisions, current worker addresses,
+worktree paths, completed checks and remaining work. Continue authorized independent work under the existing
+[handoff workflow](../skills/handoff/SKILL.md); a report or a session change does not grant new permissions.
+
 ### Immediate Codex tell delivery
 
 To another stage's hub, use `tell <stage> "…"`. For a non-detached Codex recipient, it retains one signed journal

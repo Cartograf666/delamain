@@ -15,6 +15,10 @@
   effort a spawn would (same defaults and `AGENT_HUB_EFFORT_RULES` check) and records it. The example subagent policy keeps Haiku free at any type but denies it at `low` (Haiku runs at high, medium
   allowed); the docs add no low default for Haiku.
 
+- **Optional rules for Codex-coordinated stages.** A documented example combines a shared home, detached workers
+  with explicit model and effort, separate writer worktrees, visible launch results and preservation of the approved
+  goal through handoffs. Adoption is explicit; shared files retain an engine condition and Claude defaults are unchanged.
+
 ## 1.0.2 — 2026-10-08
 
 - **Codex `tell` supports immediate delivery through the public app-server proxy.** A verified active turn uses
