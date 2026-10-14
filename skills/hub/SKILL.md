@@ -275,6 +275,12 @@ you need. When you go quiet on purpose (a long wait for the owner, a pause), say
   silence, not on every message; `ask inbox` on request at any time (`--stage S` for one stage, `--since 6h`). Every
   question you put to the owner says what each answer changes: "A: …; B: …" with the consequence of each, and the
   default you take if no answer comes.
+- Grilling on request: when the owner asks for grilling in any words (грилинг, погриль, грилл ми, grill me), load the
+  companion `grilling` skill before replying and run it as written — rounds of numbered questions, each with a
+  recommended answer, until the frontier of the topic the owner named is empty. A question you record with `ask add`
+  keeps the recommendation as a recommendation: its default is waiting for the owner's answer, never acting on
+  silence. The planning limit below ("stop once the business result is clear") and the A/B question
+  format do not shorten it. A set of open owner questions is put as such a round too, not as one "accept all?" item.
 
 ## Planning a stage: agree the business result before autonomous work
 
@@ -292,7 +298,7 @@ This recipe applies to Claude and Codex, in the console and app.
 2. If the expected business result is unclear, use the companion `grilling` skill (`mattpocock-skills`, see `<plugin-root>/docs/install.md#recommended-companion-grilling`):
    rounds of numbered questions, each with a recommended answer. **For this hub workflow, limit its exhaustive
    decision-tree method to ambiguity whose answer materially changes the business result; stop once that result is
-   clear.** Facts and implementation choices are agent-owned: research them and proceed with work that has no
+   clear.** This limit is the hub's own choice; it never shortens a grilling the owner asked for (see "Grilling on request" above). Facts and implementation choices are agent-owned: research them and proceed with work that has no
    business blocker. If the companion is unavailable, mention its installation instructions once and use
    the same question method yourself.
 3. Record owner answers with `ask add` then `ask close --answer …`; meaningful unresolved product branches go to
