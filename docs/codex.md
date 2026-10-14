@@ -136,9 +136,12 @@ pass the engine for each worker instead. Mixed-engine workers remain an explicit
 Before starting a stage, confirm the home from that project's directory:
 
 ```sh
-export AGENT_HUB_HOME="$HOME/agent-hub"
 hub home --cwd /absolute/path/to/project --json
 ```
+
+Check `home`, `layer` and `chosen_by` against the owner's existing selection. This command inspects the
+selection without changing it. Set `AGENT_HUB_HOME` only when the owner intends to select a different home;
+an environment value takes precedence over repository configuration.
 
 Use the installed plugin's `bin/hub` and `bin/agent` paths if those commands are absent or shadowed on PATH.
 Register the stage through the [hub workflow](../skills/hub/SKILL.md#starting-a-stage) before launching a worker.
@@ -149,12 +152,19 @@ agent spawn --engine codex --stage shared-work --role builder --tag build \
   --cwd /absolute/path/to/project --brief /absolute/path/to/brief.md \
   --model AVAILABLE_MODEL_ID --effort SUPPORTED_EFFORT --worktree
 agent status builder --stage shared-work
+agent-top --json --stage shared-work --agent builder --feed 1
 ```
 
 The brief records the owned files, protected work, required checks and stopping condition. Choose permissions
 and hook trust under [Full access and hook trust](#full-access-and-hook-trust); this example does not change
-the detached launch defaults. Report a worker as started only after the launcher succeeds and its recorded
-status identifies the intended role and engine. A prepared brief alone is not a running worker.
+the detached launch defaults. `agent status` reports the process state, model and worktree; it does not print
+the engine. In the JSON snapshot, find the `agents` entry with `kind: "headless"`, `stage: "shared-work"` and
+`role: "builder"`, then check `engine: "codex"`, the requested `model` and `effort`, `cwd` and `state`.
+The `cwd` must match the worker's separate worktree reported by `agent status`.
+`model_id` records the resolved model when the CLI reports it. Do not infer the engine from a model's name.
+Report a worker as started only after the launcher succeeds and this entry identifies the intended worker.
+A brief or a failed launch is not execution evidence. A short worker may already be `done` when inspected;
+consume its actual result and report rather than requiring a still-running process or relaunching it.
 
 At a handoff, carry the owner's goal and authorization sources, accepted decisions, current worker addresses,
 worktree paths, completed checks and remaining work. Continue authorized independent work under the existing

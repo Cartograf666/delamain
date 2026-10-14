@@ -23,8 +23,11 @@ delegation method or stopping condition takes precedence.
    changes; inspect it before editing. Preserve other contributors' work. The coordinator owns shared contracts
    and final integration unless that ownership is explicitly delegated.
 4. Before a launch, state the stage, expected result, role, engine, model and effort. Afterward, report the actual
-   launch result and recorded status. Do not claim execution from a prepared brief or an unsuccessful launch.
-   Use the journal, `agent status` and the existing hub waits for progress; report material blockers and results.
+   launch result and recorded status. Use `agent status` for process state and `agent-top --json --stage <stage>
+   --agent <role> --feed 1` to verify the matching headless entry's role, engine, requested model/effort and
+   `cwd` against the reported separate worktree. Do not infer the engine from a model name or claim execution from a prepared brief or an
+   unsuccessful launch. A worker that already finished needs its actual result checked, not another launch.
+   Use the journal and existing hub waits for progress; report material blockers and results.
 5. Verify the integrated result against the owner's requested outcome. Distinguish implementation, performed
    checks and owner acceptance. Preserve explicit review, release and publishing stops; a worker's success
    report is evidence to assess, not acceptance or authority to release.

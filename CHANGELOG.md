@@ -17,7 +17,8 @@
 
 - **Optional rules for Codex-coordinated stages.** A documented example combines a shared home, detached workers
   with explicit model and effort, separate writer worktrees, visible launch results and preservation of the approved
-  goal through handoffs. Adoption is explicit; shared files retain an engine condition and Claude defaults are unchanged.
+  goal through handoffs. Home inspection preserves the owner's existing selection; structured worker status verifies
+  the engine explicitly. Adoption is explicit; shared files retain an engine condition and Claude defaults are unchanged.
 
 ## 1.0.2 — 2026-10-08
 
