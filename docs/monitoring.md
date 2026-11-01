@@ -242,7 +242,9 @@ A row of `claude agents --json` is stopped only when all of these hold:
    not registered yet), and not named by a running `hub takeover` / `hub start` (below);
 5. it is **idle**: `status` is `idle` and `state` is `done`, `blocked` (a pending prompt: the hub is retired, its work is
    over) or `working` when the only work below its process is its own leftover `jwait` (the pid of a
-   `.jwait-state/<stage>/<caller>.armed.json`). `busy`, `waiting`, a missing value or any other one protects it, and so does
+   `.jwait-state/<stage>/<caller>.armed.json` that still runs a jwait) beside its MCP and LSP servers (a name with
+   `mcp`, `language-server`, `lsp`, `pyright`, `gopls`, `rust-analyzer`, `clangd`, `jdtls`; any other direct child keeps
+   a `working` session protected). `busy`, `waiting`, a missing value or any other one protects it, and so does
    **a live shell among the direct children of its process** that holds anything but MCP servers (a command naming `mcp`,
    such as `npm exec @upstash/context7-mcp`, and what runs below it) and the own waiter:
    Claude Code starts every Bash call and background task as a shell (`/bin/zsh -c …`, the user's shell or
@@ -308,8 +310,8 @@ never stopped by R7: the report line is the whole of it.
 
 ### Dormant hubs
 
-When nothing runs in a stage (no agent, no `await`, no open owner question), `jwait`'s NEXT WAIT on a `claude --bg` or
-headless hub (watchdog on) says *dormant*: the hub ends its turn with no waiter and costs nothing; R3 wakes it on the next
+When nothing runs in a stage (no agent, no `await`, no open owner question), `jwait`'s NEXT WAIT on a `claude --bg` hub
+(watchdog on) says *dormant*: the hub ends its turn with no waiter and costs nothing; R3 wakes it on the next
 line addressed to it. A dormant `claude --bg` hub idle for 2 h is stopped through R7's last look (role kept, stage open);
 R3 resumes it with `claude --bg --resume`. A Desktop hub cannot be woken from outside: there NEXT WAIT names `watchdog quiet`.
 

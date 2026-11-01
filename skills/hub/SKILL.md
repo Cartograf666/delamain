@@ -67,7 +67,7 @@ Waiting is **one** `jwait`, using the shell harness rather than a polling loop.
   batch arrives as an event that already carries the lines: handle it, do not read an output file, do not re-arm.
   Every `jwait` that ends prints a last line `NEXT WAIT: …`: arm exactly that, nothing else. While an agent or an
   `await` of the stage runs it is a Monitor stream; when nothing runs it is ONE Bash `run_in_background` long wait
-  (hours), or on a `claude --bg`/headless hub *dormant*: end the turn with no waiter, the watchdog resumes you on a line.
+  (hours), or on a `claude --bg` hub *dormant*: end the turn with no waiter, the watchdog resumes you on a line.
 - **Codex:** `references/codex-hub.md` (*Waiting on a Codex hub*).
 
 A stopped `jwait` loses no lines once its caller has run before: the next one delivers them.

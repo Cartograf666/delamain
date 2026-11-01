@@ -1460,6 +1460,8 @@ def is_shell(cmd: str) -> bool:
     return any(re.sub(r"-[0-9][0-9.]*$", "", n.lstrip("-")) in SHELLS for n in names)
 
 
+# A language server a session starts directly for its life (Claude Code's LSP support): no work, like an MCP server.
+LSP_RE = re.compile(r"language-server|(?<![a-z])(?:lsp|pyright|pylsp|gopls|rust-analyzer|clangd|jdtls)(?![a-z])", re.I)
 # A process that names an MCP server (`npm exec @upstash/context7-mcp …`, `chrome-devtools-mcp`, `mcp-server-…`): a server
 # the session keeps for its life, also when its command line starts it through a shell.
 MCP_RE = re.compile(r"(?<![a-z])mcp(?![a-z])", re.I)
@@ -1467,7 +1469,8 @@ MCP_RE = re.compile(r"(?<![a-z])mcp(?![a-z])", re.I)
 
 def own_waiters(pid, procs: dict) -> set:
     """Pids of the journal waiters (`jwait --journal`, its armed files <root>/.jwait-state/<stage>/<caller>.armed.json of
-    any stage) that run below the session `pid`: the session's own waiter. A file that cannot be read names nobody."""
+    any stage) that run below the session `pid` and still run a jwait: the session's own waiter. A file that cannot be
+    read names nobody."""
     below = {p for p, _ in descendants(pid, procs)}
     out = set()
     for path in glob.glob(str(hc.root() / ".jwait-state" / "*" / "*.armed.json")):
@@ -1475,7 +1478,8 @@ def own_waiters(pid, procs: dict) -> set:
             p = int(json.loads(Path(path).read_text(encoding="utf-8"))["pid"])
         except (OSError, ValueError, KeyError, TypeError):
             continue
-        if p in below:
+        # a file a killed jwait left behind keeps its pid; once reused by a work process it must not cover that process
+        if p in below and tool("jwait").pid_runs_jwait(p) is True:
             out.add(p)
     return out
 
@@ -1517,7 +1521,7 @@ def work_children(pid, procs: dict, waiters=()) -> list:
 def busy_reason(row: dict, procs: dict) -> str:
     """Why the session of a retired hub's row may be working, "" when nothing says so. Only an `idle` status is quiet, with
     a `done` state, a `blocked` one (a pending prompt: the hub is retired, its work is over) or a `working` one whose only
-    work is the session's own journal waiter (own_waiters; every direct child passive). Busy, waiting, running, a missing
+    work is the session's own journal waiter (own_waiters; any other direct child an MCP or LSP server). Busy, waiting, running, a missing
     or any other value protects the session, and so does a live shell among the direct children of its process that
     holds anything but MCP servers and the own waiter (a Bash call, a background task). Its MCP servers do not (see
     work_children). A pid that is not in the table is unknown, and protects as well."""
@@ -1531,7 +1535,9 @@ def busy_reason(row: dict, procs: dict) -> str:
     below = work_children(pid, procs, waiters)
     if below:
         return f"running a child process ({os.path.basename(below[0][1]).lstrip('-')}" + (f" and {len(below) - 1} more" if len(below) > 1 else "") + ")"
-    if state == "working" and not (waiters and all(passive(p, procs, waiters) for p, (pp, _, _) in procs.items() if pp == pid)):
+    # the shell children are proven passive above: only a direct child that is no shell has to be explained
+    if state == "working" and not (waiters and all(p in waiters or MCP_RE.search(cmd) or LSP_RE.search(cmd)
+                                                   for p, (pp, _, cmd) in procs.items() if pp == pid and not is_shell(cmd))):
         return f"{status}/{state}"
     return ""
 
@@ -1711,6 +1717,8 @@ def dormant_blocker(tick: Tick, stage: str, rec: dict):
         return "it could not be resumed"
     if pending_handoff(stage):
         return "a handoff is pending"
+    if any(same_session(x, sid) for x in read_stage(hc.root(), stage, tick.now)[2]):
+        return "a running `hub takeover` / `hub start` names it"
     jw = tool("jwait")
     if live_waiter(tick, stage, rec) or jw.stage_busy(stage) or jw.open_questions(stage):
         return "a waiter, an agent, an await or an open owner question"

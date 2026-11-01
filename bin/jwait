@@ -53,7 +53,7 @@ NEXT WAIT (Claude host, --journal): when a run ends, a last line says how to wai
 about it: a Monitor stream while something of the stage runs (a live headless agent, an `await` supervisor), else ONE
 long background wait (idle: up to 8h, inside the Bash timeout cap BASH_MAX_TIMEOUT_MS, 2h unset). An idle hub then costs
 no model call until a line comes; the Monitor's 30-minute cap would wake it twice an hour for nothing. Dormant: when nothing
-runs, no owner question is open and the hub can be woken from outside (a `claude --bg` or headless hub, the watchdog on),
+runs, no owner question is open and the hub can be woken from outside (a `claude --bg` hub, the watchdog on),
 it is told to end the turn with no waiter instead: the watchdog's R3 wakes it on a line, and stops it after 2 h idle.
 A held line wakes after HELD_MAX (30 min) at the latest, so a long idle wait does not sit on another hub's message.
 Exit: 0 lines delivered, 3 deadline, 1 failure, 2 usage.
@@ -643,7 +643,7 @@ def open_questions(stage: str) -> list:
 
 
 def caller_host(stage: str) -> str:
-    """How the calling hub can be woken from outside: "wakeable" (a `claude --bg` hub or a headless one, and the watchdog
+    """How the calling hub can be woken from outside: "wakeable" (a `claude --bg` hub, and the watchdog
     is on: R3 resumes it on a line), "desktop" (it cannot be), "" otherwise (a terminal, not the hub, unknown)."""
     try:
         hit = hc.role_for_caller(stage)
@@ -656,7 +656,7 @@ def caller_host(stage: str) -> str:
         return ""  # `watchdog quiet`: no R3 wake until the marker ends, so the hub keeps its own long wait
     if rec.get("kind") == "desktop" or str(rec.get("session") or "").startswith("local_"):
         return "desktop"
-    if (rec.get("host") == "bg" or hc.detached(stage, rec)) and hc.truthy(hc.setting("AGENT_HUB_WATCHDOG")):
+    if rec.get("host") == "bg" and hc.truthy(hc.setting("AGENT_HUB_WATCHDOG")):
         return "wakeable"
     return ""
 

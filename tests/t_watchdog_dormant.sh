@@ -48,6 +48,7 @@ b, r = sys.argv[1], Path(sys.argv[2])
 loader = importlib.machinery.SourceFileLoader("watchdog_mod", f"{b}/watchdog")
 wd = importlib.util.module_from_spec(importlib.util.spec_from_loader("watchdog_mod", loader)); loader.exec_module(wd)
 t0 = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
+wd.tool("jwait").pid_runs_jwait = lambda p: p != 777  # the fake table's waiters run a jwait; pid 777 is a reused one
 armed = r / ".jwait-state" / "st" / "hub-1.armed.json"
 fails = 0
 def case(name, table, state, want, waiter=None):
@@ -77,6 +78,13 @@ case("idle/working without an armed waiter: protected", [(101, 100, "/bin/zsh"),
 case("idle/working, a direct child and no armed waiter: protected", [(110, 100, "Python")], "idle/working", "idle/working")
 case("idle/working, its own jwait under a shell (armed file): stopped", [(101, 100, "/bin/zsh"), (110, 101, "Python")], "idle/working", "", waiter=110)
 case("idle/working, its own jwait as a direct child: stopped", [(110, 100, "Python")] + MCP, "idle/working", "", waiter=110)
+case("idle/working, own jwait and direct MCP servers (the usual shape): stopped",
+     [(110, 100, "Python"), (102, 100, "npm exec @upstash/context7-mcp --api-key x"), (103, 102, "node"),
+      (105, 100, "chrome-devtools-mcp")], "idle/working", "", waiter=110)
+case("idle/working, own jwait under a shell and a direct LSP server: stopped",
+     [(101, 100, "/bin/zsh"), (110, 101, "Python"), (120, 100, "typescript-language-server")], "idle/working", "", waiter=110)
+case("an armed file whose pid now runs something else (reused): its process is work, protected",
+     [(101, 100, "/bin/zsh"), (777, 101, "Python")], "idle/working", "running a child process", waiter=777)
 case("idle/working, own jwait and another direct child (an await): protected", [(110, 100, "Python"), (111, 100, "Python")],
      "idle/working", "idle/working", waiter=110)
 case("idle/working, own jwait and a shell with work: protected", [(110, 100, "Python"), (101, 100, "/bin/zsh"), (107, 101, "sleep")],
@@ -178,6 +186,10 @@ PY
 : > "$R/claude.log"; WD run --stage dm > "$R/tick.out" 2>&1
 case "$(calls)" in *stop*) r=1 ;; *) r=0 ;; esac; check $r 0 "idle/working (the listing says it waits): not stopped"
 FX rows "$FAKE_WD_ROWS" "${D:0:8}" "$D" background idle "$CWD" "$LIVE"
+printf '{"sessions": ["%s"], "pid": %s}\n' "$D" "$$" > "$R/dm/.takeover-test.json"   # a running `hub takeover` names it
+: > "$R/claude.log"; WD run --stage dm > "$R/tick.out" 2>&1
+case "$(calls)" in *stop*) r=1 ;; *) r=0 ;; esac; check $r 0 "named by a running hub takeover / hub start: not stopped"
+rm -f "$R/dm/.takeover-test.json"
 : > "$R/claude.log"; WD run --stage dm > "$R/tick.out" 2>&1
 case "$(calls)" in *"stop ${D:0:8}"*) r=0 ;; *) r=1 ;; esac; check $r 0 "a dormant hub idle 2 h 10 min is stopped ($(calls))"
 grep -q "stopped the dormant hub-4 (d0000010), idle 2 h 10 min" "$R/tick.out"; check $? 0 "…and the tick says so"
