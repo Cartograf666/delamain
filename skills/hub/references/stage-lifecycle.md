@@ -15,7 +15,7 @@ the person the hub works for. Everything they share is a file:
 
 | File | Written by | Read by |
 |---|---|---|
-| `<stage>/coordinator/work/journal-YYYY-MM-DD.md` — one line per event, `- HH:MM [tag] text` | `jlog`, `tell`, `agent`, `hub`, `roles broadcast` | `jwait`, `agent-top`, humans |
+| `<stage>/coordinator/work/journal-YYYY-MM-DD.md` — one line per event, `- HH:MM [tag] text` | `jlog`, `tell`, `agent`, `hub` | `jwait`, `agent-top`, humans |
 | `<stage>/agents/<role>/` — `brief.md`, `inbox.md`, `log.jsonl`, `meta.json` | `agent spawn/send` and the selected CLI run | `agent status`, `agent-top` |
 | `<stage>/roles.json` — who plays which role, by full session id | `roles`, `agent`, `hub start/takeover` | `roles`, `jlog` (tag lookup) |
 | `<stage>/questions.md` — owner questions and agents' own decisions | `ask` | `ask`, SessionStart hook, `hub` digest |

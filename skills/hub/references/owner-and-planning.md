@@ -24,7 +24,7 @@ journal. The Codex-only delivery rules are in [codex-hub.md](codex-hub.md#talkin
 
 - `roles list | get <role> | set <role> <id> | retire` — the stage's role registry with full session ids; `set` infers
   the kind from the id (`local_…` = Claude Desktop, a uuid = terminal). For Claude cross-session messaging, resolve the address with `roles get <role>`.
-  For detached workers of either engine, use `agent send`; Codex has no Claude `SendMessage` API. `roles broadcast --to r1,r2|--all "text"` — registered recipients and one journal line `@r1 @r2 text`.
+  For detached workers of either engine, use `agent send`; Codex has no Claude `SendMessage` API.
 - Owner-question register: `ask search <words…>` — decisions the owner already took on a topic; `ask digest` — the
   whole register, one line per decision; `ask add … --default … --due …` — a new question with the action you will
   take if nobody answers; `ask decided` — a decision you took yourself on a matter the owner normally decides;

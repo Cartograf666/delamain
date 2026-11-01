@@ -1,4 +1,5 @@
 #!/bin/sh
-# Shorthand for `agent stop …`.
+# Shorthand for `agent stop …`. Deprecated: removed in the next release.
+echo "agent-stop: deprecated, use \`agent stop\` (the alias goes in the next release)" >&2
 d=$(dirname "$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$0")")
 exec "$d/agent" stop "$@"

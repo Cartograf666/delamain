@@ -21,6 +21,7 @@ if __name__ == "__main__":  # fail-safe first, before anything that can fail: se
 
 import json
 import os
+import re
 import sys
 from importlib.machinery import SourceFileLoader
 from importlib.util import module_from_spec, spec_from_loader
@@ -83,12 +84,25 @@ def legacy_line() -> str:
             f"moves it to {hc.user_home()}. Tell the user about it in one line.")
 
 
+# `agent spawn` sets AGENT_ROLE in every headless run, whatever the repository or provenance; the autopilot's headless
+# successors of a hub are spawned as `hub-N` and are hubs, not executors.
+HUB_ROLE_RE = re.compile(r"hub(-\d+)?")
+
+
+def is_executor() -> bool:
+    """An executor cannot answer owner questions; the digest is for hubs (and for a person's own session)."""
+    role = os.environ.get("AGENT_ROLE", "")
+    return bool(role) and not HUB_ROLE_RE.fullmatch(role)
+
+
 def main(argv: list[str]) -> int:
     try:
         event = json.loads(sys.stdin.read() or "{}")  # drained so the harness never blocks on the pipe
     except Exception:
         event = {}
     event = event if isinstance(event, dict) else {}
+    if is_executor():
+        return 0
     hubcore().use_cwd(event.get("cwd"))  # the hub home of the session's directory (before `ask` reads it)
     if not in_scope(event):
         return 0

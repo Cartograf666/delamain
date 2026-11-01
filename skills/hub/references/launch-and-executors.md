@@ -28,8 +28,9 @@ itself: one line with the reason, and `ask decided` (*Planning a stage* in `SKIL
    otherwise **background** (through the host's native subagent API).
 
 - An in-session sub-agent depends on the host's session lifecycle; its native follow-up API is for that session.
-  Use a detached executor when a successor must reach or resume it. In Claude, compaction preserves the sub-agent. Ask it for a short result (≤ 20 lines,
-  details in a file): its completion notice and result land in your context.
+  Use a detached executor when a successor must reach or resume it. In Claude, compaction preserves the sub-agent. Ask it for a short result (≤ 20 lines
+  of text; the host forbids sub-agents report files, so a file needs `agent spawn` or the sub-agent's own script
+  writing it): its completion notice and result land in your context.
 - **Every sub-agent brief ends with a call budget:** "if not done after N tool calls, stop and return a partial result
   and what is left". Recommended N: 40 for a probe or a read, up to 80 for a wide read-only investigation; it is a
   recommendation, set yours in `hub-rules.md`. *Why:* nobody watches a sub-agent; without a bound a confused one runs
