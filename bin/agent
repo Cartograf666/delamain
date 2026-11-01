@@ -218,14 +218,31 @@ CLAUDE_FOOTER = """- Sub-agents are welcome for a read-only digest (a log, a fac
 """
 
 
-def footer(stage: str, cwd: Path, **fields) -> str:
+# A review role's contract is its brief's § Answer (templates/brief-review.md): the final answer is the review, which the
+# caller saves; no report file, no journal line (`agent` journals REVIEWED when the run ends).
+REVIEW_FOOTER = """
+---
+You are "{role}" (journal tag `{tag}`), stage `{stage}`, a headless {engine} session with nobody on the
+other end: questions asked in chat are read by no one. The brief above is your contract.
+- Your final answer is the review, in the form the brief's Answer section gives. Write no report file and no journal
+  line: the caller saves your answer and `agent` journals the end of your run.
+- Messages that arrive while you work: `{inbox}` — read it before finishing.
+- The end of your turn is the end of the process. Keep long commands attached and wait for their completion
+  through the host's execution tools; do not end your turn while a command you need still runs.
+- Stop only processes you started, by the pid or process group you recorded; never `pkill -f` or `killall` with free
+  text: it matches other agents' command lines.
+- Never print environment variables or secret files.
+"""
+
+
+def footer(stage: str, cwd: Path, review: bool = False, **fields) -> str:
     """The standard footer plus the first brief-footer.md of the config layers (stage, the agent's repository,
     hub home), with {role} {tag} {stage} {report} {inbox} {jlog} filled in."""
     fields["stage"] = stage
     fields.setdefault("engine", "claude")
     fields["jlog"] = '"$HUB_BIN/jlog"'  # not the path itself: a resumed run follows the plugin's current version
-    text = FOOTER.format(**fields)
-    if fields["engine"] == "claude":
+    text = (REVIEW_FOOTER if review else FOOTER).format(**fields)
+    if fields["engine"] == "claude" and not review:
         text += CLAUDE_FOOTER
     extra = hc.config_file("brief-footer.md", stage, cwd)
     if extra:
@@ -897,7 +914,7 @@ def cmd_spawn(a) -> int:
         meta["worktree"] = wt
     if wt:
         prepare_worktree(stage, tag, meta, wt_common, wt_prepared, prep_timeout, a.no_prepare, d)
-    prompt = brief.read_text(encoding="utf-8") + footer(stage, cwd, engine=engine, role=a.role, tag=tag, report=report,
+    prompt = brief.read_text(encoding="utf-8") + footer(stage, cwd, review=is_review_role(meta), engine=engine, role=a.role, tag=tag, report=report,
                                                        inbox=d / "inbox.md")
     if meta.get("sandbox_git_roots"):
         prompt += "\n" + engines.WORKTREE_SANDBOX_NOTE + "\n"
@@ -1385,15 +1402,26 @@ def is_review_role(meta: dict) -> bool:
     return engines.is_review_role(meta)
 
 
-QUOTE_RE = re.compile(r"VERDICT:|-REPORT\.md\b|" + hc.STATUS_WORDS)
+# a line that IS the outcome: it starts (after markdown marks) with `VERDICT:` or a status word, or names a report file
+QUOTE_RE = re.compile(r"^[\s*_`#-]*(?:VERDICT:|" + hc.STATUS_WORDS + r")|-REPORT\.md\b")
+FENCE_RE = re.compile(r"^\s*(```|~~~)")
 
 
 def quote_line(text: str) -> str:
-    """The line of an agent's final text that the exit note quotes: the last one holding a `VERDICT:`, a status word or
-    a `*-REPORT.md` path, else the last line (a closing line about something else — a delegation summary, a sign-off —
-    would hide the outcome)."""
-    lines = [x for x in (text or "").strip().splitlines() if x.strip()]
-    return next((x for x in reversed(lines) if QUOTE_RE.search(x)), lines[-1] if lines else "").strip()
+    """The line of an agent's final text that the exit note quotes: the last standalone outcome line (`VERDICT:`, a
+    status word or a `*-REPORT.md` path), else the last line. Quoted lines (`>`) and fenced blocks are skipped: an
+    example or a pasted journal line is not the agent's result, and a closing line about something else (a delegation
+    summary, a sign-off) would hide the outcome."""
+    lines, fenced, candidates = [], False, []
+    for x in (text or "").strip().splitlines():
+        if not x.strip():
+            continue
+        lines.append(x)
+        if FENCE_RE.match(x):
+            fenced = not fenced
+        elif not fenced and not x.lstrip().startswith(">") and QUOTE_RE.search(x):
+            candidates.append(x)
+    return (candidates or lines or [""])[-1].strip()
 
 
 def cmd_exit_note(a) -> int:

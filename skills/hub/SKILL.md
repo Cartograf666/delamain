@@ -82,10 +82,11 @@ A stopped `jwait` loses no lines once its caller has run before: the next one de
 - Sources and filters combine in one command. What was read is remembered.
 
 A CI, merge or lock wait is never a background Bash of the hub itself: run `await --ok MERGED --label "MR !N" --on
-2=TIMEOUT -- <the repo's wait command>` (santinel: `python -m scripts.ci_wait --mr N`, which needs `--on 2=TIMEOUT`;
-`bin/await`, a foreground call that returns at once; if `command -v await` finds nothing, an executor does the wait). It journals nothing while the command runs and
-one line `@hub MERGED|DONE|FAILED|TIMEOUT|<--on word> … <link>` when it ends: that line is the wake, and
-FAILED/TIMEOUT/CONFLICT are decisions for the hub, not retries. An executor that waits on CI uses the same `await`.
+2=TIMEOUT -- <the repo's wait command>` (santinel: `python -m scripts.ci_wait --mr N`; `bin/await`, a foreground call
+that returns at once; if `command -v await` finds nothing, an executor does the wait). Silent while it runs,
+it journals one line `@hub MERGED|DONE|FAILED|TIMEOUT|<--on word> … <link>` when it ends: that is the wake, and
+FAILED/TIMEOUT/CONFLICT are decisions, not retries; a superseded wait you `kill` journals CANCELLED, no wake. An
+executor that waits on CI uses the same `await`.
 
 A message starting `[agent-hub watchdog]` or `[delamain watchdog]` means the watchdog woke you: run the digest `jwait`
 with its `--since HH:MM`, handle what it shows, keep one waiter. Going quiet on purpose: `watchdog quiet`

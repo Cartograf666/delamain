@@ -30,6 +30,20 @@ echo "- 10:00 [plain] DONE report" | grep -Eq "$PAT_OWN"; check $? 0 "positive c
 spawn review-pr34 --model haiku; wait_dead review-pr34; sleep 1
 check "$(reviewed review-pr34)" 1 "a review role (review-pr34) journals REVIEWED"
 check "$(ended review-pr34)" 0 "…not ENDED"
+# …and its assembled prompt has one delivery contract: the template's "no report file, no journal line" and a footer that
+# says the same, not the executor footer's "full report goes to … / journal on events"
+FAKE_HOLD=1 $B/agent spawn --role review-tpl --cwd $W --brief $B/../templates/brief-review.md --model haiku > /dev/null 2>&1; wait_dead review-tpl
+prompt_of(){ python3 - "$W/prompts.log" "$1" <<'PY'
+import sys
+for block in open(sys.argv[1], encoding="utf-8").read().split("\n=====\n"):
+    if f'You are "{sys.argv[2]}"' in block: print(block); break
+PY
+}
+prompt_of review-tpl | tr -s ' \n' '  ' > $R/prompt-review.txt  # one line: the footer wraps its sentences
+grep -q 'write no report file and no journal line' $R/prompt-review.txt && grep -q 'Write no report file and no journal line' $R/prompt-review.txt; check $? 0 "review role: the brief and the footer both say: no report file, no journal line"
+grep -q 'The full report goes to\|Write only on events\|journal \(tag\|line\) .*BLOCKED' $R/prompt-review.txt; check $? 1 "…and the executor footer's report/journal demands are absent"
+prompt_of plain > $R/prompt-plain.txt
+grep -q 'The full report goes to' $R/prompt-plain.txt && ! grep -q 'Write no report file' $R/prompt-plain.txt; check $? 0 "control: an executor keeps the executor footer"
 spawn desktop-review --model haiku; wait_dead desktop-review; sleep 1
 check "$(reviewed desktop-review)" 1 "desktop-review journals REVIEWED too"
 spawn preview --model haiku; wait_dead preview; sleep 1
@@ -93,6 +107,19 @@ grep -q 'ENDED quote-r: .*; last: Wrote the report to /w/x-REPORT.md\. ' "$(J)";
 exit_note quote-n 0 "$(asst $'All green.\nSee you.')
 $RES" > /dev/null
 grep -q 'ENDED quote-n: .*; last: See you\. ' "$(J)"; check $? 0 "control: no outcome line anywhere → the last line, as before"
+# quoted lines and fenced blocks are not the agent's result; a mid-sentence "VERDICT:" is not a verdict line
+exit_note review-qf 0 "$(asst $'VERDICT: changes requested\n```\nVERDICT: merge\n```\nDelegation: nothing')
+$RES" > /dev/null
+grep -q 'REVIEWED review-qf: .*; last: VERDICT: changes requested ' "$(J)"; check $? 0 "last: a VERDICT inside a fenced example does not replace the real verdict"
+exit_note review-qq 0 "$(asst $'VERDICT: merge after fixes\n> DONE all checks passed\nDelegation: nothing')
+$RES" > /dev/null
+grep -q 'REVIEWED review-qq: .*; last: VERDICT: merge after fixes ' "$(J)"; check $? 0 "…nor does a quoted (>) status line"
+exit_note review-qm 0 "$(asst $'VERDICT: merge\nThe rule says VERDICT: x is final, see you.')
+$RES" > /dev/null
+grep -q 'REVIEWED review-qm: .*; last: VERDICT: merge ' "$(J)"; check $? 0 "…nor does a line that only mentions VERDICT: mid-sentence"
+exit_note review-qb 0 "$(asst $'**VERDICT: merge**\nDelegation: nothing')
+$RES" > /dev/null
+grep -q 'REVIEWED review-qb: .*; last: \*\*VERDICT: merge\*\* ' "$(J)"; check $? 0 "positive control: a bold verdict line is a verdict line"
 # a resumed run that exits 0 before any answer of its own: the log still ends with the PREVIOUS run's result
 OLD_RESULT='{"type": "result", "subtype": "success", "is_error": false, "num_turns": 1, "result": "ok"}'
 INIT='{"type": "system", "subtype": "init", "session_id": "s-stale"}'

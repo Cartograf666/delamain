@@ -2,16 +2,30 @@
 
 ## Unreleased
 
-- **The exit note quotes the line with the outcome.** `ENDED`/`REVIEWED`/`EXIT … last:` now quotes the last line of the
-  agent's final text that holds `VERDICT:`, a status word or a `*-REPORT.md` path, else the last line (a closing
-  delegation summary no longer hides the verdict). The built-in delegation text no longer asks to name the level in a
+- **The exit note quotes the line with the outcome.** `ENDED`/`REVIEWED`/`EXIT … last:` now quotes the last standalone
+  line of the agent's final text that starts with `VERDICT:` or a status word, or names a `*-REPORT.md` path, else the
+  last line (quoted `>` lines and fenced blocks are skipped; a closing delegation summary no longer hides the verdict). The built-in delegation text no longer asks to name the level in a
   report (`hooks/delegation.py`; a hub home's own `AGENT_HUB_DELEGATION_COMMON` keeps whatever it says).
-  `templates/brief-review.md` says one thing: the final answer is the review, with no report file or journal line.
+  `templates/brief-review.md` says one thing: the final answer is the review, with no report file or journal line; a
+  review role's executor footer (`agent spawn`) says the same instead of asking for a report and journal lines.
   The executor footer says how to wait for CI (`await --wait … gh-ci-wait` in a background Bash). The hub skill says a
   sub-agent's result is its text (≤ 20 lines), since the host forbids sub-agents report files.
-  The SessionStart owner-questions line is no longer injected into headless agents (`AGENT_HUB_RUN` set).
+  The SessionStart owner-questions line is no longer injected into executors (`AGENT_ROLE` set by `agent spawn`, role
+  not `hub` / `hub-N`: a headless successor hub keeps it).
   Removed: `roles broadcast` (0 uses; confusable with `broadcast`) and the empty `dfix-patch2.py`. The
   `agent-send`/`-spawn`/`-status`/`-stop` aliases print a deprecation line to stderr and go in the next release.
+
+- **A cancelled `await` is `CANCELLED`, not `FAILED`, and wakes nobody.** A supervisor stopped by SIGTERM, SIGHUP or
+  SIGINT (the hub's own `kill <pid>` of a superseded wait: 53 of last week's 58 "await FAILED (signal 15)") journals
+  `CANCELLED <label> (await interrupted by signal N, …)` without the `@hub` address, so the digest `jwait` does not
+  deliver it. A command that itself dies by a signal, or a group that could not be stopped, stays `FAILED`;
+  `--ok CANCELLED` is a usage error.
+
+- **Without `--stage` and `$HUB_STAGE`, the tools work in the caller's own stage.** `jlog`, `await`, `agent`, `jwait`,
+  `roles` and `watchdog` take the stage whose registry lists the calling session (the lookup the line signature already
+  did) instead of `default`, where a hub never reads (five await lines and an `agent send` on 01.11). A session
+  registered in several stages and none named by `$HUB_TAG` is refused with "pass --stage"; an unregistered caller
+  still gets `default`.
 
 - **Windows dispatch accepts every registered hook, including `scan_guard`.** Both adapter allowlists are checked
   against the hook manifest; native PowerShell controls also verify unknown-name rejection and scan allow/deny behavior.

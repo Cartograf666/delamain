@@ -46,12 +46,23 @@ check "$(grep -cx '/.agent-hub/local/' $P/.git/info/exclude)" "1" "/.agent-hub/l
 check "$(git -C $C status --porcelain | wc -l | tr -d ' ')" "0" "…so the home never shows as untracked"
 
 # ================================================================== hooks resolve for the input's cwd
+unset AGENT_ROLE AGENT_HUB_RUN  # the suite may itself run inside an executor, which the hook would then skip
 (cd $P && $B/ask add --stage stage-q --due 2099-01-01T10:00 "Ship it?" > /dev/null)
 Q=$S/other; newrepo $Q; mkdir -p $Q/.agent-hub; echo '{"AGENT_HUB_HOME": "project"}' > $Q/.agent-hub/config.json
 (cd $S/plain && echo "{\"cwd\": \"$P\"}" | python3 $HOOKS/questions.py > $S/q1.out 2>&1)
 grep -q 'stage-q' $S/q1.out; check $? 0 "questions hook: the register of the input cwd's home (process elsewhere)"
-(cd $S/plain && echo "{\"cwd\": \"$P\"}" | AGENT_HUB_RUN=r1 python3 $HOOKS/questions.py > $S/q1h.out 2>&1)
-check "$(wc -c < $S/q1h.out | tr -d ' ')" 0 "…and nothing for a headless agent (AGENT_HUB_RUN set): it cannot answer owner questions"
+# an executor (AGENT_ROLE set by `agent spawn`) cannot answer owner questions; this holds with provenance off
+# (no AGENT_HUB_RUN) and with a cwd outside any repository ($S/plain), and a hub successor (hub-N) keeps the digest
+(cd $S/plain && echo "{\"cwd\": \"$P\"}" | AGENT_ROLE=builder python3 $HOOKS/questions.py > $S/q1w.out 2>&1)
+check "$(wc -c < $S/q1w.out | tr -d ' ')" 0 "questions hook: nothing for an executor (AGENT_ROLE=builder, no AGENT_HUB_RUN)"
+(cd $S/plain && echo "{\"cwd\": \"$P\"}" | AGENT_ROLE=builder AGENT_HUB_RUN=r1 AGENT_HUB_PROVENANCE=off python3 $HOOKS/questions.py > $S/q1p.out 2>&1)
+check "$(wc -c < $S/q1p.out | tr -d ' ')" 0 "…also with provenance off and the run id set"
+(cd $S/plain && echo "{\"cwd\": \"$P\"}" | AGENT_ROLE=hub-2 AGENT_HUB_RUN=r1 python3 $HOOKS/questions.py > $S/q1h.out 2>&1)
+grep -q 'stage-q' $S/q1h.out; check $? 0 "control: a headless successor hub (AGENT_ROLE=hub-2, with a run id) keeps the digest"
+(cd $S/plain && echo "{\"cwd\": \"$P\"}" | AGENT_ROLE=hub python3 $HOOKS/questions.py > $S/q1h2.out 2>&1)
+grep -q 'stage-q' $S/q1h2.out; check $? 0 "…and the role hub"
+(cd $S/plain && echo "{\"cwd\": \"$P\"}" | AGENT_ROLE=hubsy python3 $HOOKS/questions.py > $S/q1h3.out 2>&1)
+check "$(wc -c < $S/q1h3.out | tr -d ' ')" 0 "negative: a role merely starting with hub (hubsy) is an executor"
 (cd $P && echo "{\"cwd\": \"$Q\"}" | python3 $HOOKS/questions.py > $S/q2.out 2>&1)
 grep -q 'stage-q' $S/q2.out; check $? 1 "control: run from that repository with another repository's cwd, the other home answers"
 (cd $S/plain && echo "{\"session_id\": \"sid-1\", \"cwd\": \"$Q\"}" | AGENT_HUB_DELEGATION=on python3 $HOOKS/delegation.py session-start > /dev/null 2>&1)
