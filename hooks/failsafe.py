@@ -124,7 +124,8 @@ def _record(answer) -> None:
         tool_input = event.get("tool_input")
         command = tool_input.get("command") if isinstance(tool_input, dict) else None
         match = _ASSIGN.match(command) if isinstance(command, str) else None
-        program = os.path.basename(match.group(1)) if match else ""
+        raw = match.group(1) if match else ""
+        program = "" if "=" in raw else os.path.basename(raw)  # `VAR=/x/secret ; cmd`: the assignment is no program
         if not re.fullmatch(r"[\w.+@-]{1,64}", program):
             program = event.get("tool_name") if isinstance(event.get("tool_name"), str) and not command else ""
         out = answer.get("hookSpecificOutput")
@@ -162,7 +163,9 @@ def _record(answer) -> None:
                         pass
                 tmp = path.with_name(f".guard-decisions.{os.getpid()}.tmp")
                 try:
-                    tmp.write_bytes(b"".join(lines[-GUARD_LOG_CAP:]))
+                    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+                    with os.fdopen(fd, "wb") as out_file:
+                        out_file.write(b"".join(lines[-GUARD_LOG_CAP:]))
                     os.replace(tmp, path)
                 finally:
                     tmp.unlink(missing_ok=True)

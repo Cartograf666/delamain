@@ -172,7 +172,9 @@ log.unlink(missing_ok=True)
 SECRET_COMMANDS = [("TOKEN=S3CRET-ASSIGN sleep 600", "sleep"), ("A=1 TOKEN='S3CRET ASSIGN' B=\"x y\" sleep 600", "sleep"),
                    ("TOKEN=S3CRET\\ ASSIGN sleep 600", "sleep"), ("TOKEN=\"S3CRET ASSIGN sleep 600", ""),
                    ("sleep 600 --token S3CRET-ARG", "sleep"), ("TOKEN=S3CRET-ASSIGN glab ci status --token S3CRET-ARG", "glab"),
-                   ("until curl -H 'Authorization: S3CRET-ARG' x; do sleep 30; done", "until")]
+                   ("until curl -H 'Authorization: S3CRET-ARG' x; do sleep 30; done", "until"),
+                   ("TOKEN=/x/S3CRET ; sleep 600", ""), ("TOKEN=/x/S3CRET && sleep 600", ""),
+                   ("DATABASE_URL=postgres://u:S3CRET@h/dbS3CRET && sleep 600", "")]
 for cmd, _ in SECRET_COMMANDS:
     run(ROOT, "polling_guard.py", [], json.dumps({"tool_name": "Bash", "session_id": "s", "cwd": "/", "tool_input": {"command": cmd}}).encode(), env=env)
 text = log.read_text() if log.exists() else ""
@@ -198,6 +200,8 @@ r = run(ROOT, "polling_guard.py", [], POLL_DENY, env=env)
 lines = log.read_text().splitlines()
 check(len(lines) == CAP and json.loads(lines[0])["command"].startswith("seed 1 ") and json.loads(lines[-1])["hook"] == "polling_guard.py",
       f"decision record: at the cap the oldest line goes and the new one stays ({len(lines)} lines)")
+import stat
+check(stat.S_IMODE(log.stat().st_mode) == 0o600, f"decision record: the file is 0600 after a trim too ({oct(stat.S_IMODE(log.stat().st_mode))})")
 # a short write leaves a torn line; the next record must not be glued to it
 torn_home = WORK / "torn-hub"
 script = (
