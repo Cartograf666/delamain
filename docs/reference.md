@@ -736,7 +736,7 @@ Settings are environment variables; each can also be set in a `config.json` (bel
 | Variable | Default | Meaning |
 |---|---|---|
 | `AGENT_HUB_HOME` | `~/agent-hub` | The hub home above. The environment (any path), or a repository's `.agent-hub/config.json` with `"project"` or `"user"` only; the hub home's `config.json` cannot set it. [Where the hub's files live](#where-the-hubs-files-live). |
-| `HUB_STAGE` | `default` | Stage when `--stage` is not given (environment only). |
+| `HUB_STAGE` | the stage whose registry lists the calling session, else `default` | Stage when `--stage` is not given (environment only). A session registered in several stages and none named by `$HUB_TAG` must pass `--stage`. |
 | `HUB_TAG` | from `roles` | Journal tag of the caller (set for agents automatically; environment only). Without it the tag is the registry entry of this session's id; for a Claude Desktop session whose CLI restarted (a new `$CLAUDE_CODE_SESSION_ID` under the same `local_…` id) it is found through `$CLAUDE_CODE_HOST_SESSION_ID`, provided Desktop's own record of that session names this CLI session, and the registry's CLI id is refreshed. |
 | `AGENT_HUB_TZ` | local zone | IANA time zone of journal times and deadlines. Hub-wide. |
 | `AGENT_HUB_MODEL_MAP` | none | Opt-in pin of aliases to model ids (without it an alias follows the CLI, which resolves it to its latest model), e.g. `sonnet=claude-sonnet-…,opus=claude-opus-…` (in JSON also `{"sonnet": "…"}`). A model id may use letters, digits and `. _ : @ [ ] / -` only (a Bedrock id or an ARN is fine); a pair outside that is reported and left out. |
@@ -1212,7 +1212,7 @@ watchdog quiet --stage S --clear                   lift the pause; `watchdog qui
 ```
 
 Exit codes: 0 ok (also when another tick is running, and when the watchdog is off and `run` has nothing to do), 1 a
-failure (`notify-test`: no channel, or one failed), 2 a usage error. `quiet --reason` and `quiet --clear` without `--stage` act on `$HUB_STAGE`, else `default`.
+failure (`notify-test`: no channel, or one failed), 2 a usage error. `quiet --reason` and `quiet --clear` without `--stage` act on `$HUB_STAGE`, else the caller's registered stage, else `default`.
 The rules, the hosts it can wake, the safety rules and what leaves the machine are in
 [docs/monitoring.md](monitoring.md#watchdog-a-hub-that-sleeps-is-woken); the settings are in
 [Configuration](#configuration), all hub-wide (hub home `config.json` or the environment, never a repository's).

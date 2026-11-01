@@ -180,11 +180,13 @@ The hub's single `jwait` (`--tag hub-<N> --tag hub --hub-events`) wakes on it: `
 `<tag>-await` is neither the hub's own tag nor its sub-tag `<tag>/…`, which `jwait` drops. Outcomes: exit 0 → the
 `--ok` word (`DONE`, or `MERGED` for a merge); exit 124 or `--timeout` (default 2h; the command's process group
 gets SIGTERM, then SIGKILL after 5 s, also for a grandchild that ignores SIGTERM) → `TIMEOUT`; any other exit code,
-a command that cannot start, a signal → `FAILED`; `--on RC=WORD` adds words such as `CONFLICT` for a command that
+a command that cannot start or is killed by a signal → `FAILED`; a supervisor stopped by SIGTERM/SIGHUP/SIGINT (`kill
+<pid>` of a superseded wait) → `CANCELLED`, journaled without `@hub` and without a status word, so no `jwait` wakes on
+it (`FAILED` again if the command's group could not be stopped); `--on RC=WORD` adds words such as `CONFLICT` for a command that
 distinguishes them. A headless executor must keep its commands attached, so it runs the wait with `--wait`: `await`
 then prints the line it journaled and exits 0 only when the command itself exited 0 (not a timeout, a signal or an
-interruption), 3 otherwise (`FAILED`, `TIMEOUT`, an `--on` word), 1 when the journal could not be written. The success
-word cannot be put on a failure: `--ok FAILED|TIMEOUT`, `--on 0=WORD` and `--on RC=<the --ok word>` are usage errors (exit
+interruption), 3 otherwise (`FAILED`, `TIMEOUT`, `CANCELLED`, an `--on` word), 1 when the journal could not be written. The success
+word cannot be put on a failure: `--ok FAILED|TIMEOUT|CANCELLED`, `--on 0=WORD` and `--on RC=<the --ok word>` are usage errors (exit
 2), and options are exact (`--wai` is an error, not `--wait`). Read that exit code or the printed word, never
 "the command ended": before 26.10 the exit was 0 whenever the line was written, so `await --wait --ok PASSED -- gh pr
 checks N --watch` reported 0 and printed nothing on red checks (26.10, PR #138 and the 1.0.21 release PR).

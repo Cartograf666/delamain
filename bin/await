@@ -17,12 +17,14 @@ WORD comes from COMMAND's exit code: 0 -> the --ok word (default DONE; use MERGE
 --timeout -> TIMEOUT, anything else -> FAILED. `--on RC=WORD` (repeatable) maps other codes, e.g. `--on 3=CONFLICT`,
 and wins over the defaults; scripts/ci_wait.py needs `--on 2=TIMEOUT` (its 2 is a timeout or an unreachable GitLab).
 LINK is `--link`, else the last http(s) URL COMMAND printed (a failed job, the merge request). A COMMAND that cannot
-start, is killed by a signal, or a supervisor that gets SIGTERM/SIGHUP/SIGINT (which also stops COMMAND's process
-group) ends in FAILED. A supervisor killed with SIGKILL writes nothing: the hub's jwait alarm is the backstop.
+start or is killed by a signal ends in FAILED. A supervisor that gets SIGTERM/SIGHUP/SIGINT (the hub's own `kill` of
+a superseded wait) stops COMMAND's process group and journals `CANCELLED LABEL (await interrupted by signal N, …)`
+without the `@hub` address: a cancel is the caller's own act, so it wakes nobody (FAILED again if the group could not
+be stopped). A supervisor killed with SIGKILL writes nothing: the hub's jwait alarm is the backstop.
 
 --wait keeps `await` attached (the supervisor's work in the foreground). It prints the journal line it wrote and exits
-0 only when COMMAND itself exited 0 (not a timeout, a signal or an interruption): FAILED, TIMEOUT or an --on word ends
-with exit 3. --ok FAILED|TIMEOUT, --on 0=WORD and --on RC=<the --ok word> are usage errors (exit 2): no failure may
+0 only when COMMAND itself exited 0 (not a timeout, a signal or an interruption): FAILED, TIMEOUT, CANCELLED or an --on
+word ends with exit 3. --ok FAILED|TIMEOUT|CANCELLED, --on 0=WORD and --on RC=<the --ok word> are usage errors (exit 2): no failure may
 carry the success word. Options are exact (no abbreviations: `--wai` is an error, not --wait). Read that exit code or that
 line, never "the command ended": `await --wait --ok PASSED -- gh pr checks N --watch` used to exit 0 on red checks,
 because 0 meant "the line is written", and the verdict was only in the journal.
@@ -68,7 +70,7 @@ READY_WAIT_S = 10.0
 LOG_SCAN_BYTES = 65536
 URL_RE = re.compile(r"https?://[^\s<>\"')\]]+")
 WORD_RE = re.compile(r"[A-Z][A-Z0-9_]*")
-RESERVED_WORDS = ("FAILED", "TIMEOUT")  # what await itself says for a failure: never also the success word
+RESERVED_WORDS = ("FAILED", "TIMEOUT", "CANCELLED")  # what await itself says for a failure: never also the success word
 
 
 class Interrupted(Exception):
@@ -146,10 +148,20 @@ def set_signals(handler) -> None:
         signal.signal(sig, handler)
 
 
+def verdict(args, on: dict, rc: int, started: float) -> tuple:
+    """(WORD, detail, ok) of a command that ended by itself with `rc`."""
+    took = human(time.monotonic() - started)
+    if rc < 0:
+        return "FAILED", f"killed by signal {-rc} after {took}", False
+    word = on.get(rc) or (args.ok if rc == 0 else "TIMEOUT" if rc == 124 else "FAILED")
+    return word, f"exit {rc}, {took}", rc == 0
+
+
 def run_wait(args, cmd: list, log: Path, on: dict) -> tuple:
     """Run the command to its end; return (WORD, detail, ok). `ok` is the command's own outcome (it exited 0 by itself:
     not a timeout, a signal, an interruption, a failed start), whatever WORD says. Writes nothing to the journal. A stop signal anywhere in
-    here (also after the command has ended) is a FAILED verdict, never an exception that costs the line."""
+    here is a verdict, never an exception that costs the line: CANCELLED while the command still runs, the command's own
+    verdict once it has ended (a late `kill` must not turn a red command into a silent cancel)."""
     started = time.monotonic()
     proc = None
     set_signals(_raise_interrupted)
@@ -170,11 +182,7 @@ def run_wait(args, cmd: list, log: Path, on: dict) -> tuple:
             if EARLY_SIGNALS:
                 raise Interrupted(EARLY_SIGNALS[0])
             rc = proc.wait(timeout=hc.parse_duration(args.timeout).total_seconds())
-        took = human(time.monotonic() - started)
-        if rc < 0:
-            return "FAILED", f"killed by signal {-rc} after {took}", False
-        word = on.get(rc) or (args.ok if rc == 0 else "TIMEOUT" if rc == 124 else "FAILED")
-        return word, f"exit {rc}, {took}", rc == 0
+        return verdict(args, on, rc, started)
     except subprocess.TimeoutExpired:
         set_signals(signal.SIG_IGN)  # a second signal must not cut the cleanup short
         left = stop_group(proc)
@@ -182,8 +190,11 @@ def run_wait(args, cmd: list, log: Path, on: dict) -> tuple:
                            else f"stopped after {args.timeout}, no verdict yet"), False
     except Interrupted as e:
         set_signals(signal.SIG_IGN)
+        if proc is not None and proc.poll() is not None:  # it ended by itself before the signal: its verdict stands,
+            stop_group(proc)  # and what it left running in its group is stopped as a cancel would
+            return verdict(args, on, proc.returncode, started)
         left = stop_group(proc) if proc is not None else ""
-        return "FAILED", f"await interrupted by signal {e.signum}" + (
+        return "FAILED" if left else "CANCELLED", f"await interrupted by signal {e.signum}" + (
             f", the command could not be stopped ({left})" if left else ", the command was stopped" if proc else ""), False
     finally:
         set_signals(signal.SIG_IGN)  # the verdict is known: a late signal must not cost the line
@@ -196,7 +207,9 @@ def supervise(args, cmd: list, log: Path, stage: str, tag: str, on: dict) -> int
     except Exception as e:  # a bug or a signal that slipped past run_wait: the hub still gets its one line
         word, detail, ok = "FAILED", f"await crashed: {e!r}", False
     link = args.link or last_url(log, offset)
-    text = f"@{args.to} {word} {args.label}" + (f" — {link}" if link else "") + f" ({detail}, log {log})"
+    # a cancel is the caller's own act: no address, and jwait passes over it whatever the label says
+    # (hubcore.await_cancel_line)
+    text = ("" if word == "CANCELLED" else f"@{args.to} ") + f"{word} {args.label}" + (f" — {link}" if link else "") + f" ({detail}, log {log})"
     try:
         hc.journal_append(stage, tag, text)
     except OSError as e:
