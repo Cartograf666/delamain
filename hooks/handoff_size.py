@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""PreToolUse hook on Write|Edit: a HANDOFF-*.md file must stay <= 15 KiB (15360 bytes UTF-8).
+"""PreToolUse hook on Write|Edit: a HANDOFF-*.md file must stay <= 15 KiB (15360 bytes UTF-8), and the section
+"## Promoted lessons" of a hub-rules.md must stay <= 2 KiB (2048 bytes): every hub reads that file at every takeover.
 
 Scope: only files in the hub home, in a repository with `.agent-hub/`, or under AGENT_HUB_SCOPE_DIRS (hub home
 config.json); a HANDOFF-*.md anywhere else on the machine is not this plugin's business.
@@ -23,6 +24,7 @@ if __name__ == "__main__":  # fail-safe first, before anything that can fail: se
 import fnmatch
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -33,6 +35,23 @@ REASON = (
     "(templates/HANDOFF-template.md in the plugin; ≤ 12 KB, chronology goes to journal-<date>.md) and continue "
     "in a new session from it."
 )
+
+
+PROMOTED_REASON = (
+    'The "## Promoted lessons" section of {name} is {size} bytes > {limit}. Every hub reads it at every takeover: '
+    "keep one line per lesson (the rule and its source id), and move a rule that is mechanical to the plugin backlog."
+)
+PROMOTED_MAX_BYTES = 2048
+PROMOTED_HEAD_RE = re.compile(r"(?im)^##[ \t]+Promoted lessons\b")
+
+
+def promoted_size(content: str) -> int:
+    """Bytes of the "## Promoted lessons" section (heading to the next `## ` heading or the end); 0 when it has none."""
+    m = PROMOTED_HEAD_RE.search(content)
+    if not m:
+        return 0
+    nxt = re.search(r"(?m)^## ", content[m.end():])
+    return len(content[m.start(): m.end() + nxt.start() if nxt else len(content)].encode("utf-8"))
 
 
 def hubcore():
@@ -48,6 +67,30 @@ def hub_setting(name: str):
     return hubcore().setting(name)
 
 
+def handoff_limit() -> int:
+    try:
+        return int(hub_setting("AGENT_HUB_HANDOFF_MAX_BYTES") or 15360)
+    except ValueError:
+        print("handoff_size: AGENT_HUB_HANDOFF_MAX_BYTES is not a whole number; using 15360", file=sys.stderr)
+        return 15360
+
+
+def reason(path: str, content: str):
+    """Why writing `content` to `path` is refused, None when it is fine or the file is not one of ours."""
+    name = os.path.basename(path)
+    if fnmatch.fnmatchcase(name, "HANDOFF-*.md"):
+        size, limit = len(content.encode("utf-8")), handoff_limit()
+        return REASON.format(size=size, limit=limit) if size > limit else None
+    if name == "hub-rules.md":
+        size = promoted_size(content)
+        return PROMOTED_REASON.format(name=name, size=size, limit=PROMOTED_MAX_BYTES) if size > PROMOTED_MAX_BYTES else None
+    return None
+
+
+def ours(name: str) -> bool:
+    return fnmatch.fnmatchcase(name, "HANDOFF-*.md") or name == "hub-rules.md"
+
+
 def main() -> None:
     data = json.loads(sys.stdin.read() or "{}")
     if not isinstance(data, dict) or data.get("hook_event_name", "PreToolUse") != "PreToolUse":
@@ -58,33 +101,23 @@ def main() -> None:
         hc = hubcore()
         hc.use_cwd(data.get("cwd"))
         cwd = data.get("cwd") or os.getcwd()
-        try:
-            limit = int(hub_setting("AGENT_HUB_HANDOFF_MAX_BYTES") or 15360)
-        except ValueError:
-            limit = 15360
         for _, target, content in patch_contents(ti.get("command"), cwd):
-            if target is None or content is None or not fnmatch.fnmatchcase(os.path.basename(target), "HANDOFF-*.md"):
+            if target is None or content is None or not ours(os.path.basename(target)):
                 continue
             if not hc.in_scope(os.path.join(cwd, target)):
                 continue
-            size = len(content.encode("utf-8"))
-            if size > limit:
-                deny(size, limit)
+            if why := reason(target, content):
+                deny(why)
                 return
         return
     fp = ti.get("file_path")
     if tool not in ("Write", "Edit") or not isinstance(fp, str):
         return
-    if not fnmatch.fnmatchcase(os.path.basename(fp), "HANDOFF-*.md"):
+    if not ours(os.path.basename(fp)):
         return
     hubcore().use_cwd(data.get("cwd"))
     if not hubcore().in_scope(os.path.join(data.get("cwd") or os.getcwd(), fp)):
         return
-    try:
-        limit = int(hub_setting("AGENT_HUB_HANDOFF_MAX_BYTES") or 15360)
-    except ValueError:
-        print("handoff_size: AGENT_HUB_HANDOFF_MAX_BYTES is not a whole number; using 15360", file=sys.stderr)
-        limit = 15360
 
     if tool == "Write":
         content = ti.get("content")
@@ -104,17 +137,15 @@ def main() -> None:
         if content is None:
             return
 
-    size = len(content.encode("utf-8"))
-    if size <= limit:
-        return
-    deny(size, limit)
+    if why := reason(fp, content):
+        deny(why)
 
 
-def deny(size, limit):
+def deny(why):
     print(json.dumps({"hookSpecificOutput": {
         "hookEventName": "PreToolUse",
         "permissionDecision": "deny",
-        "permissionDecisionReason": REASON.format(size=size, limit=limit),
+        "permissionDecisionReason": why,
     }}, ensure_ascii=False))
 
 

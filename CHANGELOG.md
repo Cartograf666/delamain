@@ -32,6 +32,14 @@
   sessions and refused their `git -C <main clone>` and `$(…)` commands (most of last week's host refusals); a plain
   worktree is not isolated. The hub skill now says to avoid both in hub commands, since a Desktop hub stays isolated.
 
+- **Lessons promote themselves.** The status of an entry in `<stage>/lessons.md` is derived from its verdict lines when
+  `hub takeover` reads the file: `helped` from two different shifts and no `hurt` makes it promotable, any `hurt`
+  retires it (a hand-written `promoted` or `retired` stays; the verdict shapes in use are read, including `(L-002,
+  hub-20 …)` and `L-001/002`). The takeover digest lists "promotable: L-… (helped ×N)" and any promoted lesson a shift
+  found harmful. The hub promotes a promotable lesson into the stage `hub-rules.md`, section "Promoted lessons", one line
+  with its source id (a lesson a tool could catch goes to the plugin backlog as a pointer), without asking the owner. The
+  `handoff_size` hook now also caps that section at 2 KiB. No new command, hook or key.
+
 - **Windows dispatch accepts every registered hook, including `scan_guard`.** Both adapter allowlists are checked
   against the hook manifest; native PowerShell controls also verify unknown-name rejection and scan allow/deny behavior.
 

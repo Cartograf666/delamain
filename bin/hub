@@ -451,37 +451,89 @@ def outside_markup(text: str) -> list:
     return out
 
 
+# A verdict line is `- verdict …`; its head (before the first spaced dash) names the shift (hub-N), maybe lessons (`L-002`,
+# `L-001/L-005`, `L-001/002`) and the verdict word. Without a lesson id it is about the entry it sits under.
+LESSON_VERDICT_RE = re.compile(r"^\s*[-*]\s*verdict\b(.*)$", re.IGNORECASE)
+LESSON_IDS_RE = re.compile(r"\b(L-(?:[A-Z]+-)?)(\d{1,6})((?:/(?:L-(?:[A-Z]+-)?)?\d{1,6})*)\b")
+LESSON_WORD_RE = re.compile(r"\b(helped|hurt|no effect|confounded)\b", re.IGNORECASE)
+LESSON_SHIFT_RE = re.compile(r"\bhub-\d+\b")
+LESSON_DATE_RE = re.compile(r"\b\d{4}-\d\d-\d\d\b|(?<![\d.])\d{1,2}\.\d\d(?![\d.])")
+LESSON_PROMOTE_AT = 2   # `helped` from this many different shifts (and no `hurt`) makes a lesson promotable
+
+
+def lesson_verdict(rest: str):
+    """([lesson ids], word, shift) of the text after `- verdict`, or None when the line gives no usable verdict. Used
+    shapes: `: hub-35 2026-10-25 helped — …`, `: helped (hub-31, 23.10) — …`, ` (hub-5, 27.10): helped — …`,
+    ` (L-002, hub-20 26.10): helped — …`, ` (hub-19): L-MC-003 helped — …`, `L-001/002 helped`. Only the head before the
+    first spaced dash is read, so the evidence cannot vote. Two different words (`hurt-then-helped`) or `ignored`
+    (the lesson was not applied) give no verdict: a guess either way would retire or promote a rule."""
+    head = re.split(r"\s[—–-]\s", rest, maxsplit=1)[0]
+    found = list(LESSON_WORD_RE.finditer(head))
+    words = {m.group(1).lower() for m in found}
+    if len(words) != 1 or re.search(r"\bignored\b", head, re.IGNORECASE):
+        return None
+    ids = []
+    for m in LESSON_IDS_RE.finditer(head[:found[0].start()]):   # an id after the word is a reference, not the target
+        ids.append(m.group(1) + m.group(2))
+        for tail in m.group(3).split("/")[1:]:
+            ids.append(tail if tail.startswith("L-") else m.group(1) + tail)
+    shift = LESSON_SHIFT_RE.search(head) or LESSON_DATE_RE.search(head)
+    return ids, words.pop(), shift.group(0) if shift else "?"   # no shift named: all such verdicts count as one
+
+
 def lessons_entries(stage: str):
-    """[(id, cue, status word)] of <stage>/lessons.md, in file order; None when the file is absent or unreadable. The
-    status word is the first word of the entry's first `- status:` line (proposed | confirmed | promoted | retired), ""
-    when it has none. Bytes that are not UTF-8 are replaced: a damaged file must not stop a handoff or a takeover."""
+    """[(id, cue, status word, helped, hurt)] of <stage>/lessons.md, in file order; None when the file is absent or
+    unreadable. `helped` / `hurt` count the different shifts that gave that verdict. The status word is the first word of
+    the entry's first `- status:` line (proposed | confirmed | promoted | retired), "" when it has none, derived from
+    the verdicts: `promoted` and `retired` written by hand stay; otherwise any `hurt` makes it `retired` and `helped`
+    from LESSON_PROMOTE_AT shifts makes it `promotable`. Bytes that are not UTF-8 are replaced: a damaged file must not
+    stop a handoff or a takeover."""
     try:
         text = lessons_path(stage).read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
-    out = []
-    for _, line in outside_markup(text):
+    out, shifts, current = [], {}, None   # shifts: id -> {word: {shift}}
+    for lineno, line in outside_markup(text):
         if m := LESSON_HEAD_RE.match(line):
             out.append([m.group(1), m.group(2).strip(), ""])
+            current = m.group(1)
         elif out and not out[-1][2] and (m := LESSON_STATUS_RE.match(line)):
             out[-1][2] = m.group(1).lower()
-    return [tuple(e) for e in out]
+        elif (m := LESSON_VERDICT_RE.match(line)) and (v := lesson_verdict(m.group(1))):
+            for lid in v[0] or ([current] if current else []):
+                shifts.setdefault(lid, {}).setdefault(v[1], set()).add(v[2])
+    result = []
+    for lid, cue, status in out:
+        by_word = shifts.get(lid, {})
+        helped, hurt = len(by_word.get("helped", ())), len(by_word.get("hurt", ()))
+        if status not in ("promoted", "retired"):   # a hand-written promotion stays; a later `hurt` is for the hub to act on
+            status = "retired" if hurt else "promotable" if helped >= LESSON_PROMOTE_AT else status
+        result.append((lid, cue, status, helped, hurt))
+    return result
 
 
 def lessons_digest_line(stage: str) -> str:
-    """The takeover digest's pointer to <stage>/lessons.md (whether or not the setting is on); "" when there is no file."""
+    """The takeover digest's pointer to <stage>/lessons.md (whether or not the setting is on); "" when there is no file.
+    Names the lessons the hub must act on: promotable ones, and promoted ones that a shift found harmful."""
     entries = lessons_entries(stage)
     if entries is None:
         return ""
     words = [e[2] for e in entries]
-    return ("Lessons of earlier shifts — read before planning; at your handoff give a verdict on each that acts in your "
+    line = ("Lessons of earlier shifts — read before planning; at your handoff give a verdict on each that acts in your "
             f"shift: {lessons_path(stage)} (proposed {words.count('proposed')}, confirmed {words.count('confirmed')})")
+    for label, ids in (("promotable",
+                        [f"{e[0]} (helped ×{e[3]})" for e in entries if e[2] == "promotable"]),
+                       ("promoted but hurt",
+                        [f"{e[0]} (hurt ×{e[4]})" for e in entries if e[2] == "promoted" and e[4]])):
+        if ids:
+            line += f"; {label}: " + ", ".join(ids[:3]) + (f", … {len(ids) - 3} more" if len(ids) > 3 else "")
+    return line
 
 
 def lessons_section(stage: str) -> str:
     """§ 7 of a handoff draft, written only when the setting is on."""
-    open_ones = [e for e in lessons_entries(stage) or [] if e[2] in ("proposed", "confirmed")]
-    listed = "; ".join(f"{i} {cue[:70]}" for i, cue, _ in open_ones[:8])
+    open_ones = [e for e in lessons_entries(stage) or [] if e[2] in ("proposed", "confirmed", "promotable")]
+    listed = "; ".join(f"{e[0]} {e[1][:70]}" for e in open_ones[:8])
     if len(open_ones) > 8:
         listed += f"; … {len(open_ones) - 8} more"
     return f"""## 7. Lessons of this shift
@@ -882,7 +934,7 @@ def digest(stage: str, n: int, name: str, handoff: Path, steps: list, notes: lis
         ("ATTENTION:\n" + "\n".join(notes) if notes else "", 500, ""),
         ("\n".join(f"ATTENTION: {w}" for w in warns), 900, ""),
         (hub_notes_line(stage), 300, ""),
-        (lessons_digest_line(stage), 260 + len(str(lessons_path(stage)).encode("utf-8")), ""),  # 260 bytes of text, then the path
+        (lessons_digest_line(stage), 380 + len(str(lessons_path(stage)).encode("utf-8")), ""),  # 380 bytes of text, then the path
         (watchdog_digest(stage), 400, "watchdog status"),
         (pace_digest(stage), 480, "agent-top --once"),
         (f"First jwait ({wait_procedure()}; --since = handoff time):\n"
