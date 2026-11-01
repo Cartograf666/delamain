@@ -52,7 +52,9 @@ With --journal it also looks, every 10 s, for a headless agent of the stage whos
 NEXT WAIT (Claude host, --journal): when a run ends, a last line says how to wait next, so the hub does not reason
 about it: a Monitor stream while something of the stage runs (a live headless agent, an `await` supervisor), else ONE
 long background wait (idle: up to 8h, inside the Bash timeout cap BASH_MAX_TIMEOUT_MS, 2h unset). An idle hub then costs
-no model call until a line comes; the Monitor's 30-minute cap would wake it twice an hour for nothing.
+no model call until a line comes; the Monitor's 30-minute cap would wake it twice an hour for nothing. Dormant: when nothing
+runs, no owner question is open and the hub can be woken from outside (a `claude --bg` or headless hub, the watchdog on),
+it is told to end the turn with no waiter instead: the watchdog's R3 wakes it on a line, and stops it after 2 h idle.
 A held line wakes after HELD_MAX (30 min) at the latest, so a long idle wait does not sit on another hub's message.
 Exit: 0 lines delivered, 3 deadline, 1 failure, 2 usage.
 """
@@ -626,6 +628,39 @@ def stage_busy(stage: str) -> list:
     return out
 
 
+def open_questions(stage: str) -> list:
+    """Ids of the stage's owner questions that are open (bin/ask); unreadable state counts as none."""
+    try:
+        mod = sys.modules.get("ask_cli")
+        if mod is None:
+            loader = importlib.machinery.SourceFileLoader("ask_cli", str(hc.BIN / "ask"))
+            mod = importlib.util.module_from_spec(importlib.util.spec_from_loader("ask_cli", loader))
+            sys.modules["ask_cli"] = mod  # the dataclasses of `ask` look their module up here
+            loader.exec_module(mod)
+        return [e.id for e in mod.load(stage)[1] if e.kind_letter == "Q" and e.state == "open"]
+    except Exception:  # noqa: BLE001 — a hint, never a failure of the waiter
+        return []
+
+
+def caller_host(stage: str) -> str:
+    """How the calling hub can be woken from outside: "wakeable" (a `claude --bg` hub or a headless one, and the watchdog
+    is on: R3 resumes it on a line), "desktop" (it cannot be), "" otherwise (a terminal, not the hub, unknown)."""
+    try:
+        hit = hc.role_for_caller(stage)
+    except Exception:  # noqa: BLE001
+        return ""
+    if not hit or hit[0] != "hub":
+        return ""
+    rec = hit[1]
+    if (hc.root() / stage / "do-not-wake.json").exists():
+        return ""  # `watchdog quiet`: no R3 wake until the marker ends, so the hub keeps its own long wait
+    if rec.get("kind") == "desktop" or str(rec.get("session") or "").startswith("local_"):
+        return "desktop"
+    if (rec.get("host") == "bg" or hc.detached(stage, rec)) and hc.truthy(hc.setting("AGENT_HUB_WATCHDOG")):
+        return "wakeable"
+    return ""
+
+
 def bash_cap_ms() -> int:
     try:
         return int(os.environ.get("BASH_MAX_TIMEOUT_MS") or BASH_CAP_DEFAULT_MS)
@@ -661,12 +696,18 @@ def print_next_wait(args, argv: list, stage: str) -> None:
         print(f"NEXT WAIT: running in {stage}: {', '.join(busy)[:200]} — one Monitor, timeout_ms {MONITOR_TIMEOUT_MS}: "
               f"jwait {rest} --stream")
         return
+    host = caller_host(stage)
+    if host == "wakeable" and not open_questions(stage):
+        print(f"NEXT WAIT: nothing runs in {stage} — dormant: end the turn with no waiter; the watchdog wakes you on a "
+              "line addressed to you")
+        return
     cap_s = max(2, bash_cap_ms() // 1000)
     margin = min(300, max(1, cap_s // 10))  # the Bash timeout outlives the wait by this much, inside the cap
     idle_s = min(IDLE_FOR_S, cap_s - margin)
     span = f"{idle_s // 60}m" if idle_s % 60 == 0 else f"{idle_s}s"
     print(f"NEXT WAIT: nothing runs in {stage} — no Monitor; ONE Bash run_in_background: true, timeout "
-          f"{(idle_s + margin) * 1000}: jwait {rest} --for {span}")
+          f"{(idle_s + margin) * 1000}: jwait {rest} --for {span}"
+          + (f" (to sleep unpinged: watchdog quiet --stage {stage} --reason \"…\")" if host == "desktop" else ""))
 
 
 def fmt_deadline(t) -> str:

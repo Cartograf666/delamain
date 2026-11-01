@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **An idle hub goes dormant instead of being pinged, and R7 stops retired hubs it used to only report.** When nothing
+  runs in a stage (no agent, no `await`, no open owner question), `jwait`'s NEXT WAIT on a `claude --bg` or headless hub
+  (watchdog on) says *dormant*: end the turn with no waiter; R3 wakes it on a line. A dormant `claude --bg` hub idle for
+  2 h is stopped through R7's stop code (role kept, stage open) and resumed by R3 as before; a Desktop hub's NEXT WAIT
+  names `watchdog quiet`. R7 no longer counts a retired hub's own leftover `jwait`, a pending prompt (`idle/blocked`) or
+  MCP servers started under a shell as work, and its "stop it by hand" report goes to the watchdog's log, not the stage
+  journal (65 lines last week). R3 never wakes a hub for `[pace]` lines, R6 skips quiet stages, and a held line under a
+  live waiter is no longer reported as "jwait does not match" (11 of 11 such alarms last week).
+
 - **A cancelled `await` is `CANCELLED`, not `FAILED`, and wakes nobody.** A supervisor stopped by SIGTERM, SIGHUP or
   SIGINT (the hub's own `kill <pid>` of a superseded wait: 53 of last week's 58 "await FAILED (signal 15)") journals
   `CANCELLED <label> (await interrupted by signal N, …)` without the `@hub` address, so the digest `jwait` does not
