@@ -11,7 +11,7 @@ EXAMPLE="$T/../docs/examples/subagent-policy.json"
 # run the guard on one command; prints the hook's stdout. $2=1: run_in_background, $3: cwd
 pg(){ python3 -c 'import json,sys; print(json.dumps({"hook_event_name":"PreToolUse","tool_name":"Bash","cwd":sys.argv[3],"tool_input":{"command":sys.argv[1],"run_in_background":sys.argv[2]=="1"}}))' "$1" "${2:-0}" "${3:-/}" | python3 $HOOKS/polling_guard.py; }
 denied(){ pg "$@" | grep -q '"permissionDecision": "deny"'; }
-pg 'sleep 120; curl -s https://example.invalid/healthz' > /dev/null; guard_record polling_guard.py deny 'sleep 120; curl'; check $? 0 "poll: the deny leaves its record in guard-decisions.jsonl"
+pg 'sleep 120; curl -s https://example.invalid/healthz' > /dev/null; guard_record polling_guard.py deny sleep; check $? 0 "poll: the deny leaves its record in guard-decisions.jsonl"
 P="projects/acme%2Fwebapp"
 # commands a session really ran while waiting (the reason this hook exists)
 BLOCKED=(

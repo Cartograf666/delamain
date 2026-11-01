@@ -74,7 +74,7 @@ try:
     last = json.loads((WORK / "hub" / ".state" / "guard-decisions.jsonl").read_text().splitlines()[-1])
 except (OSError, IndexError, ValueError):
     last = {}
-check((last.get("hook"), last.get("decision"), last.get("command", "")[:14]) == ("scan_guard.py", "deny", "find ~ -name h"),
+check((last.get("hook"), last.get("decision"), last.get("program"), "command" in last) == ("scan_guard.py", "deny", "find", False) and last.get("reason"),
       f"the refusal leaves its record in guard-decisions.jsonl ({last})")
 
 # ---- refused: commands (cwd is not the home unless a pair says so)

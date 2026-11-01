@@ -17,8 +17,9 @@ the result of a tool that already ran). Every hook of this plugin is a guard tha
 A deliberate decision is not affected: a hook that printed its deny and then failed still delivers the deny.
 
 The wrapper also keeps the durable record of those decisions: once a deny (or ask, or block) is delivered it appends
-one line `{ts, hook, decision, session, tag, command}` to `<state dir>/guard-decisions.jsonl` (the last GUARD_LOG_CAP
-lines are kept). The record is written after the answer is out and is best effort: a write that fails or hangs
+one line `{ts, hook, decision, reason, session, tag, program}` to `<state dir>/guard-decisions.jsonl` (the last
+GUARD_LOG_CAP lines are kept). `program` is the basename of the command's first word after any VAR=value assignments:
+no arguments and no assignment values are stored, so a secret on a command line never reaches the file. The record is written after the answer is out and is best effort: a write that fails or hangs
 changes nothing for the guard.
 """
 from __future__ import annotations
@@ -27,6 +28,7 @@ import atexit
 import io
 import json
 import os
+import re
 import sys
 import threading
 import time
@@ -48,7 +50,10 @@ DEADLINES = {
 
 GUARD_LOG_CAP = 5000  # lines kept in <state dir>/guard-decisions.jsonl
 GUARD_LOG_MIN_LINE = 80  # bytes: a smaller file cannot hold GUARD_LOG_CAP lines, so it is not counted
-COMMAND_CHARS = 120
+REASON_CHARS = 120
+STALE_TMP_S = 60
+# VAR=value prefixes (quotes and escapes kept whole), then the program: only its basename is ever recorded
+_ASSIGN = re.compile(r"\s*(?:[A-Za-z_]\w*=(?:\\.|\"(?:[^\"\\]|\\.)*\"|'[^']*'|[^\s\"'\\])*\s+)*([^\s;&|<>()]+)")
 
 _state: dict = {}
 
@@ -117,13 +122,18 @@ def _record(answer) -> None:
         if not isinstance(event, dict):
             event = {}
         tool_input = event.get("tool_input")
-        tool_input = tool_input if isinstance(tool_input, dict) else {}
-        command = next((v for v in (tool_input.get("command"), tool_input.get("file_path"), event.get("tool_name"))
-                        if isinstance(v, str)), "")
+        command = tool_input.get("command") if isinstance(tool_input, dict) else None
+        match = _ASSIGN.match(command) if isinstance(command, str) else None
+        program = os.path.basename(match.group(1)) if match else ""
+        if not re.fullmatch(r"[\w.+@-]{1,64}", program):
+            program = event.get("tool_name") if isinstance(event.get("tool_name"), str) and not command else ""
+        out = answer.get("hookSpecificOutput")
+        reason = (out.get("permissionDecisionReason") if isinstance(out, dict) else None) or answer.get("reason") or ""
+        reason = reason.splitlines()[0][:REASON_CHARS] if isinstance(reason, str) and reason.strip() else ""  # the headline: later lines can quote the command
         hook = os.path.basename(sys.argv[0]) + "".join(" " + a for a in sys.argv[1:2])
-        record = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "hook": hook, "decision": decision,
+        record = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "hook": hook, "decision": decision, "reason": reason,
                   "session": event.get("session_id") if isinstance(event.get("session_id"), str) else "",
-                  "tag": os.environ.get("HUB_TAG", ""), "command": command[:COMMAND_CHARS]}
+                  "tag": os.environ.get("HUB_TAG", ""), "program": program}
         root = os.environ.get("PLUGIN_ROOT") or os.environ.get("CLAUDE_PLUGIN_ROOT") or os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         sys.path.insert(0, os.path.join(root, "bin"))
         import hubcore  # noqa: E402
@@ -133,17 +143,29 @@ def _record(answer) -> None:
         state.mkdir(parents=True, exist_ok=True)
         path = state / "guard-decisions.jsonl"
         line = (json.dumps(record, ensure_ascii=False) + "\n").encode("utf-8", "replace")
-        fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+        fd = os.open(path, os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o600)
         try:
+            size = os.fstat(fd).st_size
+            if size and os.pread(fd, 1, size - 1) != b"\n":  # a torn line (short write) must not swallow this record
+                line = b"\n" + line
             os.write(fd, line)  # one write: concurrent hooks do not interleave their lines
         finally:
             os.close(fd)
         if path.stat().st_size > GUARD_LOG_CAP * GUARD_LOG_MIN_LINE:
             lines = path.read_bytes().splitlines(keepends=True)
             if len(lines) > GUARD_LOG_CAP:
+                for old in state.glob(".guard-decisions.*.tmp"):  # left by a trim that failed midway
+                    try:
+                        if time.time() - old.stat().st_mtime > STALE_TMP_S:
+                            old.unlink()
+                    except OSError:
+                        pass
                 tmp = path.with_name(f".guard-decisions.{os.getpid()}.tmp")
-                tmp.write_bytes(b"".join(lines[-GUARD_LOG_CAP:]))
-                os.replace(tmp, path)
+                try:
+                    tmp.write_bytes(b"".join(lines[-GUARD_LOG_CAP:]))
+                    os.replace(tmp, path)
+                finally:
+                    tmp.unlink(missing_ok=True)
     except BaseException:  # noqa: BLE001 — a lost record never changes what the guard decided
         pass
 
