@@ -148,6 +148,52 @@ for bad_value in ("0", "-3", "inf", "nan", "soon", "61"):
     r = run(ROOT, "polling_guard.py", [], json.dumps({"tool_name": "Bash", "tool_input": {"command": "sleep 600"}}).encode(), env=env)
     check(b"permissionDecision" in r.stdout and b"using 8.5" in r.stderr, f"AGENT_HUB_HOOK_DEADLINE_S={bad_value}: ignored with a note, the guard still answers its deny")
 
+
+# -- the decision record: a delivered deny leaves one line in <state dir>/guard-decisions.jsonl; nothing else does
+POLL_DENY = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash", "session_id": "sess-1", "cwd": "/",
+                        "tool_input": {"command": "sleep 600 # " + "x" * 200}}).encode()
+POLL_PASS = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash", "session_id": "sess-1", "cwd": "/",
+                        "tool_input": {"command": "ls"}}).encode()
+log = WORK / "hub" / ".state" / "guard-decisions.jsonl"
+log.unlink(missing_ok=True)
+env = env_for(ROOT); env["HUB_TAG"] = "guard-log"
+r = run(ROOT, "polling_guard.py", [], POLL_PASS, env=env)
+check(r.returncode == 0 and not log.exists(), "decision record: a command the guard lets through leaves no record")
+r = run(ROOT, "polling_guard.py", [], POLL_DENY, env=env)
+rec = [json.loads(l) for l in log.read_text().splitlines()] if log.exists() else []
+check(r.returncode == 0 and b'"deny"' in r.stdout and len(rec) == 1, "decision record: a deny is delivered and recorded once")
+rec = rec[0] if rec else {}
+check((rec.get("hook"), rec.get("decision"), rec.get("session"), rec.get("tag")) == ("polling_guard.py", "deny", "sess-1", "guard-log")
+      and rec.get("command") == ("sleep 600 # " + "x" * 200)[:120] and rec.get("ts"), f"decision record: hook, decision, session, tag, the first 120 characters of the command ({rec})")
+# a hook with a subcommand names it; a record of a deny printed before a crash is kept too
+root = plugin_copy("record-probe")
+(root / "hooks" / "probe.py").write_text("import json, sys\nif __name__ == '__main__':\n    import failsafe\n    failsafe.install()\n"
+                                          "    json.load(sys.stdin)\n    print(json.dumps({'hookSpecificOutput': {'permissionDecision': 'deny'}}))\n    raise RuntimeError('late')\n")
+log.unlink(missing_ok=True)
+r = run(root, "probe.py", ["pre-tool"], POLL_DENY)
+rec = [json.loads(l) for l in log.read_text().splitlines()] if log.exists() else []
+check(r.returncode == 0 and [x.get("hook") for x in rec] == ["probe.py pre-tool"], f"decision record: the subcommand is part of the hook name, and a deny printed before a crash is recorded ({rec})")
+# the cap: the last GUARD_LOG_CAP lines are kept
+CAP = 5000  # failsafe.GUARD_LOG_CAP
+seed = "".join(json.dumps({"ts": "t", "hook": "old.py", "decision": "deny", "session": "", "tag": "", "command": f"seed {i} " + "x" * 60}) + "\n"
+               for i in range(CAP))
+log.write_text(seed)
+r = run(ROOT, "polling_guard.py", [], POLL_DENY, env=env)
+lines = log.read_text().splitlines()
+check(len(lines) == CAP and json.loads(lines[0])["command"].startswith("seed 1 ") and json.loads(lines[-1])["hook"] == "polling_guard.py",
+      f"decision record: at the cap the oldest line goes and the new one stays ({len(lines)} lines)")
+# a record that cannot be written changes nothing for the guard
+blocked = WORK / "blocked-hub"
+blocked.mkdir(exist_ok=True); (blocked / ".state").write_text("a file where the state dir should be\n")
+env2 = env_for(ROOT); env2["AGENT_HUB_HOME"] = str(blocked)
+r = run(ROOT, "polling_guard.py", [], POLL_DENY, env=env2)
+check(r.returncode == 0 and b'"deny"' in r.stdout and not r.stderr.strip(), "decision record: an unwritable state dir does not touch the deny, the exit status or stderr")
+# negative control: without the fail-safe there is no record
+root = plugin_copy("record-off", install=False)
+log.unlink(missing_ok=True)
+run(root, "polling_guard.py", [], POLL_DENY, env=env)
+check(not log.exists(), "negative control, no fail-safe: the same deny leaves no record")
+
 # the deadlines stay below the timeouts the configs give the same hooks
 import re
 sys.path.insert(0, str(ROOT / "hooks"))

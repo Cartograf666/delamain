@@ -14,6 +14,11 @@
   registered in several stages and none named by `$HUB_TAG` is refused with "pass --stage"; an unregistered caller
   still gets `default`.
 
+- **Guard decisions leave a durable record.** `hooks/failsafe.py`, the wrapper every hook runs through, appends one
+  line `{ts, hook, decision, session, tag, command}` to `<state dir>/guard-decisions.jsonl` for each delivered deny,
+  ask or block, keeping the last 5 000 lines. Counting denials (the polling guard's, for one) no longer means
+  searching transcripts. No new hook, no setting; a failed write never changes what the guard decided.
+
 - **Windows dispatch accepts every registered hook, including `scan_guard`.** Both adapter allowlists are checked
   against the hook manifest; native PowerShell controls also verify unknown-name rejection and scan allow/deny behavior.
 

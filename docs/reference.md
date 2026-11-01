@@ -928,6 +928,15 @@ hook installs `hooks/failsafe.py` first: its stdout is delivered only as one com
 always 0 (also after an import error), and a timer answers "no decision" 1.5 s before the `timeout` of
 `hooks/hooks.json` (`AGENT_HUB_HOOK_DEADLINE_S` overrides the deadline, environment only; the tests use it).
 
+The same wrapper keeps the durable record of what the guards decided. Each delivered `deny`, `ask` or `block` appends one
+JSON line to `<state dir>/guard-decisions.jsonl` (`<hub home>/.state`, or `$AGENT_HUB_STATE_DIR`):
+`{ts, hook, decision, session, tag, command}` — the hook script (with its subcommand, e.g. `delegation.py pre-tool`), the
+decision, the session id from the hook input, `$HUB_TAG` when the session is a hub agent, and the first 120 characters of
+the command (the file path or tool name when there is no command). The file keeps the last 5 000 lines; an answer with no
+decision writes nothing. The record is best effort — written after the answer is out, and a write that fails changes
+nothing for the guard — so a line can be missing under concurrent trimming, never wrong. The commands are cut at 120
+characters but not redacted. There is no switch and no report command: read the file.
+
 ### Autopilot: the hub hands over by itself
 
 Registered Claude and Codex main hubs with autopilot enabled latch durable `handoff_due` at the first context

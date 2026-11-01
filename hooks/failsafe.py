@@ -15,6 +15,11 @@ the result of a tool that already ran). Every hook of this plugin is a guard tha
     gave up let the action through. $AGENT_HUB_HOOK_DEADLINE_S overrides it (the tests; a value outside (0, 60] is ignored).
 
 A deliberate decision is not affected: a hook that printed its deny and then failed still delivers the deny.
+
+The wrapper also keeps the durable record of those decisions: once a deny (or ask, or block) is delivered it appends
+one line `{ts, hook, decision, session, tag, command}` to `<state dir>/guard-decisions.jsonl` (the last GUARD_LOG_CAP
+lines are kept). The record is written after the answer is out and is best effort: a write that fails or hangs
+changes nothing for the guard.
 """
 from __future__ import annotations
 
@@ -24,6 +29,7 @@ import json
 import os
 import sys
 import threading
+import time
 
 DEFAULT_DEADLINE_S = 8.5  # every `timeout` in the hook configs is 10 s
 DEADLINES = {
@@ -40,7 +46,36 @@ DEADLINES = {
     "subagent_journal.py": 8.5,
 }
 
+GUARD_LOG_CAP = 5000  # lines kept in <state dir>/guard-decisions.jsonl
+GUARD_LOG_MIN_LINE = 80  # bytes: a smaller file cannot hold GUARD_LOG_CAP lines, so it is not counted
+COMMAND_CHARS = 120
+
 _state: dict = {}
+
+
+class _TeeStdin:
+    """The hook's stdin, remembered as it is read, so the decision record can name the command that was judged."""
+
+    def __init__(self, real):
+        self._real, self.read_text = real, []
+
+    def _keep(self, chunk):
+        if isinstance(chunk, str):
+            self.read_text.append(chunk)
+        return chunk
+
+    def read(self, *args):
+        return self._keep(self._real.read(*args))
+
+    def readline(self, *args):
+        return self._keep(self._real.readline(*args))
+
+    def __iter__(self):
+        for line in self._real:
+            yield self._keep(line)
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
 
 
 def deadline_s() -> float:
@@ -58,17 +93,70 @@ def deadline_s() -> float:
     return default
 
 
+def _decision(answer) -> str | None:
+    """deny / ask / block when the hook's answer is one, else None."""
+    if not isinstance(answer, dict):
+        return None
+    out = answer.get("hookSpecificOutput")
+    value = out.get("permissionDecision") if isinstance(out, dict) else None
+    value = value or answer.get("decision")
+    return value if value in ("deny", "ask", "block") else None
+
+
+def _record(answer) -> None:
+    """Append the decision to the capped guard-decisions.jsonl under the hub home's state dir. Never raises."""
+    try:
+        decision = _decision(answer)
+        if decision is None:
+            return
+        tee = _state.get("stdin")
+        try:
+            event = json.loads("".join(tee.read_text)) if tee else {}
+        except (ValueError, RecursionError):
+            event = {}
+        if not isinstance(event, dict):
+            event = {}
+        tool_input = event.get("tool_input")
+        tool_input = tool_input if isinstance(tool_input, dict) else {}
+        command = next((v for v in (tool_input.get("command"), tool_input.get("file_path"), event.get("tool_name"))
+                        if isinstance(v, str)), "")
+        hook = os.path.basename(sys.argv[0]) + "".join(" " + a for a in sys.argv[1:2])
+        record = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "hook": hook, "decision": decision,
+                  "session": event.get("session_id") if isinstance(event.get("session_id"), str) else "",
+                  "tag": os.environ.get("HUB_TAG", ""), "command": command[:COMMAND_CHARS]}
+        root = os.environ.get("PLUGIN_ROOT") or os.environ.get("CLAUDE_PLUGIN_ROOT") or os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        sys.path.insert(0, os.path.join(root, "bin"))
+        import hubcore  # noqa: E402
+
+        hubcore.use_cwd(event.get("cwd"))  # the hub home of the session's directory, as the guards resolve it
+        state = hubcore.state_dir()
+        state.mkdir(parents=True, exist_ok=True)
+        path = state / "guard-decisions.jsonl"
+        line = (json.dumps(record, ensure_ascii=False) + "\n").encode("utf-8", "replace")
+        fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+        try:
+            os.write(fd, line)  # one write: concurrent hooks do not interleave their lines
+        finally:
+            os.close(fd)
+        if path.stat().st_size > GUARD_LOG_CAP * GUARD_LOG_MIN_LINE:
+            lines = path.read_bytes().splitlines(keepends=True)
+            if len(lines) > GUARD_LOG_CAP:
+                tmp = path.with_name(f".guard-decisions.{os.getpid()}.tmp")
+                tmp.write_bytes(b"".join(lines[-GUARD_LOG_CAP:]))
+                os.replace(tmp, path)
+    except BaseException:  # noqa: BLE001 — a lost record never changes what the guard decided
+        pass
+
+
 def _finish() -> None:
-    """At exit: deliver a complete JSON answer, if there is one, and leave with status 0."""
-    timer = _state.get("timer")
-    if timer is not None:
-        timer.cancel()
+    """At exit: deliver a complete JSON answer, if there is one, record it, and leave with status 0."""
     real, buf = _state.get("stdout"), _state.get("buffer")
+    answer = None
     try:
         sys.stdout = real
         text = buf.getvalue()
         if text.strip():
-            json.loads(text)  # a half-written document is no answer
+            answer = json.loads(text)  # a half-written document is no answer
             data = text.encode("utf-8", "replace")  # JSON is UTF-8 whatever the locale; a lone surrogate must not lose the answer
             if hasattr(real, "buffer"):
                 real.flush()
@@ -77,8 +165,14 @@ def _finish() -> None:
             else:
                 real.write(text)
                 real.flush()
+            _state["delivered"] = True  # the deadline timer must not report a give-up for what is already out
     except BaseException:  # noqa: BLE001 — nothing is delivered, which means "no decision"
         pass
+    if _state.get("delivered"):
+        _record(answer)  # the timer is still armed: a hung write is cut at the deadline, the answer is already out
+    timer = _state.get("timer")
+    if timer is not None:
+        timer.cancel()
     try:
         sys.stderr.flush()
     except BaseException:  # noqa: BLE001
@@ -87,6 +181,8 @@ def _finish() -> None:
 
 
 def _give_up() -> None:
+    if _state.get("delivered"):
+        os._exit(0)
     try:  # a guard that gave up lets the action through: leave a trace
         print(f"delamain: {os.path.basename(sys.argv[0])} gave up after {deadline_s():g} s: no decision", file=sys.stderr, flush=True)
     except BaseException:  # noqa: BLE001
@@ -100,6 +196,8 @@ def install() -> None:
         return
     _state["stdout"], _state["buffer"] = sys.stdout, io.StringIO()
     sys.stdout = _state["buffer"]
+    if sys.stdin is not None:
+        _state["stdin"] = sys.stdin = _TeeStdin(sys.stdin)
     timer = threading.Timer(deadline_s(), _give_up)
     timer.daemon = True
     timer.start()
