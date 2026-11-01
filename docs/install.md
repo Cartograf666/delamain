@@ -82,7 +82,7 @@ journal line is lost, while the worker's exit code is still propagated.
   - `board_locks` (before every Bash call) runs in every Claude Code session on the machine, but acts only on merges
     and pushes to protected branches and on commands your `lock-rules.json` names. Any error of its own lets the
     command through.
-  - `handoff_size` (Write or Edit of `HANDOFF-*.md`) and `questions` (the owner-questions line at session start) act
+  - `handoff_size` (Write or Edit of `HANDOFF-*.md` and `hub-rules.md`) and `questions` (the owner-questions line at session start) act
     only in the hub home, in repositories that have `.agent-hub/`, under the directories of the hub-wide setting
     `AGENT_HUB_SCOPE_DIRS`, and, for `questions`, in agents started by `agent spawn`. A session in an unrelated
     project hears nothing from them.

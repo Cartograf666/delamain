@@ -1,13 +1,15 @@
 # § 7 Lessons of this shift
 
-Read this when the draft has a `## 7. Lessons of this shift` (the hub home's `AGENT_HUB_HANDOFF_LESSONS` is on). At a
+Read this when the draft has a `## 7. Lessons of this shift` (the hub home's `AGENT_HUB_HANDOFF_LESSONS` is on), and,
+whatever that setting is, § "Promoting a lesson" when the takeover digest lists promotable, hurt or retired lessons. At a
 handoff your context still holds the whole shift; after it that is gone and the journal keeps only events. A lesson is
 what you would tell the next hub about how to work, with the moment it rests on.
 
 ## Procedure
 
 1. Open `<hub home>/<stage>/lessons.md` (the draft prints the path; create it if absent). It is kept across handoffs —
-   never delete it with them. You edit it by hand; there is no command.
+   never delete it with them. You edit it by hand; there is no command. The takeover digest reads it and lists what to act on
+   (below).
 2. Judge the lessons listed under "Open lessons to judge". For each that actually acted in your shift, append a
    `verdict:` line (below). A lesson that did not come up gets none.
 3. Write 0–3 new entries. "No lesson" is a valid answer: write `none: <reason>` in § 7. A lesson without `evidence`
@@ -21,12 +23,13 @@ what you would tell the next hub about how to work, with the moment it rests on.
 
 ```markdown
 ## L-001 — <cue: when the lesson applies, one line>
-- status: proposed        (proposed | confirmed: DATE hub-N | promoted: <file> DATE (ask id) | retired: DATE hub-N — reason)
+- status: proposed        (you write only this, and later `promoted: <file> DATE` or `retired: DATE hub-N — reason`)
 - by: hub-3, 2026-10-22
 - lesson: one or two sentences, an instruction the next hub can follow
 - evidence: the moment it rests on — a journal line (time + tag), an MR/PR, an ask id, a session id
 - confidence: low | medium | high
 - verdict: hub-4 2026-10-23 helped — evidence     (appended by later shifts; repeatable)
+- verdict (L-001, hub-4 2026-10-23): helped — evidence    (a verdict on another entry: its id in the parentheses)
 ```
 
 Ids run on from the last one in the file. An id is `L-<digits>` (`L-007`) or carries the stage's prefix, as ask ids do
@@ -35,15 +38,38 @@ something else changed in the same shift and you cannot tell.
 
 ## What a verdict does
 
-| verdict | effect on `status` |
-|---|---|
-| `helped`, with its own evidence | `confirmed: DATE hub-N` |
-| `hurt` | `retired: DATE hub-N — reason` |
-| `no effect`, `confounded` | none |
+The hub derives the status from the verdict lines (`hub takeover` reads them; nobody keeps it by hand). A shift is the
+`hub-N` of the verdict line, so several verdicts of one shift count once.
 
-A confirmed lesson that should hold for every hub is proposed to the owner with `ask add`, for `hub-rules.md`. That file
-is the owner's: never write it yourself. On the owner's yes the entry becomes `promoted: <file> DATE (ask id)`. A verdict
-of `hurt` on a rule of `hub-rules.md` itself is likewise an `ask add`, never an edit.
+| verdicts | effect |
+|---|---|
+| `helped` from 2 different shifts, no `hurt` | promotable: the digest lists "promotable: L-… (helped ×N)" |
+| any `hurt` | retired: it leaves "Open lessons to judge"; the digest lists "retired by hurt: L-…" until you settle it (below) |
+| `no effect`, `confounded`, `ignored`, or two words in one verdict | counts for nothing |
+
+## Promoting a lesson
+
+When the takeover digest lists promotable lessons (its line ends with a pointer here), promote each yourself before
+planning; it does not go to the owner. This part does not depend on `AGENT_HUB_HANDOFF_LESSONS`.
+
+1. A lesson a tool could catch (a hook, a script, a check in `hub`) is not a prose rule. Put a pointer in the plugin
+   backlog instead: an entry in the plugin repository's `ROADMAP.md` or a GitHub issue, naming the lesson and its
+   evidence. Replace the entry's `- status:` line with
+   `- status: promoted: backlog <entry or issue URL> DATE`.
+2. Any other lesson becomes one line in the stage's `<hub home>/<stage>/hub-rules.md`, in the section
+   `## Promoted lessons` (create it): the instruction, with its cue, and the source id, e.g.
+   `- Before briefing an executor, say "stop at DONE, do not wait for CI" (L-002, lessons.md)`. Replace the entry's
+   `- status:` line with `- status: promoted: hub-rules.md DATE` (only the first `- status:` line counts). The
+   `handoff_size` hook refuses a section over 2 KiB: when it is full, retire the line that acts least or merge two,
+   never lengthen a line.
+3. Journal it with `jlog` (the id and where it went).
+
+A promoted lesson keeps its entry. If a later shift gives it a `hurt` verdict, the digest lists it under "promoted but
+hurt": delete its line from `hub-rules.md` (or the backlog entry), replace its `- status:` line with `retired: DATE hub-N — reason`, and journal it. A
+`hurt` on any other lesson retires it in the derived view, and the digest lists it as "retired by hurt" so that you look
+at it once: if the `hurt` was right, replace the entry's `- status:` line with `retired: DATE hub-N — reason` (the digest
+stops listing it); if it was not (another cause, a misread), change that verdict's word to `confounded` and add the
+reason after the dash. Nothing else contests a `hurt`.
 
 ## Writing a good lesson
 
@@ -53,4 +79,4 @@ of `hurt` on a rule of `hub-rules.md` itself is likewise an `ask add`, never an 
 - The evidence is a pointer, not a story: a journal line (time and tag), an MR/PR, an `ask` id, a session id.
 - If it would read "be more careful" or "check more", it is not a lesson; leave it out.
 - When the lesson is mechanical (the same slip can be caught by a check), prefer a hook, a script or a skill change
-  over a prose rule: propose it with `ask add` or put it in the queue, and write the lesson as a pointer to that.
+  over a prose rule: put it in the plugin backlog and write the lesson as a pointer to that.
