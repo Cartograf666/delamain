@@ -1738,7 +1738,19 @@ def now() -> dt.datetime:
 
 
 def default_stage() -> str:
-    return os.environ.get("HUB_STAGE") or DEFAULT_STAGE
+    """The stage a tool works in without --stage: $HUB_STAGE, else the stage whose registry lists the calling session
+    (own_stage, the lookup signing_tag does), else `default`. A session registered somewhere that cannot be told apart
+    (several stages, none under $HUB_TAG alone) is refused instead of writing to `default`, where its hub never reads."""
+    env = os.environ.get("HUB_STAGE", "").strip()
+    if env:
+        return env
+    tag = os.environ.get("HUB_TAG", "").strip() or None
+    own = own_stage(tag) or (own_stage(None) if tag else None)
+    if own:
+        return own
+    if session_id() and other_stage_tag("", None, unique=False):
+        raise UsageError("this session is registered in several stages: pass --stage or set $HUB_STAGE")
+    return DEFAULT_STAGE
 
 
 def check_stage(stage: str) -> str:
@@ -2115,9 +2127,10 @@ def registered_tag(stage: str) -> Optional[str]:
     return (hit[1].get("tag") or hit[0]) if hit else None
 
 
-def other_stage_tag(target: str, tag: Optional[str] = None) -> Optional[tuple]:
+def other_stage_tag(target: str, tag: Optional[str] = None, unique: bool = True) -> Optional[tuple]:
     """(stage, tag) of this session in the registry of a stage other than `target`; with `tag`, only a registration
-    carrying that tag. None when there is none or more than one (ambiguous: the caller must not guess a stage)."""
+    carrying that tag. None when there is none or more than one (ambiguous: the caller must not guess a stage);
+    unique=False returns the first of several."""
     if not session_id():
         return None
     try:
@@ -2125,7 +2138,7 @@ def other_stage_tag(target: str, tag: Optional[str] = None) -> Optional[tuple]:
     except OSError:
         return None
     hits = [(n, t) for n in names for t in [registered_tag(n)] if t and (tag is None or t == tag)]
-    return hits[0] if len(hits) == 1 else None
+    return hits[0] if len(hits) == 1 or (hits and not unique) else None
 
 
 def own_stage(tag: Optional[str]) -> Optional[str]:
