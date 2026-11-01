@@ -992,11 +992,12 @@ hub:
    `claude attach <id>`, and prints a `jwait` for the successor's takeover line (`AGENT_HUB_SUCCESSOR_TIMEOUT`).
    The successor is a background Remote Control session, not a Claude Desktop session (see
    [where the owner finds it](#where-the-owner-finds-the-successor) below). It starts from the repository's main
-   checkout, in a new worktree of its own (`--worktree <stage>-hub-<n+1>` → `<main checkout>/.claude/worktrees/<stage>-hub-<n+1>` on branch
-   `worktree-<stage>-hub-<n+1>`, from `origin`'s default branch (Claude Code's `worktree.baseRef`, default `fresh`); a taken name gets `-2`, `-3`…), never in the hub's
+   checkout, in a new plain worktree of its own (`<main checkout>/.worktrees/<stage>-hub-<n+1>` on branch
+   `<stage>-hub-<n+1>` from `origin`'s default branch, made, linked and prepared (`.agents/prepare`) as `agent spawn --worktree` does it; a taken name gets `-2`,
+   `-3`…; not `claude --worktree`, whose host isolation refuses `git -C <main clone>` and `$(…)`), never in the hub's
    own directory — that may be a Desktop session's worktree, removed when the session is archived. Without `--cwd` the
    directory is the hub's registered worktree, else the shell's. A directory outside git, or in another repository than the
-   stage's project, is refused (exit 2, nothing started); only a stage with no project (`--no-project`) starts in place. Nothing removes the worktree by itself: `agent worktrees --prune` does once a later hub has taken the stage over and the branch is merged, clean and pushed (`claude rm <id>` too).
+   stage's project, is refused (exit 2, nothing started); only a stage with no project (`--no-project`) starts in place. Nothing removes the worktree by itself: `agent worktrees --prune` does once a later hub has taken the stage over and the branch is merged, clean and pushed.
 3. When the line arrives the old hub tells you in one line the successor's name and link and where it is: a
    background Remote Control session named `<stage>-hub-<n+1>`; in Claude Desktop it is listed under the repository's
    address group (for a repository not hosted on github.com a separate group from your folder group), on the phone in the

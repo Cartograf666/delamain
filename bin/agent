@@ -89,7 +89,8 @@ agent from a handoff file; --resume-anyway overrides.
 stop: SIGTERM to the process group (SIGKILL after 10 s), role retired.
 worktrees: the ledger of one repository's git worktrees (--repo PATH, default the repository of the working directory),
 read-only unless --prune; --json for the same table as data. Who made a worktree: an agent run (meta.json of any known
-hub home), a hub (`<repo>/.claude/worktrees/<stage>-hub-<n>`), a registered role, else "other" (Desktop, manual). In use:
+hub home), a hub (`<repo>/.claude/worktrees/<stage>-hub-<n>`, or `<repo>/.worktrees/<stage>-hub-<n>[-k]` of a
+background successor), a registered role, else "other" (Desktop, manual). In use:
 a live agent, the stage's registered hub, or any process whose working directory is inside it ("unknown" for a worktree
 none of these knows). Merged: the branch is an ancestor of the remote default branch, or its HEAD is inside a pull
 request merged into it (`gh pr list --state merged --head BRANCH`; a squash merge leaves no ancestry). --prune removes a

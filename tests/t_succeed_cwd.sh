@@ -45,8 +45,8 @@ check $? 0 "takeover: roles.json records the hub's worktree"
 # ---- 2. the shell drifted out of git (the incident): the registered worktree decides, the successor starts in the project
 reset
 succeed_in $G/nogit > $G/drift.out 2>&1; check $? 0 "drifted shell, no --cwd: exit 0"
-check "$(bg cwd):$(state kind)" "$G/proj:bg" "drifted shell: --bg started from the project's main checkout, not from the shell's directory"
-python3 -c 'import json,sys; assert "--worktree" in [c for c in map(json.loads, open(sys.argv[1])) if c["argv"][:1] == ["--bg"]][-1]["argv"]' $FAKE_BG_LOG; check $? 0 "drifted shell: in a worktree of its own (--worktree)"
+check "$(bg cwd):$(state kind)" "$G/proj/.worktrees/stage-a-hub-2:bg" "drifted shell: --bg started in a new worktree of the project's main checkout, not in the shell's directory"
+python3 -c 'import json,sys; assert "--worktree" not in [c for c in map(json.loads, open(sys.argv[1])) if c["argv"][:1] == ["--bg"]][-1]["argv"]' $FAKE_BG_LOG; check $? 0 "drifted shell: a plain worktree (no --worktree)"
 J | grep -qF "registered worktree $WT"; check $? 0 "drifted shell: the journal line says the registered worktree was used"
 
 # ---- 3. an explicit --cwd outside git is refused loudly: nothing started, nothing reserved
@@ -67,7 +67,7 @@ python3 - $R/stage-a/roles.json <<'PY'
 import json, sys
 d = json.load(open(sys.argv[1])); d["roles"]["hub"].pop("worktree"); json.dump(d, open(sys.argv[1], "w"))
 PY
-succeed_in $G/nogit > $G/legacy.out 2>&1; check "$?:$(bg cwd)" "0:$G/proj" "legacy hub (no worktree), drifted shell: the successor starts in the stage's project"
+succeed_in $G/nogit > $G/legacy.out 2>&1; check "$?:$(bg cwd | sed 's#/\.worktrees/stage-a-hub-2[-0-9]*$##')" "0:$G/proj" "legacy hub (no worktree), drifted shell: the successor starts in the stage's project"
 J | grep -qF "stage's project $G/proj"; check $? 0 "legacy hub: the journal line says the stage's project was used"
 cp $R/stage-a/stage.json $G/stage.json.bak
 python3 - $R/stage-a/stage.json <<'PY'
