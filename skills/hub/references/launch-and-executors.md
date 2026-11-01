@@ -97,7 +97,7 @@ Sol reviewer for Sol-authored work, bring that entry into line with the approved
   changes explicit and keep ready work moving; forecast and five-hour context do not schedule work after reset.
 - Work that commits, pushes or waits (a merge steward, a rehearsal, a CI wait — see "Choosing how to launch work") is
   a headless agent, not an in-session sub-agent:
-  `agent spawn --engine claude|codex --role R --cwd DIR [--model MODEL] [--effort high] --brief FILE [--worktree [BRANCH]]`.
+  `agent spawn [--engine claude|codex, only to deviate from AGENT_HUB_ENGINE, with --reason] --role R --cwd DIR [--model MODEL] [--effort high] --brief FILE [--worktree [BRANCH]]`.
   It survives the hub's handoff and any hub can talk to it. The executor's tag is `hub-<N>-<role>` (a sub-tag
   `hub-<N>/…` would be filtered out of your own `jwait`; `agent spawn` refuses it). A run that ends abnormally leaves
   `EXIT <role>: …` in the journal under its tag; one that ends normally without a status word of its own, `ENDED <role>: …`

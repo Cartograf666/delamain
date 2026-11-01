@@ -46,7 +46,7 @@ CARD_INITIATIONS = ("own_initiative", "offer")
 DENY_REASON = (
     "In a registered hub Desktop's session cards and forks are off: autopilot turns cannot click a card, and agents "
     "must be visible to agent-top and reachable by successors.\n"
-    "Executor work: `agent spawn --engine … --role … --brief …`. A decision the owner must make: `ask add`. "
+    "Executor work: `agent spawn --role … --brief …`. A decision the owner must make: `ask add`. "
     "A shift of the hub: `hub handoff` / `hub succeed`.\n"
     "A session or fork the owner asked for in their own message: start_session with initiation \"user_asked\" "
     "(and context \"fork\" for a fork)."

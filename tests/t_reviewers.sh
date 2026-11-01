@@ -388,4 +388,14 @@ $B/hub start --session 11111111-1111-4111-8111-111111111111 > $P/st5.out 2>&1; c
 grep -q 'start: --stage is required' $P/st5.out; check $? 0 "…and says so"
 (cd $OUT && HUB_STAGE=web $B/hub start --session 11111111-1111-4111-8111-111111111111 --dry-run) > $P/st6.out 2>&1; check $? 0 "start takes its stage from HUB_STAGE"
 grep -q 'starts stage web' $P/st6.out; check $? 0 "…the stage it names"
+# ---- a printed --engine is the reviewer policy's choice: the line carries --reason, so spawning it does not warn
+mkdir -p $P/w; printf '# Brief: r\n\nbody\n' > $P/w/b.md; echo '{"AGENT_HUB_ENGINE": "claude"}' > $R/config.json
+line=$(AGENT_HUB_REVIEWERS="$(mklist '{"engine": "codex", "model": "gpt-fixture"}' agent)" rv --author claude --for code --stage web 2>/dev/null | sed -n 's/^start: //p')
+case "$line" in *" --engine codex "*"--reason 'reviewer policy: claude author -> codex reviewer' --brief <BRIEF>") a=0;; *) a=1;; esac
+check $a 0 "a Codex reviewer line for a Claude author carries --reason naming both engines"
+line=${line//<BRIEF>/$P/w/b.md}; mkdir -p $R/web/coordinator/work
+(eval "HUB_STAGE=web CODEX_BIN=$T/fake_codex.py AGENT_HUB_LIMIT_PACE=off AGENT_HUB_REASON_POLICY=refuse $B/$line --dry-run") > $P/pl.out 2> $P/pl.err
+check $? 0 "…and running it with --dry-run (policy refuse, ENGINE=claude) is not refused"
+check "$(grep -c 'differs' $P/pl.err)" 0 "…and running it (policy refuse, ENGINE=claude) says nothing about a differing engine"
+rm -f $R/config.json
 exit $fail

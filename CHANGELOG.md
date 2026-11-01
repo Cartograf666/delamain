@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **The owner's engine choice is one value, `AGENT_HUB_ENGINE`; `agent spawn --engine` is for deviating.** The
+  per-stage `AGENT_HUB_STAGE_ENGINES` (unset in every config layer) is merged into it: limit-pace now keeps the
+  configured engine (hub home or repository, not the environment) the way it kept a stage lock, and the old key is
+  still read for one release with a stderr note. `agent spawn --engine X` where X differs from the configured engine
+  and has no `--reason` gets the same one-line warning as an effort above the default (`AGENT_HUB_REASON_POLICY`);
+  the same engine, no `--engine`, or no configured engine (hub home or repository config; the environment does not count,
+  `agent` sets it for every agent it starts) is silent; `hub reviewer` start lines that print `--engine` add
+  their own `--reason`. The hub skill says "omit `--engine` unless you deviate".
+
 - **The exit note quotes the line with the outcome.** `ENDED`/`REVIEWED`/`EXIT … last:` now quotes the last standalone
   line of the agent's final text that starts with `VERDICT:` or a status word, else the last line that
   names a `*-REPORT.md`, else the last line (quoted `>` lines and fenced blocks are skipped; a closing delegation summary no longer hides the verdict). The built-in delegation text no longer asks to name the level in a

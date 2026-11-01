@@ -35,14 +35,14 @@ and agent-top. $AGENT_HUB_MODEL_MAP pins aliases to ids ("sonnet=claude-sonnet-x
 goes stale with the next model release.
 Effort: --effort, else the model's entry in $AGENT_HUB_EFFORT_DEFAULTS, else $AGENT_HUB_DEFAULT_EFFORT, else high;
 the same for every model, haiku included (Haiku 5.5 has the setting; Haiku 4.5 takes the flag and ignores it). An
-effort above the model's default, or a model of $AGENT_HUB_REASON_MODELS, needs
+effort above the model's default, a model of $AGENT_HUB_REASON_MODELS, or an --engine other than $AGENT_HUB_ENGINE, needs
 --reason "…" (warning, or refusal with AGENT_HUB_REASON_POLICY=refuse); the reason goes into the journal start line
 and meta.json (bin/spawn_policy.py). The title registered for the agent is `<role> — <the brief's first heading,
 without a leading "Brief:"> (<stage>)`, unless --title says otherwise.
 Load hold: while `bin/watchdog` holds spawns for machine load (AGENT_HUB_SPAWN_HOLD_LOAD, off by default), spawn warns
 or, with AGENT_HUB_SPAWN_HOLD=refuse, refuses (exit 1); --ignore-hold passes. `send` is never held (bin/spawn_hold.py).
 Limit pace: spawn compares fresh remaining weekly room for this launch, suggesting an equivalent engine/model/effort
-below 20% remaining and respecting AGENT_HUB_STAGE_ENGINES. No model is swapped silently. Below 3% remaining it
+below 20% remaining and respecting the configured AGENT_HUB_ENGINE. No model is swapped silently. Below 3% remaining it
 refuses (exit 1) only with fresh data on both engines; --reason passes and is journalled. Forecasts, including the
 low-confidence first six hours, are context only. Stale/unknown data never grounds refusal. Each crossing journals
 one `@hub LIMIT …` line. AGENT_HUB_LIMIT_PACE=warn|off (bin/limit_pace.py).
@@ -749,13 +749,14 @@ def journal(stage: str, fallback_tag: str, text: str) -> str:
     return hc.journal_append(stage, hc.caller_tag(stage) or fallback_tag, text)
 
 
-def pace_advice(stage: str, engine: str, model_names: list, effort: str, task_class, reason: str, dry: bool) -> str:
+def pace_advice(stage: str, engine: str, model_names: list, effort: str, task_class, reason: str, dry: bool,
+                cwd=None) -> str:
     """The limit-pace advice for a launch (bin/limit_pace.py), printed before anything starts; a refusal is raised.
     Returns a note for the journal start line when the launch goes ahead over the hard-stop case, else ""."""
     if limit_pace.mode() == "off":
         return ""
     adv = limit_pace.advise(engine, " ".join(model_names), effort, stage, limit_pace.read_all(), task_class, reason,
-                            limit_pace.stage_lock(stage))
+                            limit_pace.stage_lock(stage, cwd))
     if adv.lines:
         print("limit pace — before this launch:\n" + "\n".join("  " + ln for ln in adv.lines))
     if adv.pace is not None:
@@ -797,7 +798,8 @@ def cmd_spawn(a) -> int:
         raise hc.UsageError(f"effort {effort!r} ({engine}): one of {allowed_efforts}")
     reason = spawn_policy.clean_reason(a.reason)
     above_default = spawn_policy.check_reason(model_names, effort, default_effort, allowed_efforts, reason, cwd,
-                                              model_unknown=engine == "codex" and not a.model)
+                                              model_unknown=engine == "codex" and not a.model,
+                                              engine=a.engine, configured=engines.configured(cwd))
     if above_default:
         hc.warn(above_default)
     # AGENT_HUB_EFFORT_RULES: the model x effort policy shared with the delegation hook (bin/subagent_rules.py)
@@ -809,7 +811,7 @@ def cmd_spawn(a) -> int:
         # `codex exec -c` cannot switch off the servers of Codex plugins; AGENT_HUB_SPAWN_MCP is for Claude agents
         raise hc.UsageError("--mcp is only supported by the Claude engine")
     mcp = mcp_choice(a.mcp, cwd) if engine == "claude" else None  # before pace_advice, which may journal
-    pace_note = pace_advice(stage, engine, model_names, effort, a.task_class, reason, a.dry_run)
+    pace_note = pace_advice(stage, engine, model_names, effort, a.task_class, reason, a.dry_run, cwd)
     pmode = a.permission_mode or hc.setting("AGENT_HUB_PERMISSION_MODE", cwd=cwd) or DEFAULT_PERMISSION_MODE
     sandbox = None
     policy = None
@@ -1502,7 +1504,8 @@ def main(argv: list) -> int:
     s.add_argument("--stage")
     s.add_argument("--role", required=True)
     s.add_argument("--cwd", required=True)
-    s.add_argument("--engine", choices=engines.ENGINES, help="AGENT_HUB_ENGINE, detected Codex host, else claude")
+    s.add_argument("--engine", choices=engines.ENGINES, help="default: AGENT_HUB_ENGINE, detected Codex host, else claude; "
+                   "another engine needs --reason")
     s.add_argument("--sandbox", choices=engines.SANDBOXES, help="Codex sandbox; approval prompts remain disabled")
     s.add_argument("--sandbox-policy", help="Codex rollout sandbox JSON; preserve supported roots/network/temp restrictions")
     s.add_argument("--model", help="opus | sonnet | haiku | fable (passed to the CLI, which resolves them to its "
@@ -1525,7 +1528,7 @@ def main(argv: list) -> int:
                    "branch after a fetch; --base HEAD is the checked-out commit of --cwd)")
     s.add_argument("--tag")
     s.add_argument("--title", help="default: <role> — <the brief's first heading> (<stage>)")
-    s.add_argument("--reason", help="why the work needs an effort or a model above the default "
+    s.add_argument("--reason", help="why the work needs an effort, a model or an engine above the default "
                    "(AGENT_HUB_EFFORT_DEFAULTS, AGENT_HUB_REASON_MODELS), or why it runs over the limit-pace stop; "
                    "journaled and kept in meta.json")
     s.add_argument("--task-class", choices=limit_pace.CLASSES,

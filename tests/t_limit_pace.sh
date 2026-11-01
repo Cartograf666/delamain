@@ -117,10 +117,39 @@ check(any("routine bounded work runs at medium (asked: high)" in l for l in a.li
 check(not any("asked: high" in l for l in lp.advise("codex", "sol", "high", "stage-a", P, "judgement").lines),
       "judgement class keeps effort")
 
-# Engine locks offer an owner permission for this launch, defaulting to running on the locked engine.
+# The configured engine is the owner's decision: ask for permission for this launch, default to running on that engine.
+# The retired per-stage key is still read (with a stderr note); the environment's AGENT_HUB_ENGINE is no decision.
+os.environ["AGENT_HUB_ENGINE"] = "codex"
+check(lp.stage_lock("stage-a") is None, "AGENT_HUB_ENGINE from the environment is no lock")
+del os.environ["AGENT_HUB_ENGINE"]
 os.environ["AGENT_HUB_STAGE_ENGINES"] = '{"stage-a": {"engine": "codex", "decision": "Q-T-1"}}'
 lock = lp.stage_lock("stage-a")
-check(lock == {"engine": "codex", "decision": "Q-T-1"}, "stage lock read")
+check(lock == {"engine": "codex", "decision": "Q-T-1"}, "retired stage lock still read")
+import contextlib, io
+buf = io.StringIO()
+with contextlib.redirect_stderr(buf):
+    lp._legacy_noted = False
+    for _ in range(3):
+        lp.stage_lock("stage-a")
+check(buf.getvalue().count("AGENT_HUB_STAGE_ENGINES is deprecated") == 1, "the deprecation note is printed once per process")
+del os.environ["AGENT_HUB_STAGE_ENGINES"]
+with open(os.path.join(os.environ["AGENT_HUB_HOME"], "config.json"), "w") as f:
+    f.write('{"AGENT_HUB_ENGINE": "codex"}')
+lp.hc._CONFIG_CACHE.clear()
+lock = lp.stage_lock("stage-a")
+check(lock == {"engine": "codex", "decision": "AGENT_HUB_ENGINE"}, "configured AGENT_HUB_ENGINE is the lock")
+os.remove(os.path.join(os.environ["AGENT_HUB_HOME"], "config.json"))
+lp.hc._CONFIG_CACHE.clear()
+check(lp.stage_lock("stage-a") is None, "…and none once it is unset")
+with open(os.path.join(os.environ["AGENT_HUB_HOME"], "config.json"), "w") as f:
+    f.write('{"AGENT_HUB_ENGINE": "codex"}')
+os.environ["AGENT_HUB_ENGINE"] = "codex"
+lp.hc._CONFIG_CACHE.clear()
+check(lp.stage_lock("stage-a") == {"engine": "codex", "decision": "AGENT_HUB_ENGINE"}, "the environment does not mask the config: lock from the home config")
+del os.environ["AGENT_HUB_ENGINE"]
+os.remove(os.path.join(os.environ["AGENT_HUB_HOME"], "config.json"))
+lp.hc._CONFIG_CACHE.clear()
+lock = {"engine": "codex", "decision": "Q-T-1"}
 for used, stop in ((85, False), (98, True)):
     P = pair("codex", used, 21)
     a = lp.advise("codex", "sol", "medium", "stage-a", P, lock=lock)
@@ -130,7 +159,6 @@ for used, stop in ((85, False), (98, True)):
     cmd = shlex.split(lp.ask_command("stage-a", P["codex"]["7d"], lock, P["claude"]["7d"], "bounded"))
     check(cmd[cmd.index("--default") + 1] == "run this launch on the locked engine Codex", "locked default runs the work")
     check(bool(a.refuse) == stop, "lock does not turn extrapolation into refusal")
-del os.environ["AGENT_HUB_STAGE_ENGINES"]
 
 # Unknown/stale observations never establish refusal or a move, including practically exhausted requests.
 for alternate in ("unknown", "stale"):
@@ -237,10 +265,12 @@ grep -q '2. move: .*run this as Claude Sonnet high' $R/p2.out; check $? 0 "…th
 grep -Eq 'would journal \[pace\] @hub LIMIT (URGENT )?Codex 7d' $R/p2.out; check $? 0 "…a dry run names the crossing line"
 [ ! -s $J ] || ! grep -q 'LIMIT' $J; check $? 0 "…and does not write it"
 
-AGENT_HUB_STAGE_ENGINES='{"stage-a": {"engine": "codex", "decision": "Q-T-1"}}' dry p3 --engine codex --model gpt-6.1-sol --effort medium
-check $? 0 "owner-locked stage with room: allowed"
-grep -q "ask add --stage stage-a" $R/p3.out && grep -q 'Q-T-1' $R/p3.out; check $? 0 "…with the owner question"
+echo '{"AGENT_HUB_ENGINE": "codex"}' > $R/config.json
+dry p3 --engine codex --model gpt-6.1-sol --effort medium
+check $? 0 "owner-configured engine with room: allowed"
+grep -q "ask add --stage stage-a" $R/p3.out && grep -q 'AGENT_HUB_ENGINE' $R/p3.out; check $? 0 "…with the owner question"
 grep -q 'run this as' $R/p3.out; check $? 1 "…and no switch"
+rm -f $R/config.json
 
 FX clear; FX codex 97,98; FX claude 98,99
 dry p4 --engine codex --model gpt-6.1-sol --effort medium; check $? 1 "both engines run out before the reset: refused"
