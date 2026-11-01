@@ -17,8 +17,8 @@ engine. Claude model names in general task-sizing advice apply to Claude workers
 engines requires an explicit engine choice from the owner. Reviewer engines may follow an explicitly configured
 review policy.
 
-Pass the chosen engine explicitly with `agent spawn --engine claude|codex`. Without that flag, `AGENT_HUB_ENGINE`
-can supply a configured default; otherwise the launcher detects a Codex host through `CODEX_THREAD_ID` and falls
+Omit `agent spawn --engine` unless you deviate from the configured engine, then pass `--reason`. Without that flag,
+`AGENT_HUB_ENGINE` supplies the engine; if it is unset the launcher detects a Codex host through `CODEX_THREAD_ID` and falls
 back to Claude in an ordinary terminal. Native subagents run in their host; mixed teams use detached executors.
 Codex uses its configured model when `--model` is omitted; pass an actual available model id or an explicit
 `AGENT_HUB_CODEX_MODEL_MAP` alias. Claude aliases stay Claude-only. Read `docs/codex.md` for installation,

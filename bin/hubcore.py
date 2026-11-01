@@ -141,8 +141,8 @@ HUB_WIDE_KEYS += ("AGENT_HUB_SENSITIVE_CLASSES",)
 JSON_KEYS += ("AGENT_HUB_SENSITIVE_CLASSES",)
 # Silence after which the hub opens its reply with `ask inbox` (bin/ask; a duration like 3h): hub home only.
 HUB_WIDE_KEYS += ("AGENT_HUB_OWNER_DIGEST_AFTER",)
-# The limit-pace advisor (bin/limit_pace.py): on | warn | off, and the owner's engine decision per stage. Hub home only:
-# a repository must not unlock a stage the owner locked to an engine.
+# The limit-pace advisor (bin/limit_pace.py): on | warn | off. AGENT_HUB_STAGE_ENGINES is retired in favour of
+# AGENT_HUB_ENGINE; it is still accepted (and noted on stderr) for one release.
 HUB_WIDE_KEYS += ("AGENT_HUB_LIMIT_PACE", "AGENT_HUB_STAGE_ENGINES")
 JSON_KEYS += ("AGENT_HUB_STAGE_ENGINES",)
 # The bundled Antigravity reviewer (bin/agy-review): which agy to run, its model and the quota floor. Hub home only: a

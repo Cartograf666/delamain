@@ -230,7 +230,7 @@ grep -qxF "HOME=$QH ARGS=stop w1 --stage only" $SQ/stub.out; check $? 0 "(i) …
 
 # ---- (j) the limit-pace advisor of a stage is read in that stage's home (stage lock, mode, cache), not the resolved one
 export HOME=$S/home XDG_CONFIG_HOME=$S/xdg; unset STUB_OUT AGENT_TOP_HUB_BIN AGENT_TOP_AGENT_BIN
-echo '{"AGENT_HUB_STAGE_ENGINES": {"beta": {"engine": "claude", "decision": "pinned in the project home"}}}' > $PH/config.json
+echo '{"AGENT_HUB_ENGINE": "claude"}' > $PH/config.json
 (cd $S/plain && AGENT_TOP_CACHE=1 python3 - $B $PH > $S/j.out 2>&1 <<'PY'
 import importlib.machinery, importlib.util, os, sys
 sys.path.insert(0, sys.argv[1])
@@ -255,7 +255,7 @@ ok = (seen["root"] == sys.argv[2] and seen["stage"] == "beta" and (seen["lock"] 
 print("ok" if ok else f"bad {seen}")
 sys.exit(0 if ok else 1)
 PY
-); check $? 0 "(j) one stage in view: the advisor reads that stage's home (its lock, its cache dir) and the logs of every home"
+); check $? 0 "(j) one stage in view: the advisor reads that stage's home (its engine decision, its cache dir) and the logs of every home"
 rm -f $PH/config.json
 
 # ---- (k) the slow path of a snapshot polls the questions with the same stage refs

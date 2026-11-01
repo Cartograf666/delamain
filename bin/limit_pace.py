@@ -12,14 +12,14 @@ before the reset); unknown (no sample) and stale (the latest sample older than S
 
 Advice chooses an engine, equivalent model and effort for this launch from fresh remaining usage. Forecasts describe
 risk, not a work schedule. Below 20% remaining, suggest the engine with more room; below 3%, refuse unless --reason
-when both engines have fresh data. A model is never swapped silently. An owner-locked stage
-(AGENT_HUB_STAGE_ENGINES) gets an ask proposal whose default runs this launch on the locked engine.
+when both engines have fresh data. A model is never swapped silently. A launch on the engine the owner configured
+(AGENT_HUB_ENGINE in the hub home or the repository, not the environment) gets an ask proposal whose default runs this
+launch on that engine.
 Forecasts in the first six hours are low-confidence and cannot by themselves move or refuse a launch.
 
 Settings (hub home config.json or the environment):
   AGENT_HUB_LIMIT_PACE     on (default) | warn (advise, never refuse) | off (no advice at all)
-  AGENT_HUB_STAGE_ENGINES  {"<stage>": "codex"} or {"<stage>": {"engine": "codex", "decision": "Q-DL-054"}}: the owner's
-                           engine decision for a stage; the advisor never proposes moving that stage's work.
+  AGENT_HUB_ENGINE         the owner's engine decision; the advisor never proposes moving work off it.
 """
 from __future__ import annotations
 
@@ -383,17 +383,22 @@ def other(engine: str) -> str:
     return "codex" if engine == "claude" else "claude"
 
 
-def stage_lock(stage: Optional[str]) -> Optional[dict]:
-    """The owner's engine decision for a stage: {"engine": …, "decision": …} or None."""
-    if not stage:
-        return None
-    data = hc.setting_json("AGENT_HUB_STAGE_ENGINES", {})
-    rec = data.get(stage) if isinstance(data, dict) else None
-    if isinstance(rec, str):
-        rec = {"engine": rec}
-    if not isinstance(rec, dict) or rec.get("engine") not in ENGINES:
-        return None
-    return {"engine": rec["engine"], "decision": str(rec.get("decision") or "owner's decision")}
+def stage_lock(stage: Optional[str], cwd=None) -> Optional[dict]:
+    """The owner's engine decision: {"engine": …, "decision": …} or None. It is AGENT_HUB_ENGINE as configured (hub
+    home or repository; the environment is the engine of the calling agent, not a decision). The retired
+    AGENT_HUB_STAGE_ENGINES is still read for one release, with a note."""
+    legacy = hc.setting_json("AGENT_HUB_STAGE_ENGINES", {}) if stage else {}
+    rec = legacy.get(stage) if isinstance(legacy, dict) else None
+    if rec:
+        hc.warn("AGENT_HUB_STAGE_ENGINES is deprecated: set AGENT_HUB_ENGINE instead (read for one more release)")
+        if isinstance(rec, str):
+            rec = {"engine": rec}
+        if isinstance(rec, dict) and rec.get("engine") in ENGINES:
+            return {"engine": rec["engine"], "decision": str(rec.get("decision") or "owner's decision")}
+    value, origin = hc.setting_origin("AGENT_HUB_ENGINE", cwd=cwd)
+    if origin in ("home", "project") and value in ENGINES:
+        return {"engine": value, "decision": "AGENT_HUB_ENGINE"}
+    return None
 
 
 def mode() -> str:

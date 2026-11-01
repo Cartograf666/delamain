@@ -385,9 +385,9 @@ The advice follows one order, and a model or effort is never changed silently:
    class: Opus/Fable ↔ Astra high (an executor that decides as it goes: Sol high), Sonnet high ↔ Terra medium
    (or Sol medium), Haiku high ↔ Luna medium. Compare the percentages, even when the engine with more remaining has a worse pace forecast.
    If both are short, recommend the one with more room and warn that it may run out before reset.
-3. **Preserve the owner's engine lock.** For `AGENT_HUB_STAGE_ENGINES`, a ready `ask add` asks whether to allow the
+3. **Preserve the owner's engine decision.** For a launch on the configured `AGENT_HUB_ENGINE` (hub home or repository), a ready `ask add` asks whether to allow the
    other engine for **this launch**, with the equivalent model/effort and both weekly figures. The default is to run
-   this launch on the locked engine. Permission for one launch leaves the stage's engine decision intact.
+   this launch on the configured engine. Permission for one launch leaves the engine decision intact.
 4. **State uncertainty.** If either weekly reading is unknown or stale, report the missing comparison and suggest
    a fresh probe. Continue under the requested engine choice; missing data does not create a gate.
    Below 3% remaining with an unverified alternative, explicitly warn of practical exhaustion and offer a probe
@@ -423,10 +423,6 @@ A later forecast crossing (on pace → ahead → over pace) is announced once pe
 context for the next launch's quota comparison, not a scheduling instruction. A level that falls
 and rises again within the same window is not announced twice. The record is `<state dir>/limit-pace/crossings.json`.
 `agent spawn` and the watchdog write it; the digest and `agent-top` only read.
-
-```json
-{ "AGENT_HUB_STAGE_ENGINES": { "dolya": { "engine": "codex", "decision": "Q-DL-054" } } }
-```
 
 ## Agent lifecycle
 
@@ -743,9 +739,9 @@ Settings are environment variables; each can also be set in a `config.json` (bel
 | `AGENT_HUB_DEFAULT_EFFORT` | `high` | Effort for `agent spawn` without `--effort` and without an `AGENT_HUB_EFFORT_DEFAULTS` entry for the model, for every model including `haiku`. |
 | `AGENT_HUB_EFFORT_DEFAULTS` | none | JSON object `{"<model>": "<effort>", …}`: the effort of `agent spawn` without `--effort`, per model, for both engines (Codex by its own names and efforts). A key is a glob or a plain word matched anywhere in the model name; the alias given and the id it maps to are both tried, the first matching key wins. A repository may set it. It is also the yardstick of `--reason`: an effort ranked above it needs one. |
 | `AGENT_HUB_REASON_MODELS` | none | Hub-wide. JSON list of models (globs or plain words) that count as above the default: `agent spawn` of one needs `--reason "…"`. A Codex spawn without `--model` and without `AGENT_HUB_CODEX_DEFAULT_MODEL` has an unknown model (the plugin does not reproduce the Codex CLI's config layers): with this list set, policy `refuse` refuses it ("the model the Codex CLI will choose cannot be checked: pass --model", a `--reason` does not help) and `warn` prints one warning that the model check was skipped; with the list empty (the default) nothing changes. The per-model effort default of an unknown model is the general one. `hub succeed` passes a reason of its own, so a refusing policy never stops the autopilot chain. |
-| `AGENT_HUB_REASON_POLICY` | `warn` | Hub-wide. What an `agent spawn` above the default (an effort above the model's default, or a model of `AGENT_HUB_REASON_MODELS`) gets when it has no `--reason`: `warn` (one stderr line, the agent starts), `refuse` (usage error, nothing starts), `off`. The reason goes into the journal's start line and the agent's `meta.json`. |
+| `AGENT_HUB_REASON_POLICY` | `warn` | Hub-wide. What an `agent spawn` above the default (an effort above the model's default, a model of `AGENT_HUB_REASON_MODELS`, or an `--engine` other than `AGENT_HUB_ENGINE`) gets when it has no `--reason`: `warn` (one stderr line, the agent starts), `refuse` (usage error, nothing starts), `off`. The reason goes into the journal's start line and the agent's `meta.json`. |
 | `AGENT_HUB_RESUME_MAX_CTX` | `250k` | Hub-wide. Tokens of context (`250000`, `250k`, `1m`; `0` = no limit) above which `agent send` refuses to resume a stopped agent: every turn of a resume re-reads the whole context, and a fresh agent from a handoff file costs less. The refusal says so and queues nothing; `agent send <role> --resume-anyway "…"` overrides it. The size is the last main-thread model call's input as `agent status` shows it (`ctx 300k`); a log without one (Codex's `exec --json` carries no per-call input) is not refused. |
-| `AGENT_HUB_ENGINE` | `claude` | Default executor engine (`claude` or `codex`); Codex SessionStart selects `codex` for that host. |
+| `AGENT_HUB_ENGINE` | `claude` | The owner's executor engine (`claude` or `codex`); Codex SessionStart selects `codex` for that host. Hubs omit `agent spawn --engine` and pass it, with `--reason`, only to deviate (a bare deviation gets a one-line warning under `AGENT_HUB_REASON_POLICY`). Set in the hub home or a repository, it is also the engine decision limit-pace keeps: it proposes an `ask add` for permission to use the other engine for this launch, and the default runs the configured engine. The retired `AGENT_HUB_STAGE_ENGINES` (per stage) is still read, with a stderr note, for one more release. |
 | `CODEX_BIN` | `codex` on PATH | Codex executable for detached workers. |
 | `AGENT_HUB_CODEX_DEFAULT_MODEL` | CLI configured model | Optional Codex model pin when spawn omits `--model`. |
 | `AGENT_HUB_CODEX_MODEL_MAP` | none | Explicit Codex model aliases; Claude aliases are not translated automatically. |
@@ -778,7 +774,6 @@ Settings are environment variables; each can also be set in a `config.json` (bel
 | `AGENT_HUB_SPAWN_HOLD_LOAD` | none (off) | R5: the 1-minute load average per core above which the watchdog holds spawns (`1.5`, `0.75`); the hold ends below 80 % of it. Empty or invalid (warned) = off. Hub-wide. |
 | `AGENT_HUB_SPAWN_HOLD` | `warn` | What `agent spawn` does while a load hold is on: `warn` (a warning, the spawn goes on) or `refuse` (exit 1); `--ignore-hold` passes either. Invalid (warned) = `warn`. Resumes (`agent send`) are never held. Hub-wide. |
 | `AGENT_HUB_LIMIT_PACE` | `on` | [Limit pace](#limit-pace): `on` (advice, and the one hard stop of `agent spawn`), `warn` (advice only), `off` (neither, and no watchdog R6). Hub-wide. |
-| `AGENT_HUB_STAGE_ENGINES` | none | The owner's engine decision per stage, a JSON object: `{"<stage>": "codex"}` or `{"<stage>": {"engine": "codex", "decision": "Q-…"}}`. Limit-pace proposes an `ask add` for permission to use the other engine for this launch; the default runs the locked engine. Hub-wide: a repository cannot unlock a stage. |
 | `AGENT_HUB_HANDOFF_MAX_BYTES` | `15360` | Size cap of `HANDOFF-*.md` enforced by the hook. Hub-wide. |
 | `AGENT_HUB_HANDOFF_LESSONS` | `off` | `hub handoff` adds § 7, "Lessons of this shift"; `--finish`, `succeed --handoff` and the successor's `takeover` warn (never refuse) while § 7 is missing, holds `TODO` or names neither a lesson id nor `none: <reason>`; procedure in the [handoff skill](../skills/handoff/references/lessons.md), format in [Architecture](architecture.md#formats). A yes/no setting. Hub-wide: a repository's `config.json` cannot set it. |
 | `AGENT_HUB_SCOPE_DIRS` | none | Directories, separated by `:`, where the `handoff_size` and `questions` hooks act in addition to the hub home and repositories with `.agent-hub/`. Hub-wide: a repository's `config.json` cannot set it. |

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **The owner's engine choice is one value, `AGENT_HUB_ENGINE`; `agent spawn --engine` is for deviating.** The
+  per-stage `AGENT_HUB_STAGE_ENGINES` (unset in every config layer) is merged into it: limit-pace now keeps the
+  configured engine (hub home or repository, not the environment) the way it kept a stage lock, and the old key is
+  still read for one release with a stderr note. `agent spawn --engine X` where X differs from the configured engine
+  and has no `--reason` gets the same one-line warning as an effort above the default (`AGENT_HUB_REASON_POLICY`);
+  the same engine or no `--engine` is silent. The hub skill says "omit `--engine` unless you deviate".
+
 - **The macOS-only flake in `t_codex_hooks` (the busy-session prune-guard case) is fixed.** The test gave the hook a
   0.5 s fail-safe deadline, but a BLOCK answer takes 0.5-1 s even with no lock contention, so the hook sometimes gave up
   with no decision (two of three runs of PR #164 on macOS). The deadline is 4 s; the hooks are unchanged.

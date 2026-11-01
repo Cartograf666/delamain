@@ -22,7 +22,7 @@ Run the bundled tools through the host's shell tool. The plugin root is `PLUGIN_
 (GitHub CLI `hub`, an old `jlog`) and tell the owner in one line. `HUB_BIN` is set in detached workers. Paths below
 are relative to that root. Choose the executor engine before the model: offer the owner one choice at stage planning
 (Codex, Claude or mixed; the host is the default, an existing explicit choice already answers it), record it in the
-stage's `hub-rules.md`, pass `agent spawn --engine claude|codex`. For installation assessment or task routing, read
+stage's `hub-rules.md`; omit `agent spawn --engine` unless you deviate (then `--reason`). For installation assessment or task routing, read
 `<plugin-root>/docs/agents/README.md`; this skill owns the stage workflow once the plugin is selected.
 
 ## First commands
@@ -169,7 +169,7 @@ lines, details in a file. `hub handoff` refuses while a sub-agent of your sessio
 - Before each launch, use [limit-pace advice](../../docs/reference.md#limit-pace) for its engine, model and effort;
   keep engine locks (ask about this launch only; default: run locked engine), and keep ready work moving.
 - Work that pushes or waits is a headless agent:
-  `agent spawn --engine claude|codex --role R --cwd DIR [--model MODEL] [--effort high] --brief FILE [--worktree [BRANCH]]`;
+  `agent spawn --role R --cwd DIR [--model MODEL] [--effort high] --brief FILE [--worktree [BRANCH]]`;
   the role says what the work is (`mainmerge-fix`, never `wp23`). It survives the hub's handoff and any hub can talk to it. Its tag is `hub-<N>-<role>` (a sub-tag `hub-<N>/…` is
   filtered out of your own `jwait`). An abnormal end leaves `EXIT <role>: …` in the journal, a normal one without a
   status word `ENDED <role>: …` (`REVIEWED …` for a review role).

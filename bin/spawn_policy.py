@@ -53,9 +53,10 @@ def clean_reason(reason: Optional[str]) -> str:
 
 
 def check_reason(names: list, effort: Optional[str], default: str, allowed: tuple, reason: str, cwd=None,
-                 model_unknown: bool = False) -> Optional[str]:
+                 model_unknown: bool = False, engine: Optional[str] = None, configured: Optional[str] = None) -> Optional[str]:
     """A warning line for a spawn above the default without a reason (None: fine); a UsageError when the policy is
-    `refuse`. Above the default: an effort ranked higher than the model's default, or a model of AGENT_HUB_REASON_MODELS."""
+    `refuse`. Above the default: an effort ranked higher than the model's default, a model of AGENT_HUB_REASON_MODELS,
+    or an explicit `engine` other than the `configured` one (AGENT_HUB_ENGINE: the owner's decision)."""
     policy = (hc.setting("AGENT_HUB_REASON_POLICY", cwd=cwd) or "warn").strip().lower()
     if policy not in REASON_POLICIES:
         raise hc.UsageError(f"AGENT_HUB_REASON_POLICY {policy!r}: one of {', '.join(REASON_POLICIES)}")
@@ -73,6 +74,8 @@ def check_reason(names: list, effort: Optional[str], default: str, allowed: tupl
     if reason:
         return None
     above = []
+    if engine and configured and engine != configured:
+        above.append(f"engine {engine} differs from the configured AGENT_HUB_ENGINE {configured}")
     if effort and default in allowed and effort in allowed and allowed.index(effort) > allowed.index(default):
         above.append(f"effort {effort} is above the default {default}")
     if isinstance(models, list) and not model_unknown:
