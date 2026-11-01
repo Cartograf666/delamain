@@ -148,10 +148,20 @@ def set_signals(handler) -> None:
         signal.signal(sig, handler)
 
 
+def verdict(args, on: dict, rc: int, started: float) -> tuple:
+    """(WORD, detail, ok) of a command that ended by itself with `rc`."""
+    took = human(time.monotonic() - started)
+    if rc < 0:
+        return "FAILED", f"killed by signal {-rc} after {took}", False
+    word = on.get(rc) or (args.ok if rc == 0 else "TIMEOUT" if rc == 124 else "FAILED")
+    return word, f"exit {rc}, {took}", rc == 0
+
+
 def run_wait(args, cmd: list, log: Path, on: dict) -> tuple:
     """Run the command to its end; return (WORD, detail, ok). `ok` is the command's own outcome (it exited 0 by itself:
     not a timeout, a signal, an interruption, a failed start), whatever WORD says. Writes nothing to the journal. A stop signal anywhere in
-    here (also after the command has ended) is a CANCELLED verdict, never an exception that costs the line."""
+    here is a verdict, never an exception that costs the line: CANCELLED while the command still runs, the command's own
+    verdict once it has ended (a late `kill` must not turn a red command into a silent cancel)."""
     started = time.monotonic()
     proc = None
     set_signals(_raise_interrupted)
@@ -172,11 +182,7 @@ def run_wait(args, cmd: list, log: Path, on: dict) -> tuple:
             if EARLY_SIGNALS:
                 raise Interrupted(EARLY_SIGNALS[0])
             rc = proc.wait(timeout=hc.parse_duration(args.timeout).total_seconds())
-        took = human(time.monotonic() - started)
-        if rc < 0:
-            return "FAILED", f"killed by signal {-rc} after {took}", False
-        word = on.get(rc) or (args.ok if rc == 0 else "TIMEOUT" if rc == 124 else "FAILED")
-        return word, f"exit {rc}, {took}", rc == 0
+        return verdict(args, on, rc, started)
     except subprocess.TimeoutExpired:
         set_signals(signal.SIG_IGN)  # a second signal must not cut the cleanup short
         left = stop_group(proc)
@@ -184,6 +190,8 @@ def run_wait(args, cmd: list, log: Path, on: dict) -> tuple:
                            else f"stopped after {args.timeout}, no verdict yet"), False
     except Interrupted as e:
         set_signals(signal.SIG_IGN)
+        if proc is not None and proc.poll() is not None:  # it ended by itself before the signal: its verdict stands
+            return verdict(args, on, proc.returncode, started)
         left = stop_group(proc) if proc is not None else ""
         return "FAILED" if left else "CANCELLED", f"await interrupted by signal {e.signum}" + (
             f", the command could not be stopped ({left})" if left else ", the command was stopped" if proc else ""), False
@@ -198,7 +206,8 @@ def supervise(args, cmd: list, log: Path, stage: str, tag: str, on: dict) -> int
     except Exception as e:  # a bug or a signal that slipped past run_wait: the hub still gets its one line
         word, detail, ok = "FAILED", f"await crashed: {e!r}", False
     link = args.link or last_url(log, offset)
-    # a cancel is the caller's own act: no address, so no jwait wakes on it (CANCELLED is no status word either)
+    # a cancel is the caller's own act: no address, and jwait passes over it whatever the label says
+    # (hubcore.await_cancel_line)
     text = ("" if word == "CANCELLED" else f"@{args.to} ") + f"{word} {args.label}" + (f" — {link}" if link else "") + f" ({detail}, log {log})"
     try:
         hc.journal_append(stage, tag, text)

@@ -291,6 +291,44 @@ check "$(grep -c '@hub FAILED red' $O/j2.out)" 1 "…only the FAILED line"
 check "$(grep -c 'CANCELLED superseded' $J)" 1 "negative control: the cancel is in the journal"
 wait
 
+# 6c. a signal after the command has already ended (here: inside the classification, deterministic) keeps the
+# command's own verdict: a red command is FAILED and addressed, never a silent CANCELLED (review 1 of PR #164)
+cat > $O/late.py <<'PY2'
+import argparse, importlib.machinery, importlib.util, os, signal, sys
+path, work = sys.argv[1:3]
+sys.argv = [path, "--wait"]
+loader = importlib.machinery.SourceFileLoader("await_mod", path)
+mod = importlib.util.module_from_spec(importlib.util.spec_from_loader("await_mod", loader)); loader.exec_module(mod)
+signal.alarm(60)
+real_human = mod.human
+def late_signal(secs):
+    os.kill(os.getpid(), signal.SIGTERM)  # the command has exited and been reaped: the hub's kill arrives now
+    return real_human(secs)
+mod.human = late_signal
+args = argparse.Namespace(timeout="1m", ok="DONE")
+for rc in (1, 124, 0):
+    print(f"rc {rc}:", mod.run_wait(args, ["/bin/sh", "-c", f"exit {rc}"], __import__("pathlib").Path(work + "/late.log"), {}))
+PY2
+late=$(python3 -I $O/late.py $B/await $O 2>&1)
+echo "$late" | grep -q "^rc 1: ('FAILED', 'exit 1, "; check $? 0 "a late signal after exit 1: still FAILED ($(echo "$late" | grep '^rc 1'))"
+echo "$late" | grep -q "^rc 124: ('TIMEOUT', 'exit 124, "; check $? 0 "…after exit 124: still TIMEOUT"
+echo "$late" | grep -q "^rc 0: ('DONE', 'exit 0, .*True)"; check $? 0 "…after exit 0: still the ok word"
+
+# 6d. a cancel wakes nobody whatever its label, link or log path carries (a status word, @hub)
+: > $J; rm -f $G/* $PIDFILE*
+( armed $O/j3.out
+  for l in "wait for MERGED" "notify @hub"; do
+    out=$($B/await --label "$l" --link "https://ci.example/DONE/@hub" -- $O/hang.sh); waitfor $PIDFILE; rm -f $PIDFILE
+    kill "$(echo "$out" | sed -n 's/^await: started supervisor pid \([0-9]*\).*/\1/p')"
+    waitline "CANCELLED $l"
+  done; sleep 1.5
+  $B/await --label red2 -- /bin/sh -c 'exit 1' >/dev/null ) &
+$B/jwait --journal --tag hub-1 --tag hub --hub-events --settle 1 --for 60s > $O/j3.out 2>&1
+check "$(grep -c 'CANCELLED' $O/j3.out)" 0 "a cancel labelled with MERGED or @hub is not delivered"
+check "$(grep -c '@hub FAILED red2' $O/j3.out)" 1 "…the next FAILED is"
+check "$(grep -c 'CANCELLED' $J)" 2 "negative control: both cancels are in the journal"
+wait
+
 # 7. usage errors
 $B/await --on 3=conflict -- true > $O/u1.out 2>&1; check $? 2 "bad --on word"
 $B/await --on x -- true > $O/u2.out 2>&1; check $? 2 "bad --on shape"

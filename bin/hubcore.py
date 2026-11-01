@@ -1918,6 +1918,15 @@ def sub_agent_line(tag: str, text: str) -> bool:
     return bool(tag) and "/" in tag and (text + " ").startswith(SUB_LINE_PREFIXES)
 
 
+AWAIT_CANCEL_RE = re.compile(r"CANCELLED .* \(await interrupted by signal \d+, ")
+
+
+def await_cancel_line(text: str) -> bool:
+    """A cancelled `await` (bin/await: its supervisor got a stop signal while the command ran): the caller's own act,
+    so jwait never wakes on it, whatever its label, link or log path carries (a status word, an @-address)."""
+    return bool(AWAIT_CANCEL_RE.match(text))
+
+
 def quiet(text: str) -> str:
     """A text the journal will carry without waking anyone: status words lower-cased, no @."""
     text = one_line(text).replace("@", "at ")

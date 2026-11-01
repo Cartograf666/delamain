@@ -267,6 +267,8 @@ class Filter:
             return None
         if parsed and hc.sub_agent_line(tag, parsed[2]):
             return None  # a sub-agent's start or end line is for the record (hooks/subagent_journal.py)
+        if parsed and hc.await_cancel_line(parsed[2]):
+            return None  # a cancelled await is the caller's own act (bin/await)
         if not self.patterns and not self.tags:
             return "wake"
         if any(p.search(text) for p in self.patterns):
