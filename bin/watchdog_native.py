@@ -58,7 +58,7 @@ def candidate(wd, tick, stage):
     if last is None or tick.now - last < tick.wake_after:
         return None, "recent or unknown local activity; no silent-hub candidate"
     failure = {**error, "at": wd.iso(error["at"])} if dead else None
-    work = {"lines": [key for _, key, _ in lines], "night": night[1] if night else None, "failed_turn": failure}
+    work = {"lines": [ln[1] for ln in lines], "night": night[1] if night else None, "failed_turn": failure}
     work_id = fingerprint(work)
     why = receipts.guard(wd, tick.state, sid, tick.now, stage=stage, native=True)
     if why:

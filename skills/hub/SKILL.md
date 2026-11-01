@@ -67,7 +67,7 @@ Waiting is **one** `jwait`, using the shell harness rather than a polling loop.
   batch arrives as an event that already carries the lines: handle it, do not read an output file, do not re-arm.
   Every `jwait` that ends prints a last line `NEXT WAIT: …`: arm exactly that, nothing else. While an agent or an
   `await` of the stage runs it is a Monitor stream; when nothing runs it is ONE Bash `run_in_background` long wait
-  (hours), so an idle hub costs no call until a line comes. Several waiters are never armed at once.
+  (hours), or on a `claude --bg` hub *dormant*: end the turn with no waiter, the watchdog resumes you on a line.
 - **Codex:** `references/codex-hub.md` (*Waiting on a Codex hub*).
 
 A stopped `jwait` loses no lines once its caller has run before: the next one delivers them.
@@ -79,7 +79,7 @@ A stopped `jwait` loses no lines once its caller has run before: the next one de
 - `jwait --file <script output> --match 'AWAITING ANSWER'` — a script's question; one asked before `jwait` started is
   delivered too.
 - `jwait --until 20:23 --note "check the nightly import"` — an alarm; exit 3 and a line `ALARM …`.
-- Sources and filters combine in one command. What was read is remembered.
+- Sources and filters combine in one command.
 
 A CI, merge or lock wait is never a background Bash of the hub itself: run `await --ok MERGED --label "MR !N" --on
 2=TIMEOUT -- <the repo's wait command>` (santinel: `python -m scripts.ci_wait --mr N`; `bin/await`, a foreground call
@@ -89,7 +89,7 @@ FAILED/TIMEOUT/CONFLICT are decisions, not retries; a superseded wait you `kill`
 executor that waits on CI uses the same `await`.
 
 A message starting `[agent-hub watchdog]` or `[delamain watchdog]` means the watchdog woke you: run the digest `jwait`
-with its `--since HH:MM`, handle what it shows, keep one waiter. Going quiet on purpose: `watchdog quiet`
+with its `--since HH:MM`, handle what it shows, follow its NEXT WAIT. Going quiet on purpose: `watchdog quiet`
 (`references/stage-lifecycle.md`).
 
 ## Talking
