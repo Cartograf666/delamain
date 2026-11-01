@@ -190,7 +190,8 @@ def run_wait(args, cmd: list, log: Path, on: dict) -> tuple:
                            else f"stopped after {args.timeout}, no verdict yet"), False
     except Interrupted as e:
         set_signals(signal.SIG_IGN)
-        if proc is not None and proc.poll() is not None:  # it ended by itself before the signal: its verdict stands
+        if proc is not None and proc.poll() is not None:  # it ended by itself before the signal: its verdict stands,
+            stop_group(proc)  # and what it left running in its group is stopped as a cancel would
             return verdict(args, on, proc.returncode, started)
         left = stop_group(proc) if proc is not None else ""
         return "FAILED" if left else "CANCELLED", f"await interrupted by signal {e.signum}" + (

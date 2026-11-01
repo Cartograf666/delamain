@@ -308,11 +308,29 @@ mod.human = late_signal
 args = argparse.Namespace(timeout="1m", ok="DONE")
 for rc in (1, 124, 0):
     print(f"rc {rc}:", mod.run_wait(args, ["/bin/sh", "-c", f"exit {rc}"], __import__("pathlib").Path(work + "/late.log"), {}))
+# the leader has exited, a poller it left in its group still runs: the late signal stops the group too (review 2)
+pidf = work + "/late-child.pid"
+print("orphan:", mod.run_wait(args, ["/bin/sh", "-c", f"sleep 300 & echo $! > {pidf}; exit 1"],
+                              __import__("pathlib").Path(work + "/late.log"), {})[0])
+child = int(open(pidf).read())
+import time
+for _ in range(50):
+    try:
+        os.kill(child, 0)
+    except ProcessLookupError:
+        break
+    time.sleep(0.1)
+try:
+    os.kill(child, 0); print("child: alive"); os.kill(child, signal.SIGKILL)
+except ProcessLookupError:
+    print("child: gone")
 PY2
 late=$(python3 -I $O/late.py $B/await $O 2>&1)
-echo "$late" | grep -q "^rc 1: ('FAILED', 'exit 1, "; check $? 0 "a late signal after exit 1: still FAILED ($(echo "$late" | grep '^rc 1'))"
+echo "$late" | grep -q "^rc 1: ('FAILED', 'exit 1, "; check $? 0 "a late signal after exit 1: still FAILED"
 echo "$late" | grep -q "^rc 124: ('TIMEOUT', 'exit 124, "; check $? 0 "…after exit 124: still TIMEOUT"
 echo "$late" | grep -q "^rc 0: ('DONE', 'exit 0, .*True)"; check $? 0 "…after exit 0: still the ok word"
+check "$(echo "$late" | grep '^orphan:')" "orphan: FAILED" "a leader that exited 1 and left a child: still FAILED"
+check "$(echo "$late" | grep '^child:')" "child: gone" "…and the late signal stopped the child left in its group"
 
 # 6d. a cancel wakes nobody whatever its label, link or log path carries (a status word, @hub)
 : > $J; rm -f $G/* $PIDFILE*
