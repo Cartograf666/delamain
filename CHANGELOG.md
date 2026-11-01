@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **The macOS-only flake in `t_codex_hooks` (the busy-session prune-guard case) is fixed.** The test gave the hook a
+  0.5 s fail-safe deadline, but a BLOCK answer takes 0.5-1 s even with no lock contention, so the hook sometimes gave up
+  with no decision (two of three runs of PR #164 on macOS). The deadline is 4 s; the hooks are unchanged.
+
 - **A cancelled `await` is `CANCELLED`, not `FAILED`, and wakes nobody.** A supervisor stopped by SIGTERM, SIGHUP or
   SIGINT (the hub's own `kill <pid>` of a superseded wait: 53 of last week's 58 "await FAILED (signal 15)") journals
   `CANCELLED <label> (await interrupted by signal N, …)` without the `@hub` address, so the digest `jwait` does not
