@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.25 — 2026-11-01
+
 - **The owner's engine choice is one value, `AGENT_HUB_ENGINE`; `agent spawn --engine` is for deviating.** The
   per-stage `AGENT_HUB_STAGE_ENGINES` (unset in every config layer) is merged into it: limit-pace now keeps the
   configured engine (hub home or repository, not the environment) the way it kept a stage lock, and the old key is
