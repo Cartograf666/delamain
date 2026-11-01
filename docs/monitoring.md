@@ -243,8 +243,9 @@ A row of `claude agents --json` is stopped only when all of these hold:
 5. it is **idle**: `status` is `idle` and `state` is `done`, `blocked` (a pending prompt: the hub is retired, its work is
    over) or `working` when the only work below its process is its own leftover `jwait` (the pid of a
    `.jwait-state/<stage>/<caller>.armed.json` that still runs a jwait) beside its MCP and LSP servers (a name with
-   `mcp`, `language-server`, `lsp`, `pyright`, `gopls`, `rust-analyzer`, `clangd`, `jdtls`; any other direct child keeps
-   a `working` session protected). `busy`, `waiting`, a missing value or any other one protects it, and so does
+   `mcp`, `language-server`, `lsp`, `pyright`, `gopls`, `rust-analyzer`, `clangd`, `jdtls`, matched on the process
+   name, so only a native binary or a server that sets its process title; a node- or Python-hosted server shows as
+   `node`/`Python` and, like any other direct child, keeps a `working` session protected). `busy`, `waiting`, a missing value or any other one protects it, and so does
    **a live shell among the direct children of its process** that holds anything but MCP servers (a command naming `mcp`,
    such as `npm exec @upstash/context7-mcp`, and what runs below it) and the own waiter:
    Claude Code starts every Bash call and background task as a shell (`/bin/zsh -c …`, the user's shell or

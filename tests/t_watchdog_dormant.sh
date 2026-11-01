@@ -81,8 +81,10 @@ case("idle/working, its own jwait as a direct child: stopped", [(110, 100, "Pyth
 case("idle/working, own jwait and direct MCP servers (the usual shape): stopped",
      [(110, 100, "Python"), (102, 100, "npm exec @upstash/context7-mcp --api-key x"), (103, 102, "node"),
       (105, 100, "chrome-devtools-mcp")], "idle/working", "", waiter=110)
-case("idle/working, own jwait under a shell and a direct LSP server: stopped",
-     [(101, 100, "/bin/zsh"), (110, 101, "Python"), (120, 100, "typescript-language-server")], "idle/working", "", waiter=110)
+case("idle/working, own jwait under a shell and a direct native LSP server: stopped",
+     [(101, 100, "/bin/zsh"), (110, 101, "Python"), (120, 100, "/opt/homebrew/bin/gopls")], "idle/working", "", waiter=110)
+case("idle/working, own jwait and a node-hosted LSP server (process name node): protected",
+     [(110, 100, "Python"), (121, 100, "node")], "idle/working", "idle/working", waiter=110)
 case("an armed file whose pid now runs something else (reused): its process is work, protected",
      [(101, 100, "/bin/zsh"), (777, 101, "Python")], "idle/working", "running a child process", waiter=777)
 case("idle/working, own jwait and another direct child (an await): protected", [(110, 100, "Python"), (111, 100, "Python")],
