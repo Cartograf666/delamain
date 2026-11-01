@@ -383,6 +383,9 @@ def other(engine: str) -> str:
     return "codex" if engine == "claude" else "claude"
 
 
+_legacy_noted = False
+
+
 def stage_lock(stage: Optional[str], cwd=None) -> Optional[dict]:
     """The owner's engine decision: {"engine": …, "decision": …} or None. It is AGENT_HUB_ENGINE as configured (hub
     home or repository; the environment is the engine of the calling agent, not a decision). The retired
@@ -390,7 +393,10 @@ def stage_lock(stage: Optional[str], cwd=None) -> Optional[dict]:
     legacy = hc.setting_json("AGENT_HUB_STAGE_ENGINES", {}) if stage else {}
     rec = legacy.get(stage) if isinstance(legacy, dict) else None
     if rec:
-        hc.warn("AGENT_HUB_STAGE_ENGINES is deprecated: set AGENT_HUB_ENGINE instead (read for one more release)")
+        global _legacy_noted
+        if not _legacy_noted:  # agent-top calls this on every refresh
+            _legacy_noted = True
+            hc.warn("AGENT_HUB_STAGE_ENGINES is deprecated: set AGENT_HUB_ENGINE instead (read for one more release)")
         if isinstance(rec, str):
             rec = {"engine": rec}
         if isinstance(rec, dict) and rec.get("engine") in ENGINES:

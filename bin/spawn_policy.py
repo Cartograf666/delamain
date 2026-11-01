@@ -56,7 +56,7 @@ def check_reason(names: list, effort: Optional[str], default: str, allowed: tupl
                  model_unknown: bool = False, engine: Optional[str] = None, configured: Optional[str] = None) -> Optional[str]:
     """A warning line for a spawn above the default without a reason (None: fine); a UsageError when the policy is
     `refuse`. Above the default: an effort ranked higher than the model's default, a model of AGENT_HUB_REASON_MODELS,
-    or an explicit `engine` other than the `configured` one (AGENT_HUB_ENGINE: the owner's decision)."""
+    or an explicit `engine` other than the `configured` one (the AGENT_HUB_ENGINE setting; unset: nothing to deviate from)."""
     policy = (hc.setting("AGENT_HUB_REASON_POLICY", cwd=cwd) or "warn").strip().lower()
     if policy not in REASON_POLICIES:
         raise hc.UsageError(f"AGENT_HUB_REASON_POLICY {policy!r}: one of {', '.join(REASON_POLICIES)}")

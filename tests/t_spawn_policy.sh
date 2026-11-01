@@ -114,7 +114,10 @@ spawn e2 --engine codex --model gpt-fixture --dry-run --reason "needs the Astra 
 spawn e3 --engine claude --model opus --dry-run; grep -q 'differs' $R/e3.err; check $? 1 "negative: the configured engine itself is silent"
 spawn e4 --model opus --dry-run; grep -q 'differs' $R/e4.err; check $? 1 "negative: no --engine is the configured engine, silent"
 AGENT_HUB_REASON_POLICY=refuse spawn e5 --engine codex --model gpt-fixture --dry-run; check $? 2 "policy refuse: a bare deviation is refused like any other"
-rm -f $R/config.json; unset AGENT_HUB_LIMIT_PACE
+rm -f $R/config.json
+spawn e6 --engine codex --model gpt-fixture --dry-run; grep -q 'differs' $R/e6.err; check $? 1 "negative: AGENT_HUB_ENGINE unset anywhere: nothing to deviate from, silent"
+AGENT_HUB_REASON_POLICY=refuse spawn e7 --engine codex --model gpt-fixture --dry-run; check $? 0 "…and a bare --engine codex passes under policy refuse"
+unset AGENT_HUB_LIMIT_PACE
 
 # ---- 3. Codex follows the same policy
 export AGENT_HUB_EFFORT_DEFAULTS='{"fixture": "low"}'
@@ -138,12 +141,12 @@ AGENT_HUB_REASON_POLICY=refuse spawn y2 --engine codex; check $? 2 "policy refus
 grep -q 'the model the Codex CLI will choose cannot be checked: pass --model' $R/y2.err; check $? 0 "…saying to pass --model"
 [ ! -e $R/stage-a/agents/y2 ]; check $? 0 "…nothing was started"
 AGENT_HUB_REASON_POLICY=refuse spawn y3 --engine codex --reason "needed"; check $? 2 "…a reason does not make the model known"
-AGENT_HUB_ENGINE=codex AGENT_HUB_REASON_POLICY=refuse spawn y4 --engine codex --model gpt-fixture; check $? 0 "a given --model is checked and fine"; wait_dead y4
+AGENT_HUB_REASON_POLICY=refuse spawn y4 --engine codex --model gpt-fixture; check $? 0 "a given --model is checked and fine"; wait_dead y4
 AGENT_HUB_REASON_POLICY=off spawn y5 --engine codex; check $? 0 "policy off: nothing is checked"; wait_dead y5
 AGENT_HUB_EFFORT_DEFAULTS='{"big": "low"}' spawn y6 --engine codex; wait_dead y6
 tail -1 $W/codex-argv.jsonl | grep -qF 'model_reasoning_effort=\"high\"'; check $? 0 "the effort default of an unknown model is the general one"
 unset AGENT_HUB_REASON_MODELS
-AGENT_HUB_ENGINE=codex AGENT_HUB_REASON_POLICY=refuse spawn y7 --engine codex; check $? 0 "REASON_MODELS empty (the default): nothing changes"; wait_dead y7
+AGENT_HUB_REASON_POLICY=refuse spawn y7 --engine codex; check $? 0 "REASON_MODELS empty (the default): nothing changes"; wait_dead y7
 spawn y8 --engine codex; grep -q 'cannot be checked' $R/y8.err; check $? 1 "…and no warning"; wait_dead y8
 export CODEX_HOME="$(mktemp -d)"   # back to an empty one: the limit-pace reader must not see the real ~/.codex
 

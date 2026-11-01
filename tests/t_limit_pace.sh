@@ -125,6 +125,13 @@ del os.environ["AGENT_HUB_ENGINE"]
 os.environ["AGENT_HUB_STAGE_ENGINES"] = '{"stage-a": {"engine": "codex", "decision": "Q-T-1"}}'
 lock = lp.stage_lock("stage-a")
 check(lock == {"engine": "codex", "decision": "Q-T-1"}, "retired stage lock still read")
+import contextlib, io
+buf = io.StringIO()
+with contextlib.redirect_stderr(buf):
+    lp._legacy_noted = False
+    for _ in range(3):
+        lp.stage_lock("stage-a")
+check(buf.getvalue().count("AGENT_HUB_STAGE_ENGINES is deprecated") == 1, "the deprecation note is printed once per process")
 del os.environ["AGENT_HUB_STAGE_ENGINES"]
 with open(os.path.join(os.environ["AGENT_HUB_HOME"], "config.json"), "w") as f:
     f.write('{"AGENT_HUB_ENGINE": "codex"}')

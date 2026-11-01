@@ -7,7 +7,8 @@
   configured engine (hub home or repository, not the environment) the way it kept a stage lock, and the old key is
   still read for one release with a stderr note. `agent spawn --engine X` where X differs from the configured engine
   and has no `--reason` gets the same one-line warning as an effort above the default (`AGENT_HUB_REASON_POLICY`);
-  the same engine or no `--engine` is silent. The hub skill says "omit `--engine` unless you deviate".
+  the same engine, no `--engine`, or no configured engine is silent; `hub reviewer` start lines that print `--engine` add
+  their own `--reason`. The hub skill says "omit `--engine` unless you deviate".
 
 - **The macOS-only flake in `t_codex_hooks` (the busy-session prune-guard case) is fixed.** The test gave the hook a
   0.5 s fail-safe deadline, but a BLOCK answer takes 0.5-1 s even with no lock contention, so the hook sometimes gave up
