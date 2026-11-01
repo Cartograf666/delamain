@@ -89,6 +89,8 @@ def main(argv: list[str]) -> int:
     except Exception:
         event = {}
     event = event if isinstance(event, dict) else {}
+    if os.environ.get("AGENT_HUB_RUN"):  # a headless agent cannot answer owner questions; the summary is for hubs
+        return 0
     hubcore().use_cwd(event.get("cwd"))  # the hub home of the session's directory (before `ask` reads it)
     if not in_scope(event):
         return 0

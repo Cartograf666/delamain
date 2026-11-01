@@ -81,6 +81,18 @@ exit_note errc 1 '{"type": "result", "subtype": "success", "is_error": false, "n
 grep -q 'EXIT errc: .*code 1' "$(J)"; check $? 0 "a success result with a non-zero code stays EXIT"
 exit_note errok 0 '{"type": "result", "subtype": "success", "is_error": false, "num_turns": 1, "result": "ok"}' > /dev/null
 grep -q 'ENDED errok: .*code 0' "$(J)"; check $? 0 "positive control: the same result with code 0 is ENDED"
+# the quoted `last:` is the line with the outcome (VERDICT, a status word, a report path), not a closing delegation line
+RES='{"type": "result", "subtype": "success", "is_error": false, "num_turns": 1, "result": "ok"}'
+asst(){ python3 -c 'import json,sys; print(json.dumps({"type": "assistant", "message": {"id": "m1", "content": [{"type": "text", "text": sys.argv[1]}]}}))' "$1"; }
+exit_note review-qv 0 "$(asst $'Review done.\nVERDICT: merge after fixes\nDelegation: nothing delegated, level 3')
+$RES" > /dev/null
+grep -q 'REVIEWED review-qv: .*; last: VERDICT: merge after fixes ' "$(J)"; check $? 0 "last: quotes the VERDICT line, not the delegation line after it"
+exit_note quote-r 0 "$(asst $'Wrote the report to /w/x-REPORT.md.\nDelegation: Haiku for the probe')
+$RES" > /dev/null
+grep -q 'ENDED quote-r: .*; last: Wrote the report to /w/x-REPORT.md\. ' "$(J)"; check $? 0 "…a *-REPORT.md path counts too"
+exit_note quote-n 0 "$(asst $'All green.\nSee you.')
+$RES" > /dev/null
+grep -q 'ENDED quote-n: .*; last: See you\. ' "$(J)"; check $? 0 "control: no outcome line anywhere → the last line, as before"
 # a resumed run that exits 0 before any answer of its own: the log still ends with the PREVIOUS run's result
 OLD_RESULT='{"type": "result", "subtype": "success", "is_error": false, "num_turns": 1, "result": "ok"}'
 INIT='{"type": "system", "subtype": "init", "session_id": "s-stale"}'

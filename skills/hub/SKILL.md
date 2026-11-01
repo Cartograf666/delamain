@@ -98,7 +98,7 @@ with its `--since HH:MM`, handle what it shows, keep one waiter. Going quiet on 
 - To another stage's hub: `tell <stage> "…"` (`--question`; every hub: `broadcast "…"`); the answer reaches you only in your own journal. A direct
   cross-session message only when the journal cannot do, and only to the address from `tell <stage> --address` /
   `roles --stage <stage> get hub`, never a session chosen by its display name. Codex: `references/codex-hub.md`.
-- `roles list | get | set | retire | broadcast` — the role registry.
+- `roles list | get | set | retire` — the role registry.
 - `ask search <words…>` — what the owner already decided; `ask add … --default … --due …` — a question with the action
   you take if nobody answers; `ask decided` — your own decision on a matter the owner normally decides; `ask close`,
   `done`, `digest`, `list`. Standing permissions (`ask allow`, `ask revoke`): `references/owner-and-planning.md`.
@@ -160,8 +160,8 @@ launch to use. A change smaller than its brief (a typo, a doc line) the hub may 
 
 Every sub-agent brief ends with a call budget: "if not done after N tool calls, stop and return a partial result and
 what is left" (N = 40 for a probe or a read, up to 80 for a wide read-only investigation); ask for a result of ≤ 20
-lines, details in a file. `hub handoff` refuses while a sub-agent of your session runs. More:
-`references/launch-and-executors.md`.
+lines of text (a sub-agent cannot write report files; a file means `agent spawn`). `hub handoff` refuses while a
+sub-agent of your session runs. More: `references/launch-and-executors.md`.
 
 ## Executors
 

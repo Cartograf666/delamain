@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **The exit note quotes the line with the outcome.** `ENDED`/`REVIEWED`/`EXIT … last:` now quotes the last line of the
+  agent's final text that holds `VERDICT:`, a status word or a `*-REPORT.md` path, else the last line (a closing
+  delegation summary no longer hides the verdict). The built-in delegation text no longer asks to name the level in a
+  report (`hooks/delegation.py`; a hub home's own `AGENT_HUB_DELEGATION_COMMON` keeps whatever it says).
+  `templates/brief-review.md` says one thing: the final answer is the review, with no report file or journal line.
+  The executor footer says how to wait for CI (`await --wait … gh-ci-wait` in a background Bash). The hub skill says a
+  sub-agent's result is its text (≤ 20 lines), since the host forbids sub-agents report files.
+  The SessionStart owner-questions line is no longer injected into headless agents (`AGENT_HUB_RUN` set).
+  Removed: `roles broadcast` (0 uses; confusable with `broadcast`) and the empty `dfix-patch2.py`. The
+  `agent-send`/`-spawn`/`-status`/`-stop` aliases print a deprecation line to stderr and go in the next release.
+
 - **Windows dispatch accepts every registered hook, including `scan_guard`.** Both adapter allowlists are checked
   against the hook manifest; native PowerShell controls also verify unknown-name rejection and scan allow/deny behavior.
 

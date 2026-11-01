@@ -35,8 +35,8 @@ production, permissions) say here which risk the review is narrowed to, and leav
 ## How to review
 - **Repository is read-only.** Do not edit, commit, push, merge or run anything that changes repository state.
   Read anything in the repository; rerun a test only when a finding needs it (the author's results are above).
-  Write your report and journal line under the hub home. A Codex reviewer uses `workspace-write` with cwd there,
-  and the reviewed repository outside writable roots; `read-only` cannot write the report or journal.
+  Your final answer is the review (see Answer): write no report file and no journal line — the caller saves the
+  answer, and `agent` journals the end of your run.
 - A Codex reviewer puts temporary copies in a subdirectory of its cwd; `/tmp` and `$TMPDIR` are outside its writable roots.
 - Check the change against the intent above, not only the diff in isolation: read the callers and the tests of what it
   touches. Cap the reading by the diff size: a small diff reads its callers and tests, not the repository.

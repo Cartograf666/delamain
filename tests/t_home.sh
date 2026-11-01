@@ -50,6 +50,8 @@ check "$(git -C $C status --porcelain | wc -l | tr -d ' ')" "0" "…so the home 
 Q=$S/other; newrepo $Q; mkdir -p $Q/.agent-hub; echo '{"AGENT_HUB_HOME": "project"}' > $Q/.agent-hub/config.json
 (cd $S/plain && echo "{\"cwd\": \"$P\"}" | python3 $HOOKS/questions.py > $S/q1.out 2>&1)
 grep -q 'stage-q' $S/q1.out; check $? 0 "questions hook: the register of the input cwd's home (process elsewhere)"
+(cd $S/plain && echo "{\"cwd\": \"$P\"}" | AGENT_HUB_RUN=r1 python3 $HOOKS/questions.py > $S/q1h.out 2>&1)
+check "$(wc -c < $S/q1h.out | tr -d ' ')" 0 "…and nothing for a headless agent (AGENT_HUB_RUN set): it cannot answer owner questions"
 (cd $P && echo "{\"cwd\": \"$Q\"}" | python3 $HOOKS/questions.py > $S/q2.out 2>&1)
 grep -q 'stage-q' $S/q2.out; check $? 1 "control: run from that repository with another repository's cwd, the other home answers"
 (cd $S/plain && echo "{\"session_id\": \"sid-1\", \"cwd\": \"$Q\"}" | AGENT_HUB_DELEGATION=on python3 $HOOKS/delegation.py session-start > /dev/null 2>&1)

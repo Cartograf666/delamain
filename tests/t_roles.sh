@@ -1,5 +1,5 @@
 #!/bin/bash
-# roles: registry, Desktop session validation (fake sessions dir), send budget, broadcast, retire.
+# roles: registry, Desktop session validation (fake sessions dir), send budget, retire.
 . "$(dirname "$0")/lib.sh"
 new_home; export CLAUDE_SESSIONS_DIR=$AGENT_HUB_HOME/sessions HUB_STAGE=stage-a
 mk(){ mkdir -p $CLAUDE_SESSIONS_DIR/a/b; printf '{"sessionId":"local_%s","cliSessionId":"%s","title":"%s","isArchived":%s}' "$1" "$2" "$3" "$4" > $CLAUDE_SESSIONS_DIR/a/b/local_$1.json; }
@@ -38,16 +38,11 @@ out=$(env -u HUB_STAGE HUB_TAG=hub-30 CLAUDE_CODE_SESSION_ID=$PC $B/jlog --stage
 out=$(env -u HUB_STAGE HUB_TAG=qa CLAUDE_CODE_SESSION_ID=$PC $B/jlog --stage aaa-old "same tag here"); echo "$out" | grep -q '\[qa\] same tag here'; check $? 0 "control: registered in the target stage under that very tag → bare"
 $B/roles --stage zzz-twin set hub-30 local_$P --tag hub-30 >/dev/null
 out=$(env -u HUB_STAGE HUB_TAG=hub-30 CLAUDE_CODE_SESSION_ID=$PC $B/jlog --stage stage-b "ambiguous"); echo "$out" | grep -q '\[hub-30\] ambiguous'; check $? 0 "negative: two registrations with that tag → the tag is left unchanged"
-# budget: 10 per sender; broadcast records and writes one journal line
+# budget: 10 per sender
 check "$($B/roles budget hub p3)" "10 (sent to this recipient: 0)" "budget starts at 10"
-for i in 1 2 3 4 5 6 7 8; do $B/roles sent hub p3 >/dev/null; done
-out=$(CLAUDE_CODE_SESSION_ID=$HC $B/roles broadcast --all "main is now e1f2"); rc=$?
-check $rc 0 "broadcast ok"
-echo "$out" | grep -q "^p3 .* 1$"; check $? 0 "broadcast row shows budget after send"
-echo "$out" | grep -q "^steward .*headless: agent send"; check $? 0 "headless recipient routed to agent send"
-echo "$out" | grep -q "^term .*cli: no cross-session send"; check $? 0 "cli recipient routed to the journal"
-J=$(journal stage-a)
-check "$(grep -c '@builder @steward @term main is now e1f2' $J)" 1 "one journal line for the broadcast"
+for i in 1 2 3 4 5 6 7 8 9; do $B/roles sent hub p3 >/dev/null; done
+check "$($B/roles budget hub p3 | head -1)" "1 (sent to this recipient: 9)" "budget counts each recorded send"
+$B/roles broadcast --all "text" >/dev/null 2>&1; check $? 2 "negative: roles broadcast is gone (usage error)"
 $B/roles sent hub p3 >/dev/null
 out=$($B/roles budget hub p3); echo "$out" | head -1 | grep -q '^0 '; check $? 0 "budget exhausted at 10"
 echo "$out" | grep -q 'jlog "@builder'; check $? 0 "fallback jlog line printed at 0"

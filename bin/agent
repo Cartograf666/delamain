@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Headless Claude agents that outlive the hub: agent spawn | status | send | stop
-(also callable as agent-spawn / agent-status / agent-send / agent-stop).
+(also callable as agent-spawn / agent-status / agent-send / agent-stop: deprecated, removed in the next release).
 
 Long work (a merge steward, a release rehearsal, anything > 1 h) runs as a detached `claude -p`
 session instead of a hub sub-agent: it survives the hub's handoff, and any hub can talk to it.
@@ -207,6 +207,8 @@ other end: questions asked in chat are read by no one. The brief above is your c
 - Never print environment variables or secret files. A secret the task needs stays inside your worktree and is
   removed before DONE.
 - Commit unfinished work before long runs: an interrupted turn loses whatever is uncommitted.
+- Waiting for CI or any other external state: `"$HUB_BIN/await" --wait --ok PASSED -- "$HUB_BIN/gh-ci-wait" <PR>` (or the
+  repository's wait command) as a background Bash; never a polling loop or a foreground `sleep`.
 """
 
 # Claude only: Codex native sub-agents have no worktree isolation and are not journaled (hooks/subagent_journal.py).
@@ -933,7 +935,7 @@ def read_log(path: Path) -> dict:
     """What the log of every run of the agent says: model turns (all runs, and the last run's), the last assistant
     text, the last result, whether a run started after it, the context size (the last model call's input: input plus
     cache tokens of the last main-thread assistant message — what agent-top shows as ctx; 0 when the log has none)."""
-    turns, run_turns, last_text, results, last_type, ctx = set(), set(), "", [], "", 0
+    turns, run_turns, last_text, last_block, results, last_type, ctx = set(), set(), "", "", [], "", 0
     started_after_result = False
     try:
         fh = open(path, encoding="utf-8", errors="replace")
@@ -962,6 +964,7 @@ def read_log(path: Path) -> dict:
                         for block in (ev.get("message") or {}).get("content") or []:
                             if block.get("type") == "text" and block.get("text", "").strip():
                                 last_text = [ln for ln in block["text"].splitlines() if ln.strip()][-1].strip()
+                                last_block = block["text"]
                         continue
                     if t == "result":
                         ev["result"] = last_text
@@ -979,11 +982,12 @@ def read_log(path: Path) -> dict:
                     for block in msg.get("content") or []:
                         if block.get("type") == "text" and block.get("text", "").strip():
                             last_text = [ln for ln in block["text"].splitlines() if ln.strip()][-1].strip()
+                            last_block = block["text"]
                 elif t == "result":
                     results.append(ev)
                     started_after_result = False
                 last_type = t
-    return {"turns": len(turns), "run_turns": len(run_turns), "last_text": last_text,
+    return {"turns": len(turns), "run_turns": len(run_turns), "last_text": last_text, "last_block": last_block,
             "result": results[-1] if results else None, "events": n, "running_after_result": started_after_result,
             "last_type": last_type, "ctx": ctx}
 
@@ -1381,6 +1385,17 @@ def is_review_role(meta: dict) -> bool:
     return engines.is_review_role(meta)
 
 
+QUOTE_RE = re.compile(r"VERDICT:|-REPORT\.md\b|" + hc.STATUS_WORDS)
+
+
+def quote_line(text: str) -> str:
+    """The line of an agent's final text that the exit note quotes: the last one holding a `VERDICT:`, a status word or
+    a `*-REPORT.md` path, else the last line (a closing line about something else — a delegation summary, a sign-off —
+    would hide the outcome)."""
+    lines = [x for x in (text or "").strip().splitlines() if x.strip()]
+    return next((x for x in reversed(lines) if QUOTE_RE.search(x)), lines[-1] if lines else "").strip()
+
+
 def cmd_exit_note(a) -> int:
     """Called by the launch shell after claude exits (either engine). A run that ended cleanly (code 0, a successful
     result) with a status word of its own in the journal needs no line. One that ended cleanly without one is journaled
@@ -1407,9 +1422,9 @@ def cmd_exit_note(a) -> int:
     else:
         word, why = "EXIT", (f"{r.get('subtype')}, error" if r.get("is_error") else
                              (r.get("subtype") or "no result — died or killed"))
-    last = (info["last_text"] or "").strip().splitlines()
+    last = quote_line(info.get("last_block") or info["last_text"])
     print(hc.journal_append(stage, meta["tag"], f"{word} {a.role}: {why}; code {a.code}, turns {turns_text(info)}"
-                            f"{'; last: ' + last[-1][:160] if last else ''} — agent status {a.role}"))
+                            f"{'; last: ' + last[:160] if last else ''} — agent status {a.role}"))
     return 0
 
 
