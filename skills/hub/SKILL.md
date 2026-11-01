@@ -159,9 +159,9 @@ launch to use. A change smaller than its brief (a typo, a doc line) the hub may 
   an owner decision through `ask add`; a hook refuses them in a hub, the owner's own request for a session passes.
 
 Every sub-agent brief ends with a call budget: "if not done after N tool calls, stop and return a partial result and
-what is left" (N = 40 for a probe or a read, up to 80 for a wide read-only investigation); ask for a result of ≤ 20
-lines of text (a sub-agent cannot write report files; a file means `agent spawn`). `hub handoff` refuses while a
-sub-agent of your session runs. More: `references/launch-and-executors.md`.
+what is left" (N = 40 for a probe or a read, up to 80 for a wide read-only investigation); ask for ≤ 20 lines
+of text; the host forbids its files. `hub handoff` refuses while a sub-agent of your session runs.
+More: `references/launch-and-executors.md`.
 
 ## Executors
 
