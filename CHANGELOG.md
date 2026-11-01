@@ -24,6 +24,14 @@
   assignment values are stored, so no secret reaches the file. Counting denials (the polling guard's, for one) no longer
   means searching transcripts. No new hook, no setting; a failed write never changes what the guard decided.
 
+- **A background hub successor starts in a plain git worktree, not `claude --bg --worktree`.** `hub succeed` makes
+  `<main checkout>/.worktrees/<stage>-hub-<n>` the way `agent spawn --worktree` does (slot, `.agents/linked`,
+  `.agents/prepare`) and starts `claude --bg` there; a headless fallback reuses that worktree with its prepare state
+  (a prepare that failed in this start is left to the next spawn). With an executable `.agents/prepare` the start's
+  reservation and the Bash timeout the hub is told grow by `AGENT_HUB_PREPARE_TIMEOUT`. The host isolated `--worktree`
+  sessions and refused their `git -C <main clone>` and `$(…)` commands (most of last week's host refusals); a plain
+  worktree is not isolated. The hub skill now says to avoid both in hub commands, since a Desktop hub stays isolated.
+
 - **Windows dispatch accepts every registered hook, including `scan_guard`.** Both adapter allowlists are checked
   against the hook manifest; native PowerShell controls also verify unknown-name rejection and scan allow/deny behavior.
 
