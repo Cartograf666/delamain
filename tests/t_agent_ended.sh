@@ -30,8 +30,8 @@ echo "- 10:00 [plain] DONE report" | grep -Eq "$PAT_OWN"; check $? 0 "positive c
 spawn review-pr34 --model haiku; wait_dead review-pr34; sleep 1
 check "$(reviewed review-pr34)" 1 "a review role (review-pr34) journals REVIEWED"
 check "$(ended review-pr34)" 0 "…not ENDED"
-# …and its assembled prompt has one delivery contract: the template's "no report file, no journal line" and a footer that
-# says the same, not the executor footer's "full report goes to … / journal on events"
+# …and its assembled prompt has one delivery contract: the brief and the review footer both send the review to the report
+# path and end the final answer with the VERDICT line; the executor footer's journal-on-events demands are absent
 FAKE_HOLD=1 $B/agent spawn --role review-tpl --cwd $W --brief $B/../templates/brief-review.md --model haiku > /dev/null 2>&1; wait_dead review-tpl
 prompt_of(){ python3 - "$W/prompts.log" "$1" <<'PY'
 import sys
@@ -40,10 +40,11 @@ for block in open(sys.argv[1], encoding="utf-8").read().split("\n=====\n"):
 PY
 }
 prompt_of review-tpl | tr -s ' \n' '  ' > $R/prompt-review.txt  # one line: the footer wraps its sentences
-grep -q 'write no report file and no journal line' $R/prompt-review.txt && grep -q 'Write no report file and no journal line' $R/prompt-review.txt; check $? 0 "review role: the brief and the footer both say: no report file, no journal line"
-grep -q 'The full report goes to\|Write only on events\|journal \(tag\|line\) .*BLOCKED' $R/prompt-review.txt; check $? 1 "…and the executor footer's report/journal demands are absent"
+grep -q 'launched by `agent spawn` writes the review .* to the report path its footer names and ends its final answer' $R/prompt-review.txt; check $? 0 "review role: the brief sends the review to the report path its footer names"
+grep -q 'to `[^`]*/review-tpl-REPORT.md`, and end your final answer with the same VERDICT line' $R/prompt-review.txt; check $? 0 "…and the footer names that path and the VERDICT line"
+grep -q 'The full report goes to\|Write only on events\|Talk to the hub only' $R/prompt-review.txt; check $? 1 "…the executor footer's report/journal-on-events demands are absent"
 prompt_of plain > $R/prompt-plain.txt
-grep -q 'The full report goes to' $R/prompt-plain.txt && ! grep -q 'Write no report file' $R/prompt-plain.txt; check $? 0 "control: an executor keeps the executor footer"
+grep -q 'The full report goes to' $R/prompt-plain.txt && ! grep -q 'end your final answer with the same VERDICT line' $R/prompt-plain.txt; check $? 0 "control: an executor keeps the executor footer"
 spawn desktop-review --model haiku; wait_dead desktop-review; sleep 1
 check "$(reviewed desktop-review)" 1 "desktop-review journals REVIEWED too"
 spawn preview --model haiku; wait_dead preview; sleep 1
@@ -120,6 +121,12 @@ grep -q 'REVIEWED review-qm: .*; last: VERDICT: merge ' "$(J)"; check $? 0 "…n
 exit_note review-qb 0 "$(asst $'**VERDICT: merge**\nDelegation: nothing')
 $RES" > /dev/null
 grep -q 'REVIEWED review-qb: .*; last: \*\*VERDICT: merge\*\* ' "$(J)"; check $? 0 "positive control: a bold verdict line is a verdict line"
+exit_note review-qd 0 "$(asst $'VERDICT: merge\nDelegation: level 3, Haiku digested status-footer-REPORT.md')
+$RES" > /dev/null
+grep -q 'REVIEWED review-qd: .*; last: VERDICT: merge ' "$(J)"; check $? 0 "last: a delegation line that names a *-REPORT.md does not replace the verdict"
+exit_note review-qe 0 "$(asst $'Done with the probe.\nSee x-REPORT.md for details.\nSigned off.')
+$RES" > /dev/null
+grep -q 'REVIEWED review-qe: .*; last: See x-REPORT.md for details\. ' "$(J)"; check $? 0 "…and a report path still beats a plain last line when there is no verdict or status line"
 # a resumed run that exits 0 before any answer of its own: the log still ends with the PREVIOUS run's result
 OLD_RESULT='{"type": "result", "subtype": "success", "is_error": false, "num_turns": 1, "result": "ok"}'
 INIT='{"type": "system", "subtype": "init", "session_id": "s-stale"}'

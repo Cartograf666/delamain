@@ -219,14 +219,14 @@ CLAUDE_FOOTER = """- Sub-agents are welcome for a read-only digest (a log, a fac
 """
 
 
-# A review role's contract is its brief's § Answer (templates/brief-review.md): the final answer is the review, which the
-# caller saves; no report file, no journal line (`agent` journals REVIEWED when the run ends).
+# A review role's contract is its brief's § Answer (templates/brief-review.md): the review goes to the report path and
+# the final answer ends with the VERDICT line; no journal line of its own (`agent` journals REVIEWED when the run ends).
 REVIEW_FOOTER = """
 ---
 You are "{role}" (journal tag `{tag}`), stage `{stage}`, a headless {engine} session with nobody on the
 other end: questions asked in chat are read by no one. The brief above is your contract.
-- Your final answer is the review, in the form the brief's Answer section gives. Write no report file and no journal
-  line: the caller saves your answer and `agent` journals the end of your run.
+- Write the review, in the form the brief's Answer section gives, to `{report}`, and end your final answer with the
+  same VERDICT line. Write no journal line: `agent` journals the end of your run.
 - Messages that arrive while you work: `{inbox}` — read it before finishing.
 - The end of your turn is the end of the process. Keep long commands attached and wait for their completion
   through the host's execution tools; do not end your turn while a command you need still runs.
@@ -1403,26 +1403,30 @@ def is_review_role(meta: dict) -> bool:
     return engines.is_review_role(meta)
 
 
-# a line that IS the outcome: it starts (after markdown marks) with `VERDICT:` or a status word, or names a report file
-QUOTE_RE = re.compile(r"^[\s*_`#-]*(?:VERDICT:|" + hc.STATUS_WORDS + r")|-REPORT\.md\b")
+# a line that IS the outcome: it starts (after markdown marks) with `VERDICT:` or a status word
+OUTCOME_RE = re.compile(r"^[\s*_`#-]*(?:VERDICT:|" + hc.STATUS_WORDS + ")")
+REPORT_RE = re.compile(r"-REPORT\.md\b")
 FENCE_RE = re.compile(r"^\s*(```|~~~)")
 
 
 def quote_line(text: str) -> str:
-    """The line of an agent's final text that the exit note quotes: the last standalone outcome line (`VERDICT:`, a
-    status word or a `*-REPORT.md` path), else the last line. Quoted lines (`>`) and fenced blocks are skipped: an
-    example or a pasted journal line is not the agent's result, and a closing line about something else (a delegation
-    summary, a sign-off) would hide the outcome."""
-    lines, fenced, candidates = [], False, []
+    """The line of an agent's final text that the exit note quotes: the last standalone outcome line (`VERDICT:` or a
+    status word), else the last line that names a `*-REPORT.md`, else the last line. Quoted lines (`>`) and fenced
+    blocks are skipped: an example or a pasted journal line is not the agent's result, and a closing line about
+    something else (a delegation summary that mentions a report file, a sign-off) would hide the outcome."""
+    lines, fenced, outcome, report = [], False, [], []
     for x in (text or "").strip().splitlines():
         if not x.strip():
             continue
         lines.append(x)
         if FENCE_RE.match(x):
             fenced = not fenced
-        elif not fenced and not x.lstrip().startswith(">") and QUOTE_RE.search(x):
-            candidates.append(x)
-    return (candidates or lines or [""])[-1].strip()
+        elif not fenced and not x.lstrip().startswith(">"):
+            if OUTCOME_RE.search(x):
+                outcome.append(x)
+            elif REPORT_RE.search(x):
+                report.append(x)
+    return (outcome or report or lines or [""])[-1].strip()
 
 
 def cmd_exit_note(a) -> int:

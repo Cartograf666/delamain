@@ -3,17 +3,27 @@
 ## Unreleased
 
 - **The exit note quotes the line with the outcome.** `ENDED`/`REVIEWED`/`EXIT … last:` now quotes the last standalone
-  line of the agent's final text that starts with `VERDICT:` or a status word, or names a `*-REPORT.md` path, else the
-  last line (quoted `>` lines and fenced blocks are skipped; a closing delegation summary no longer hides the verdict). The built-in delegation text no longer asks to name the level in a
+  line of the agent's final text that starts with `VERDICT:` or a status word, else the last line that
+  names a `*-REPORT.md`, else the last line (quoted `>` lines and fenced blocks are skipped; a closing delegation summary no longer hides the verdict). The built-in delegation text no longer asks to name the level in a
   report (`hooks/delegation.py`; a hub home's own `AGENT_HUB_DELEGATION_COMMON` keeps whatever it says).
-  `templates/brief-review.md` says one thing: the final answer is the review, with no report file or journal line; a
-  review role's executor footer (`agent spawn`) says the same instead of asking for a report and journal lines.
+  `templates/brief-review.md` says one thing, as does a review role's own footer (`agent spawn`): the review goes to
+  the report path and the final answer ends with the `VERDICT:` line, with no journal line of the reviewer's own; only an
+  in-session sub-agent returns the review as its final text.
   The executor footer says how to wait for CI (`await --wait … gh-ci-wait` in a background Bash). The hub skill says a
   sub-agent's result is its text (≤ 20 lines), since the host forbids sub-agents report files.
   The SessionStart owner-questions line is no longer injected into executors (`AGENT_ROLE` set by `agent spawn`, role
   not `hub` / `hub-N`: a headless successor hub keeps it).
   Removed: `roles broadcast` (0 uses; confusable with `broadcast`) and the empty `dfix-patch2.py`. The
   `agent-send`/`-spawn`/`-status`/`-stop` aliases print a deprecation line to stderr and go in the next release.
+
+- **An idle hub goes dormant instead of being pinged, and R7 stops retired hubs it used to only report.** When nothing
+  runs in a stage (no agent, no `await`, no open owner question), `jwait`'s NEXT WAIT on a `claude --bg` hub (watchdog
+  on) says *dormant*: end the turn with no waiter; R3 wakes it on a line. A dormant `claude --bg` hub idle for
+  2 h is stopped through R7's stop code (role kept, stage open) and resumed by R3 as before; a Desktop hub's NEXT WAIT
+  names `watchdog quiet`. R7 no longer counts a retired hub's own leftover `jwait`, a pending prompt (`idle/blocked`) or
+  MCP servers started under a shell as work, and its "stop it by hand" report goes to the watchdog's log, not the stage
+  journal (65 lines last week). R3 never wakes a hub for `[pace]` lines, R6 skips quiet stages, and a held line under a
+  live waiter is no longer reported as "jwait does not match" (11 of 11 such alarms last week).
 
 - **The macOS-only flake in `t_codex_hooks` (the busy-session prune-guard case) is fixed.** The test gave the hook a
   0.5 s fail-safe deadline, but a BLOCK answer takes 0.5-1 s even with no lock contention, so the hook sometimes gave up
