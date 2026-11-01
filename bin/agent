@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Headless Claude agents that outlive the hub: agent spawn | status | send | stop
-(also callable as agent-spawn / agent-status / agent-send / agent-stop).
+(also callable as agent-spawn / agent-status / agent-send / agent-stop: deprecated, removed in the next release).
 
 Long work (a merge steward, a release rehearsal, anything > 1 h) runs as a detached `claude -p`
 session instead of a hub sub-agent: it survives the hub's handoff, and any hub can talk to it.
@@ -208,6 +208,8 @@ other end: questions asked in chat are read by no one. The brief above is your c
 - Never print environment variables or secret files. A secret the task needs stays inside your worktree and is
   removed before DONE.
 - Commit unfinished work before long runs: an interrupted turn loses whatever is uncommitted.
+- Waiting for CI or any other external state: `"$HUB_BIN/await" --wait --ok PASSED -- "$HUB_BIN/gh-ci-wait" <PR>` (or the
+  repository's wait command) as a background Bash; never a polling loop or a foreground `sleep`.
 """
 
 # Claude only: Codex native sub-agents have no worktree isolation and are not journaled (hooks/subagent_journal.py).
@@ -217,14 +219,31 @@ CLAUDE_FOOTER = """- Sub-agents are welcome for a read-only digest (a log, a fac
 """
 
 
-def footer(stage: str, cwd: Path, **fields) -> str:
+# A review role's contract is its brief's § Answer (templates/brief-review.md): the review goes to the report path and
+# the final answer ends with the VERDICT line; no journal line of its own (`agent` journals REVIEWED when the run ends).
+REVIEW_FOOTER = """
+---
+You are "{role}" (journal tag `{tag}`), stage `{stage}`, a headless {engine} session with nobody on the
+other end: questions asked in chat are read by no one. The brief above is your contract.
+- Write the review, in the form the brief's Answer section gives, to `{report}`, and end your final answer with the
+  same VERDICT line. Write no journal line: `agent` journals the end of your run.
+- Messages that arrive while you work: `{inbox}` — read it before finishing.
+- The end of your turn is the end of the process. Keep long commands attached and wait for their completion
+  through the host's execution tools; do not end your turn while a command you need still runs.
+- Stop only processes you started, by the pid or process group you recorded; never `pkill -f` or `killall` with free
+  text: it matches other agents' command lines.
+- Never print environment variables or secret files.
+"""
+
+
+def footer(stage: str, cwd: Path, review: bool = False, **fields) -> str:
     """The standard footer plus the first brief-footer.md of the config layers (stage, the agent's repository,
     hub home), with {role} {tag} {stage} {report} {inbox} {jlog} filled in."""
     fields["stage"] = stage
     fields.setdefault("engine", "claude")
     fields["jlog"] = '"$HUB_BIN/jlog"'  # not the path itself: a resumed run follows the plugin's current version
-    text = FOOTER.format(**fields)
-    if fields["engine"] == "claude":
+    text = (REVIEW_FOOTER if review else FOOTER).format(**fields)
+    if fields["engine"] == "claude" and not review:
         text += CLAUDE_FOOTER
     extra = hc.config_file("brief-footer.md", stage, cwd)
     if extra:
@@ -898,7 +917,7 @@ def cmd_spawn(a) -> int:
         meta["worktree"] = wt
     if wt:
         prepare_worktree(stage, tag, meta, wt_common, wt_prepared, prep_timeout, a.no_prepare, d)
-    prompt = brief.read_text(encoding="utf-8") + footer(stage, cwd, engine=engine, role=a.role, tag=tag, report=report,
+    prompt = brief.read_text(encoding="utf-8") + footer(stage, cwd, review=is_review_role(meta), engine=engine, role=a.role, tag=tag, report=report,
                                                        inbox=d / "inbox.md")
     if meta.get("sandbox_git_roots"):
         prompt += "\n" + engines.WORKTREE_SANDBOX_NOTE + "\n"
@@ -936,7 +955,7 @@ def read_log(path: Path) -> dict:
     """What the log of every run of the agent says: model turns (all runs, and the last run's), the last assistant
     text, the last result, whether a run started after it, the context size (the last model call's input: input plus
     cache tokens of the last main-thread assistant message — what agent-top shows as ctx; 0 when the log has none)."""
-    turns, run_turns, last_text, results, last_type, ctx = set(), set(), "", [], "", 0
+    turns, run_turns, last_text, last_block, results, last_type, ctx = set(), set(), "", "", [], "", 0
     started_after_result = False
     try:
         fh = open(path, encoding="utf-8", errors="replace")
@@ -965,6 +984,7 @@ def read_log(path: Path) -> dict:
                         for block in (ev.get("message") or {}).get("content") or []:
                             if block.get("type") == "text" and block.get("text", "").strip():
                                 last_text = [ln for ln in block["text"].splitlines() if ln.strip()][-1].strip()
+                                last_block = block["text"]
                         continue
                     if t == "result":
                         ev["result"] = last_text
@@ -982,11 +1002,12 @@ def read_log(path: Path) -> dict:
                     for block in msg.get("content") or []:
                         if block.get("type") == "text" and block.get("text", "").strip():
                             last_text = [ln for ln in block["text"].splitlines() if ln.strip()][-1].strip()
+                            last_block = block["text"]
                 elif t == "result":
                     results.append(ev)
                     started_after_result = False
                 last_type = t
-    return {"turns": len(turns), "run_turns": len(run_turns), "last_text": last_text,
+    return {"turns": len(turns), "run_turns": len(run_turns), "last_text": last_text, "last_block": last_block,
             "result": results[-1] if results else None, "events": n, "running_after_result": started_after_result,
             "last_type": last_type, "ctx": ctx}
 
@@ -1384,6 +1405,32 @@ def is_review_role(meta: dict) -> bool:
     return engines.is_review_role(meta)
 
 
+# a line that IS the outcome: it starts (after markdown marks) with `VERDICT:` or a status word
+OUTCOME_RE = re.compile(r"^[\s*_`#-]*(?:VERDICT:|" + hc.STATUS_WORDS + ")")
+REPORT_RE = re.compile(r"-REPORT\.md\b")
+FENCE_RE = re.compile(r"^\s*(```|~~~)")
+
+
+def quote_line(text: str) -> str:
+    """The line of an agent's final text that the exit note quotes: the last standalone outcome line (`VERDICT:` or a
+    status word), else the last line that names a `*-REPORT.md`, else the last line. Quoted lines (`>`) and fenced
+    blocks are skipped: an example or a pasted journal line is not the agent's result, and a closing line about
+    something else (a delegation summary that mentions a report file, a sign-off) would hide the outcome."""
+    lines, fenced, outcome, report = [], False, [], []
+    for x in (text or "").strip().splitlines():
+        if not x.strip():
+            continue
+        lines.append(x)
+        if FENCE_RE.match(x):
+            fenced = not fenced
+        elif not fenced and not x.lstrip().startswith(">"):
+            if OUTCOME_RE.search(x):
+                outcome.append(x)
+            elif REPORT_RE.search(x):
+                report.append(x)
+    return (outcome or report or lines or [""])[-1].strip()
+
+
 def cmd_exit_note(a) -> int:
     """Called by the launch shell after claude exits (either engine). A run that ended cleanly (code 0, a successful
     result) with a status word of its own in the journal needs no line. One that ended cleanly without one is journaled
@@ -1410,9 +1457,9 @@ def cmd_exit_note(a) -> int:
     else:
         word, why = "EXIT", (f"{r.get('subtype')}, error" if r.get("is_error") else
                              (r.get("subtype") or "no result — died or killed"))
-    last = (info["last_text"] or "").strip().splitlines()
+    last = quote_line(info.get("last_block") or info["last_text"])
     print(hc.journal_append(stage, meta["tag"], f"{word} {a.role}: {why}; code {a.code}, turns {turns_text(info)}"
-                            f"{'; last: ' + last[-1][:160] if last else ''} — agent status {a.role}"))
+                            f"{'; last: ' + last[:160] if last else ''} — agent status {a.role}"))
     return 0
 
 

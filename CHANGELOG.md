@@ -11,6 +11,20 @@
   `agent` sets it for every agent it starts) is silent; `hub reviewer` start lines that print `--engine` add
   their own `--reason`. The hub skill says "omit `--engine` unless you deviate".
 
+- **The exit note quotes the line with the outcome.** `ENDED`/`REVIEWED`/`EXIT … last:` now quotes the last standalone
+  line of the agent's final text that starts with `VERDICT:` or a status word, else the last line that
+  names a `*-REPORT.md`, else the last line (quoted `>` lines and fenced blocks are skipped; a closing delegation summary no longer hides the verdict). The built-in delegation text no longer asks to name the level in a
+  report (`hooks/delegation.py`; a hub home's own `AGENT_HUB_DELEGATION_COMMON` keeps whatever it says).
+  `templates/brief-review.md` says one thing, as does a review role's own footer (`agent spawn`): the review goes to
+  the report path and the final answer ends with the `VERDICT:` line, with no journal line of the reviewer's own; only an
+  in-session sub-agent returns the review as its final text.
+  The executor footer says how to wait for CI (`await --wait … gh-ci-wait` in a background Bash). The hub skill says a
+  sub-agent's result is its text (≤ 20 lines), since the host forbids sub-agents report files.
+  The SessionStart owner-questions line is no longer injected into executors (`AGENT_ROLE` set by `agent spawn`, role
+  not `hub` / `hub-N`: a headless successor hub keeps it).
+  Removed: `roles broadcast` (0 uses; confusable with `broadcast`) and the empty `dfix-patch2.py`. The
+  `agent-send`/`-spawn`/`-status`/`-stop` aliases print a deprecation line to stderr and go in the next release.
+
 - **An idle hub goes dormant instead of being pinged, and R7 stops retired hubs it used to only report.** When nothing
   runs in a stage (no agent, no `await`, no open owner question), `jwait`'s NEXT WAIT on a `claude --bg` hub (watchdog
   on) says *dormant*: end the turn with no waiter; R3 wakes it on a line. A dormant `claude --bg` hub idle for

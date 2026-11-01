@@ -35,8 +35,9 @@ production, permissions) say here which risk the review is narrowed to, and leav
 ## How to review
 - **Repository is read-only.** Do not edit, commit, push, merge or run anything that changes repository state.
   Read anything in the repository; rerun a test only when a finding needs it (the author's results are above).
-  Write your report and journal line under the hub home. A Codex reviewer uses `workspace-write` with cwd there,
-  and the reviewed repository outside writable roots; `read-only` cannot write the report or journal.
+  Write your review only at the report path your footer names, under the hub home. A Codex reviewer uses
+  `workspace-write` with cwd there, and the reviewed repository outside writable roots; `read-only` cannot write the
+  report. `agent` journals the end of your run: no journal line of your own.
 - A Codex reviewer puts temporary copies in a subdirectory of its cwd; `/tmp` and `$TMPDIR` are outside its writable roots.
 - Check the change against the intent above, not only the diff in isolation: read the callers and the tests of what it
   touches. Cap the reading by the diff size: a small diff reads its callers and tests, not the repository.
@@ -48,8 +49,9 @@ production, permissions) say here which risk the review is narrowed to, and leav
 - Say whether you ran any test, which, and the result. "Not run" is an acceptable answer; a guess is not.
 
 ## Answer
-Return the review as your final answer, findings first, then one verdict line — do not write a file: the caller saves
-it to `<review file>`.
+A reviewer launched by `agent spawn` writes the review (findings first, then one verdict line) to the report path its
+footer names and ends its final answer with the same verdict line; only an in-session sub-agent returns the review as
+its final text, for the caller to save to `<review file>`.
 
 `VERDICT: merge` | `VERDICT: merge after fixes` (every high and medium finding is fixable without a redesign) |
 `VERDICT: changes requested`
