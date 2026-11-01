@@ -141,6 +141,14 @@ check(lock == {"engine": "codex", "decision": "AGENT_HUB_ENGINE"}, "configured A
 os.remove(os.path.join(os.environ["AGENT_HUB_HOME"], "config.json"))
 lp.hc._CONFIG_CACHE.clear()
 check(lp.stage_lock("stage-a") is None, "…and none once it is unset")
+with open(os.path.join(os.environ["AGENT_HUB_HOME"], "config.json"), "w") as f:
+    f.write('{"AGENT_HUB_ENGINE": "codex"}')
+os.environ["AGENT_HUB_ENGINE"] = "codex"
+lp.hc._CONFIG_CACHE.clear()
+check(lp.stage_lock("stage-a") == {"engine": "codex", "decision": "AGENT_HUB_ENGINE"}, "the environment does not mask the config: lock from the home config")
+del os.environ["AGENT_HUB_ENGINE"]
+os.remove(os.path.join(os.environ["AGENT_HUB_HOME"], "config.json"))
+lp.hc._CONFIG_CACHE.clear()
 lock = {"engine": "codex", "decision": "Q-T-1"}
 for used, stop in ((85, False), (98, True)):
     P = pair("codex", used, 21)

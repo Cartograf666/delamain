@@ -1181,10 +1181,11 @@ def read_config(path: Path, project: bool) -> dict:
     return out
 
 
-def setting_origin(name: str, default: Optional[str] = None, cwd=None) -> tuple:
+def setting_origin(name: str, default: Optional[str] = None, cwd=None, env: bool = True) -> tuple:
     """(value, origin) of a setting, origin one of "env", "project", "home", "default": which layer supplied it.
-    A setting whose meaning depends on who wrote it (a command a repository must not run) asks for it."""
-    raw = os.environ.get(name)
+    A setting whose meaning depends on who wrote it (a command a repository must not run) asks for it.
+    `env=False` skips the environment layer: the config files alone."""
+    raw = os.environ.get(name) if env else None
     if raw:
         return raw, "env"
     if name in PROJECT_KEYS:
