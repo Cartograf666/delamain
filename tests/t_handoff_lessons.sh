@@ -379,6 +379,14 @@ cat > $L <<'MD'
 - verdict: helped — no shift named
 - verdict: helped — no shift named either
 
+## L-012 — shift written in a different case counts once
+- status: proposed
+- verdict (Hub-7, 27.10): helped — a
+- verdict (hub-7, 27.10): helped — b
+
+## Verdicts of a shift, not a lesson
+- verdict (hub-8): helped — no id, under a heading that is not an entry: belongs to no lesson
+
 ## L-010 — a fenced example is not a verdict
 - status: proposed
 ```markdown
@@ -390,17 +398,21 @@ python3 - $B/hub <<'PY'
 import importlib.machinery, importlib.util, sys
 loader = importlib.machinery.SourceFileLoader("hubmod", sys.argv[1])
 m = importlib.util.module_from_spec(importlib.util.spec_from_loader("hubmod", loader)); loader.exec_module(m)
-got = {e[0]: e[2:] for e in m.lessons_entries("stage-a")}
+got = {e[0]: e[2:5] for e in m.lessons_entries("stage-a")}
 want = {"L-001": ("promotable", 2, 0), "L-002": ("promotable", 2, 0), "L-003": ("promotable", 4, 0),
         "L-004": ("proposed", 1, 0), "L-005": ("retired", 4, 1), "L-006": ("promoted", 2, 0),
-        "L-007": ("promoted", 0, 1), "L-008": ("retired", 2, 0), "L-009": ("proposed", 1, 0), "L-010": ("proposed", 0, 0), "L-011": ("promotable", 3, 0)}
+        "L-007": ("promoted", 0, 1), "L-008": ("retired", 2, 0), "L-009": ("proposed", 1, 0), "L-010": ("proposed", 0, 0), "L-011": ("promotable", 3, 0), "L-012": ("proposed", 1, 0)}
 bad = {k: (got.get(k), v) for k, v in want.items() if got.get(k) != v}
 assert not bad, bad
 PY
 check $? 0 "derived status: promotable / retired / kept by hand / counted once per shift, on the shapes in use"
 $B/hub takeover --stage stage-a --session $HUB2 --handoff $C/on3-done.md --dry-run > $R/dv1.out 2>&1; check $? 0 "derived status: takeover dry run"
-grep -qF "(proposed 3, confirmed 0); promotable: L-001 (helped ×2), L-002 (helped ×2), L-003 (helped ×4), … 1 more; promoted but hurt: L-007 (hurt ×1)" $R/dv1.out; check $? 0 "…the digest lists the promotable and the promoted-but-hurt lessons"
-LINE=$(grep '^Lessons of earlier shifts' $R/dv1.out | head -1); [ "$(printf %s "$LINE" | wc -c)" -le "$((380 + ${#L}))" ]; check $? 0 "…within 380 bytes besides the path"
+grep -qF "(proposed 4, confirmed 0); promotable: L-001 (helped ×2), L-002 (helped ×2), L-003 (helped ×4), … 1 more; promoted but hurt: L-007 (hurt ×1); retired by hurt: L-005 (hurt ×1); what to do: skills/handoff/references/lessons.md § Promoting a lesson" $R/dv1.out; check $? 0 "…the digest lists the promotable and the promoted-but-hurt lessons"
+LINE=$(grep '^Lessons of earlier shifts' $R/dv1.out | head -1); [ "$(printf %s "$LINE" | wc -c)" -le "$((560 + ${#L}))" ]; check $? 0 "…within 560 bytes besides the path"
+grep -qF "retired by hurt: L-005 (hurt ×1)" $R/dv1.out && ! grep -q "retired by hurt:[^;]*L-008" $R/dv1.out; check $? 0 "…a hand-written retired lesson is not listed as retired by hurt"
+echo '{"AGENT_HUB_HANDOFF_LESSONS": false}' > $R/config.json
+$B/hub takeover --stage stage-a --session $HUB2 --handoff $C/on3-done.md --dry-run > $R/dv1b.out 2>&1
+grep -qF "what to do: skills/handoff/references/lessons.md § Promoting a lesson" $R/dv1b.out; check $? 0 "…the pointer to the procedure is there with the setting off too"
 echo '{"AGENT_HUB_HANDOFF_LESSONS": true}' > $R/config.json
 $B/hub handoff --stage stage-a --n 1 --out $C/dv.md > $R/dv2.out 2>&1
 OPEN=$(grep '^Open lessons to judge:' $C/dv.md)

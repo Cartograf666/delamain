@@ -1,6 +1,7 @@
 # § 7 Lessons of this shift
 
-Read this when the draft has a `## 7. Lessons of this shift` (the hub home's `AGENT_HUB_HANDOFF_LESSONS` is on). At a
+Read this when the draft has a `## 7. Lessons of this shift` (the hub home's `AGENT_HUB_HANDOFF_LESSONS` is on), and,
+whatever that setting is, § "Promoting a lesson" when the takeover digest lists promotable, hurt or retired lessons. At a
 handoff your context still holds the whole shift; after it that is gone and the journal keeps only events. A lesson is
 what you would tell the next hub about how to work, with the moment it rests on.
 
@@ -43,12 +44,13 @@ The hub derives the status from the verdict lines (`hub takeover` reads them; no
 | verdicts | effect |
 |---|---|
 | `helped` from 2 different shifts, no `hurt` | promotable: the digest lists "promotable: L-… (helped ×N)" |
-| any `hurt` | retired: it leaves "Open lessons to judge" |
+| any `hurt` | retired: it leaves "Open lessons to judge"; the digest lists "retired by hurt: L-…" until you settle it (below) |
 | `no effect`, `confounded`, `ignored`, or two words in one verdict | counts for nothing |
 
 ## Promoting a lesson
 
-When the takeover digest lists promotable lessons, promote each yourself before planning; it does not go to the owner.
+When the takeover digest lists promotable lessons (its line ends with a pointer here), promote each yourself before
+planning; it does not go to the owner. This part does not depend on `AGENT_HUB_HANDOFF_LESSONS`.
 
 1. A lesson a tool could catch (a hook, a script, a check in `hub`) is not a prose rule. Put a pointer in the plugin
    backlog instead: an entry in the plugin repository's `ROADMAP.md` or a GitHub issue, naming the lesson and its
@@ -64,7 +66,10 @@ When the takeover digest lists promotable lessons, promote each yourself before 
 
 A promoted lesson keeps its entry. If a later shift gives it a `hurt` verdict, the digest lists it under "promoted but
 hurt": delete its line from `hub-rules.md` (or the backlog entry), replace its `- status:` line with `retired: DATE hub-N — reason`, and journal it. A
-`hurt` on any other lesson needs no edit.
+`hurt` on any other lesson retires it in the derived view, and the digest lists it as "retired by hurt" so that you look
+at it once: if the `hurt` was right, replace the entry's `- status:` line with `retired: DATE hub-N — reason` (the digest
+stops listing it); if it was not (another cause, a misread), change that verdict's word to `confounded` and add the
+reason after the dash. Nothing else contests a `hurt`.
 
 ## Writing a good lesson
 

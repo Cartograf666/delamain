@@ -38,7 +38,9 @@
   hub-20 …)` and `L-001/002`). The takeover digest lists "promotable: L-… (helped ×N)" and any promoted lesson a shift
   found harmful. The hub promotes a promotable lesson into the stage `hub-rules.md`, section "Promoted lessons", one line
   with its source id (a lesson a tool could catch goes to the plugin backlog as a pointer), without asking the owner. The
-  `handoff_size` hook now also caps that section at 2 KiB. No new command, hook or key.
+  `handoff_size` hook now also caps that section at 2 KiB. The digest line points to the procedure and also lists lessons
+  retired by a `hurt`, so the hub can confirm or contest it. No new command, hook or key; about 20 more lines of prose
+  in the lessons reference, no new rule outside it.
 
 - **Windows dispatch accepts every registered hook, including `scan_guard`.** Both adapter allowlists are checked
   against the hook manifest; native PowerShell controls also verify unknown-name rejection and scan allow/deny behavior.

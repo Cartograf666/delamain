@@ -31,7 +31,7 @@ pointers to the registers — never copies of them.
    - **§ 4 Owner questions**: anything the owner was asked in chat without a record goes into `ask add` first; then its id here.
    - **§ 5 Risks**: what breaks when nobody watches, and how it shows.
    - **§ 6 Skills**: which skills the successor loads first.
-   - **§ 7 Lessons** (present only when `AGENT_HUB_HANDOFF_LESSONS` is on): read `references/lessons.md`.
+   - **§ 7 Lessons** (present only when `AGENT_HUB_HANDOFF_LESSONS` is on): read `references/lessons.md`. Promoting lessons the takeover digest lists is in the same file and needs no setting.
 For Codex autopilot, keep the launch surface in the handoff: actual app hub → `hub succeed --surface desktop`
 (native launch procedure in [docs/codex.md](../../docs/codex.md#desktop-autopilot)); console/detached hub → CLI.
 Before native dispatch, use that procedure's human-authority check. Carry the precise human source/reference,

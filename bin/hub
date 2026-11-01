@@ -456,7 +456,7 @@ def outside_markup(text: str) -> list:
 LESSON_VERDICT_RE = re.compile(r"^\s*[-*]\s*verdict\b(.*)$", re.IGNORECASE)
 LESSON_IDS_RE = re.compile(r"\b(L-(?:[A-Z]+-)?)(\d{1,6})((?:/(?:L-(?:[A-Z]+-)?)?\d{1,6})*)\b")
 LESSON_WORD_RE = re.compile(r"\b(helped|hurt|no effect|confounded)\b", re.IGNORECASE)
-LESSON_SHIFT_RE = re.compile(r"\bhub-\d+\b")
+LESSON_SHIFT_RE = re.compile(r"\bhub-\d+\b", re.IGNORECASE)
 LESSON_DATE_RE = re.compile(r"\b\d{4}-\d\d-\d\d\b|(?<![\d.])\d{1,2}\.\d\d(?![\d.])")
 LESSON_PROMOTE_AT = 2   # `helped` from this many different shifts (and no `hurt`) makes a lesson promotable
 
@@ -478,12 +478,12 @@ def lesson_verdict(rest: str):
         for tail in m.group(3).split("/")[1:]:
             ids.append(tail if tail.startswith("L-") else m.group(1) + tail)
     shift = LESSON_SHIFT_RE.search(head) or LESSON_DATE_RE.search(head)
-    return ids, words.pop(), shift.group(0) if shift else "?"   # no shift named: all such verdicts count as one
+    return ids, words.pop(), shift.group(0).lower() if shift else "?"   # no shift named: all such verdicts count as one
 
 
 def lessons_entries(stage: str):
-    """[(id, cue, status word, helped, hurt)] of <stage>/lessons.md, in file order; None when the file is absent or
-    unreadable. `helped` / `hurt` count the different shifts that gave that verdict. The status word is the first word of
+    """[(id, cue, status word, helped, hurt, status as written)] of <stage>/lessons.md, in file order; None when the file
+    is absent or unreadable. `helped` / `hurt` count the different shifts that gave that verdict. The status word is the first word of
     the entry's first `- status:` line (proposed | confirmed | promoted | retired), "" when it has none, derived from
     the verdicts: `promoted` and `retired` written by hand stay; otherwise any `hurt` makes it `retired` and `helped`
     from LESSON_PROMOTE_AT shifts makes it `promotable`. Bytes that are not UTF-8 are replaced: a damaged file must not
@@ -497,37 +497,45 @@ def lessons_entries(stage: str):
         if m := LESSON_HEAD_RE.match(line):
             out.append([m.group(1), m.group(2).strip(), ""])
             current = m.group(1)
+        elif line.startswith("## "):   # another section: a verdict without an id there belongs to no lesson
+            current = None
         elif out and not out[-1][2] and (m := LESSON_STATUS_RE.match(line)):
             out[-1][2] = m.group(1).lower()
         elif (m := LESSON_VERDICT_RE.match(line)) and (v := lesson_verdict(m.group(1))):
             for lid in v[0] or ([current] if current else []):
                 shifts.setdefault(lid, {}).setdefault(v[1], set()).add(v[2])
     result = []
-    for lid, cue, status in out:
+    for lid, cue, written in out:
+        status = written
         by_word = shifts.get(lid, {})
         helped, hurt = len(by_word.get("helped", ())), len(by_word.get("hurt", ()))
         if status not in ("promoted", "retired"):   # a hand-written promotion stays; a later `hurt` is for the hub to act on
             status = "retired" if hurt else "promotable" if helped >= LESSON_PROMOTE_AT else status
-        result.append((lid, cue, status, helped, hurt))
+        result.append((lid, cue, status, helped, hurt, written))
     return result
 
 
 def lessons_digest_line(stage: str) -> str:
     """The takeover digest's pointer to <stage>/lessons.md (whether or not the setting is on); "" when there is no file.
-    Names the lessons the hub must act on: promotable ones, and promoted ones that a shift found harmful."""
+    Names the lessons the hub must act on (promotable; promoted but found harmful; retired by a `hurt` the hub has not
+    confirmed or contested) and where the procedure is, whatever the handoff-lessons setting is."""
     entries = lessons_entries(stage)
     if entries is None:
         return ""
     words = [e[2] for e in entries]
     line = ("Lessons of earlier shifts — read before planning; at your handoff give a verdict on each that acts in your "
             f"shift: {lessons_path(stage)} (proposed {words.count('proposed')}, confirmed {words.count('confirmed')})")
+    acting = False
     for label, ids in (("promotable",
                         [f"{e[0]} (helped ×{e[3]})" for e in entries if e[2] == "promotable"]),
                        ("promoted but hurt",
-                        [f"{e[0]} (hurt ×{e[4]})" for e in entries if e[2] == "promoted" and e[4]])):
+                        [f"{e[0]} (hurt ×{e[4]})" for e in entries if e[2] == "promoted" and e[4]]),
+                       ("retired by hurt",
+                        [f"{e[0]} (hurt ×{e[4]})" for e in entries if e[2] == "retired" and e[5] != "retired"])):
         if ids:
             line += f"; {label}: " + ", ".join(ids[:3]) + (f", … {len(ids) - 3} more" if len(ids) > 3 else "")
-    return line
+            acting = True
+    return line + ("; what to do: skills/handoff/references/lessons.md § Promoting a lesson" if acting else "")
 
 
 def lessons_section(stage: str) -> str:
@@ -934,7 +942,7 @@ def digest(stage: str, n: int, name: str, handoff: Path, steps: list, notes: lis
         ("ATTENTION:\n" + "\n".join(notes) if notes else "", 500, ""),
         ("\n".join(f"ATTENTION: {w}" for w in warns), 900, ""),
         (hub_notes_line(stage), 300, ""),
-        (lessons_digest_line(stage), 380 + len(str(lessons_path(stage)).encode("utf-8")), ""),  # 380 bytes of text, then the path
+        (lessons_digest_line(stage), 560 + len(str(lessons_path(stage)).encode("utf-8")), ""),  # 560 bytes of text, then the path
         (watchdog_digest(stage), 400, "watchdog status"),
         (pace_digest(stage), 480, "agent-top --once"),
         (f"First jwait ({wait_procedure()}; --since = handoff time):\n"
