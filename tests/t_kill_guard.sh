@@ -79,6 +79,7 @@ kg(){ python3 -c 'import json,sys; print(json.dumps({"hook_event_name":"PreToolU
 denied(){ kg "$@" | grep -q '"permissionDecision": "deny"'; }
 INCIDENT='bash tests/t_await.sh 2>&1 | grep -v ^PASS; echo suite-done; pkill -f "[s]leep 300" -P 1 2>/dev/null; true'
 denied "$INCIDENT"; check $? 0 "the 14.10 command is denied"
+guard_record kill_guard.py deny bash; check $? 0 "  and the deny leaves its record in guard-decisions.jsonl"
 kg "$INCIDENT" | grep -q 'more patterns'; check $? 0 "  and the reason names the option-after-pattern trap"
 denied "$INCIDENT  # kill-ok: my sleeps"; check $? 0 "  the escape comment does not pass the trap"
 denied "$INCIDENT" 1; check $? 0 "  a background command is denied too"

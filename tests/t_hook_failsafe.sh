@@ -148,6 +148,106 @@ for bad_value in ("0", "-3", "inf", "nan", "soon", "61"):
     r = run(ROOT, "polling_guard.py", [], json.dumps({"tool_name": "Bash", "tool_input": {"command": "sleep 600"}}).encode(), env=env)
     check(b"permissionDecision" in r.stdout and b"using 8.5" in r.stderr, f"AGENT_HUB_HOOK_DEADLINE_S={bad_value}: ignored with a note, the guard still answers its deny")
 
+
+# -- the decision record: a delivered deny leaves one line in <state dir>/guard-decisions.jsonl; nothing else does
+POLL_DENY = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash", "session_id": "sess-1", "cwd": "/",
+                        "tool_input": {"command": "sleep 600 # " + "x" * 200}}).encode()
+POLL_PASS = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash", "session_id": "sess-1", "cwd": "/",
+                        "tool_input": {"command": "ls"}}).encode()
+log = WORK / "hub" / ".state" / "guard-decisions.jsonl"
+log.unlink(missing_ok=True)
+env = env_for(ROOT); env["HUB_TAG"] = "guard-log"
+r = run(ROOT, "polling_guard.py", [], POLL_PASS, env=env)
+check(r.returncode == 0 and not log.exists(), "decision record: a command the guard lets through leaves no record")
+r = run(ROOT, "polling_guard.py", [], POLL_DENY, env=env)
+rec = [json.loads(l) for l in log.read_text().splitlines()] if log.exists() else []
+check(r.returncode == 0 and b'"deny"' in r.stdout and len(rec) == 1, "decision record: a deny is delivered and recorded once")
+rec = rec[0] if rec else {}
+check((rec.get("hook"), rec.get("decision"), rec.get("session"), rec.get("tag"), rec.get("program")) == ("polling_guard.py", "deny", "sess-1", "guard-log", "sleep")
+      and rec.get("reason", "").startswith("Waiting in the foreground is not run") and "\n" not in rec.get("reason", "") and rec.get("ts")
+      and set(rec) == {"ts", "hook", "decision", "reason", "session", "tag", "program"},
+      f"decision record: hook, decision, headline reason, session, tag and the program name, nothing else ({rec})")
+# no secret reaches the file: not from an assignment (plain, quoted, with a space or an escape), not from an argument, not from the reason
+log.unlink(missing_ok=True)
+SECRET_COMMANDS = [("TOKEN=S3CRET-ASSIGN sleep 600", "sleep"), ("A=1 TOKEN='S3CRET ASSIGN' B=\"x y\" sleep 600", "sleep"),
+                   ("TOKEN=S3CRET\\ ASSIGN sleep 600", "sleep"), ("TOKEN=\"S3CRET ASSIGN sleep 600", ""),
+                   ("sleep 600 --token S3CRET-ARG", "sleep"), ("TOKEN=S3CRET-ASSIGN glab ci status --token S3CRET-ARG", "glab"),
+                   ("until curl -H 'Authorization: S3CRET-ARG' x; do sleep 30; done", "until"),
+                   ("TOKEN=/x/S3CRET ; sleep 600", ""), ("TOKEN=/x/S3CRET && sleep 600", ""),
+                   ("DATABASE_URL=postgres://u:S3CRET@h/dbS3CRET && sleep 600", "")]
+for cmd, _ in SECRET_COMMANDS:
+    run(ROOT, "polling_guard.py", [], json.dumps({"tool_name": "Bash", "session_id": "s", "cwd": "/", "tool_input": {"command": cmd}}).encode(), env=env)
+text = log.read_text() if log.exists() else ""
+got = [json.loads(l).get("program") for l in text.splitlines()]
+check("S3CRET" not in text and "ASSIGN" not in text and got == [w for _, w in SECRET_COMMANDS],
+      f"decision record: an artificial secret in an assignment or an argument is not in the file, and the program is still named ({got})")
+log.unlink(missing_ok=True)
+
+# a hook with a subcommand names it; a record of a deny printed before a crash is kept too
+root = plugin_copy("record-probe")
+(root / "hooks" / "probe.py").write_text("import json, sys\nif __name__ == '__main__':\n    import failsafe\n    failsafe.install()\n"
+                                          "    json.load(sys.stdin)\n    print(json.dumps({'hookSpecificOutput': {'permissionDecision': 'deny'}}))\n    raise RuntimeError('late')\n")
+log.unlink(missing_ok=True)
+r = run(root, "probe.py", ["pre-tool"], POLL_DENY)
+rec = [json.loads(l) for l in log.read_text().splitlines()] if log.exists() else []
+check(r.returncode == 0 and [x.get("hook") for x in rec] == ["probe.py pre-tool"], f"decision record: the subcommand is part of the hook name, and a deny printed before a crash is recorded ({rec})")
+# the cap: the last GUARD_LOG_CAP lines are kept
+CAP = 5000  # failsafe.GUARD_LOG_CAP
+seed = "".join(json.dumps({"ts": "t", "hook": "old.py", "decision": "deny", "session": "", "tag": "", "command": f"seed {i} " + "x" * 60}) + "\n"
+               for i in range(CAP))
+log.write_text(seed)
+r = run(ROOT, "polling_guard.py", [], POLL_DENY, env=env)
+lines = log.read_text().splitlines()
+check(len(lines) == CAP and json.loads(lines[0])["command"].startswith("seed 1 ") and json.loads(lines[-1])["hook"] == "polling_guard.py",
+      f"decision record: at the cap the oldest line goes and the new one stays ({len(lines)} lines)")
+import stat
+check(stat.S_IMODE(log.stat().st_mode) == 0o600, f"decision record: the file is 0600 after a trim too ({oct(stat.S_IMODE(log.stat().st_mode))})")
+# a short write leaves a torn line; the next record must not be glued to it
+torn_home = WORK / "torn-hub"
+script = (
+    "import json, os, sys\n"
+    "sys.path.insert(0, sys.argv[1] + '/hooks'); sys.argv[0] = 'polling_guard.py'\n"
+    "import failsafe\n"
+    "real, calls = os.write, [0]\n"
+    "def torn(fd, data):\n"
+    "    calls[0] += 1\n"
+    "    return real(fd, data[:20]) if calls[0] == 1 else real(fd, data)\n"
+    "os.write = torn\n"
+    "class Tee: read_text = ['{\"session_id\": \"s\", \"tool_input\": {\"command\": \"sleep 600\"}}']\n"
+    "failsafe._state['stdin'] = Tee()\n"
+    "answer = {'hookSpecificOutput': {'permissionDecision': 'deny', 'permissionDecisionReason': 'r'}}\n"
+    "failsafe._record(answer); failsafe._record(answer); failsafe._record(answer)\n")
+tenv = env_for(ROOT); tenv["AGENT_HUB_HOME"] = str(torn_home)
+r = subprocess.run([sys.executable, "-c", script, str(ROOT)], env=tenv, capture_output=True, timeout=30)
+lines = (torn_home / ".state" / "guard-decisions.jsonl").read_text().splitlines() if (torn_home / ".state" / "guard-decisions.jsonl").exists() else []
+good = []
+for l in lines:
+    try:
+        good.append(json.loads(l)["program"])
+    except (ValueError, KeyError):
+        pass
+check(r.returncode == 0 and good == ["sleep", "sleep"] and len(lines) == 3,
+      f"decision record: after a short write the torn line stays one broken line and the next two records are intact ({len(lines)} lines, {len(good)} valid) {r.stderr[-200:]!r}")
+# a temp file left by a trim that failed is removed by the next trim
+stale = log.with_name(".guard-decisions.99999.tmp"); fresh = log.with_name(".guard-decisions.88888.tmp")
+log.write_text(seed)
+stale.write_text("x"); fresh.write_text("x")
+os.utime(stale, (time.time() - 3600, time.time() - 3600))
+run(ROOT, "polling_guard.py", [], POLL_DENY, env=env)
+check(not stale.exists() and fresh.exists(), "decision record: the next trim removes an old leftover temp file and leaves a recent one")
+fresh.unlink(missing_ok=True)
+# a record that cannot be written changes nothing for the guard
+blocked = WORK / "blocked-hub"
+blocked.mkdir(exist_ok=True); (blocked / ".state").write_text("a file where the state dir should be\n")
+env2 = env_for(ROOT); env2["AGENT_HUB_HOME"] = str(blocked)
+r = run(ROOT, "polling_guard.py", [], POLL_DENY, env=env2)
+check(r.returncode == 0 and b'"deny"' in r.stdout and not r.stderr.strip(), "decision record: an unwritable state dir does not touch the deny, the exit status or stderr")
+# negative control: without the fail-safe there is no record
+root = plugin_copy("record-off", install=False)
+log.unlink(missing_ok=True)
+run(root, "polling_guard.py", [], POLL_DENY, env=env)
+check(not log.exists(), "negative control, no fail-safe: the same deny leaves no record")
+
 # the deadlines stay below the timeouts the configs give the same hooks
 import re
 sys.path.insert(0, str(ROOT / "hooks"))
