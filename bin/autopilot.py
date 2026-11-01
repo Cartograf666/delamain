@@ -47,6 +47,7 @@ import grilling  # noqa: E402
 import engines  # noqa: E402
 import codex_rollouts  # noqa: E402
 import session_effort  # noqa: E402
+import worktree_prep  # noqa: E402
 
 # The tag of the plugin's own informational journal lines (a chain reset): not `hub`, which every hub's `jwait --tag hub`
 # wakes on, so the line stays readable in the journal and wakes nobody.
@@ -96,8 +97,9 @@ LINK_WAIT_S = 90
 BG_TIMEOUT_S = 60  # one `claude --bg` call
 # How long a reservation of `hub succeed` / `--fallback` blocks the shift: login (30 s), up to three `claude --bg` tries
 # and `claude agents` (30 s). A phase that starts later (the headless start) refreshes it; a reservation older than
-# this belongs to a run that died.
+# this belongs to a run that died. A repository with an executable .agents/prepare adds its timeout (start_budget).
 START_BUDGET_S = 240
+BASH_TIMEOUT_MS, BASH_MAX_MS = 300000, 600000  # what the hub's Bash call of `hub succeed` gets; the tool's ceiling
 IN_PROGRESS = ("starting", "falling-back")
 
 
@@ -505,12 +507,13 @@ def instruction(stage: str, model: Optional[str], mode: Optional[str], cwd: Opti
                 "only when the successor is dead. A chain limit stops automatic launches until the owner responds. "
                 f"At {block_k} only handoff/succeed, jlog/jwait and the HANDOFF file pass.{recovery}")
     effort = configured_effort() or effort
+    bash = bash_timeout(cwd)
     unread = ("" if effort else
               " (your own effort could not be read here: `hub succeed` reads it itself and stops if it cannot — then "
               "add --effort <your effort>)")
     return (f"Autopilot is on (AGENT_HUB_AUTO_HANDOFF). {when}: (1) `{tool('hub')} handoff --stage {stage}` and fill "
             "its TODOs; "
-            f"(2) `{succeed_command(stage, model, mode, cwd, effort=effort)}`{unread} (Bash timeout 300000: it may take minutes) — it starts the successor (a background Remote Control "
+            f"(2) `{succeed_command(stage, model, mode, cwd, effort=effort)}`{unread} ({bash}) — it starts the successor (a background Remote Control "
             "session, else a headless hub) and prints a `jwait` command; (3) run that `jwait` with Bash "
             "run_in_background: true. When it delivers the successor's start line, tell the owner one line — the "
             "successor's name and link from `hub succeed`, and plainly where it is: a background Remote Control session; "
@@ -518,7 +521,7 @@ def instruction(stage: str, model: Optional[str], mode: Optional[str], cwd: Opti
             "github.com a separate group from the folder group), on the phone in the Remote Control list — and stop: "
             "no more tool calls, release no locks (the "
             f"successor's takeover moves them). If it ends with ALARM: `{tool('hub')} succeed --stage {stage} --fallback` "
-            "(Bash timeout 300000). If "
+            f"({bash}). If "
             "`hub succeed` reports the chain limit, stop after the handoff and wait for the owner. "
             f"At {block_k} only `hub handoff`, `hub succeed`, `jlog`, `jwait` and the HANDOFF file pass.")
 
@@ -564,6 +567,8 @@ genuine data/resource/safety gates and human stop."""
 
 
 class Successor:
+    prepare_failed = False  # .agents/prepare failed in this start's bg_cwd
+
     def __init__(self, stage: str, n: int, handoff: Path, model: str, mode: str, cwd: Path, k: int, limit: int,
                  succ: Optional[int] = None, effort: Optional[str] = None):
         # The successor starts where a Desktop session does: in the repository's main checkout (the root), in a new
@@ -580,7 +585,7 @@ class Successor:
         self.tag = f"hub-{n}"
         self.rc_name = f"{stage}-hub-{self.succ}"
         self.title = hc.hub_title(stage, self.succ)
-        self.wt_name = ""  # the name `claude --worktree` gets, picked once per background start
+        self.wt_name = ""  # the successor's worktree branch under <root>/.worktrees/, picked once per start
         self.notes: list = []
         self.env = child_env()
         cli = hc.find_claude(cwd)  # $CLAUDE_BIN, else the newer of `claude` on PATH and Claude Desktop's
@@ -634,9 +639,6 @@ class Successor:
         # the hub home, writable also under the sandbox; before another option: --add-dir takes several values and
         # would swallow the prompt
         argv = ["--bg", "--remote-control", self.rc_name, "-n", self.title]
-        if self.root:
-            self.wt_name = self.wt_name or free_worktree_name(self.root, self.rc_name)
-            argv += ["--worktree", self.wt_name]
         argv += hc.add_dir_args(cwd or self.cwd)
         argv += ["--model", self.cli_model]
         if self.effort:
@@ -648,18 +650,50 @@ class Successor:
         argv += ["--settings", json.dumps(settings, separators=(",", ":"))]
         return argv + [self.prompt()]
 
+    def bg_cwd(self, create: bool = True) -> Path:
+        """Where `claude --bg` starts: the plain worktree `agent spawn --worktree` makes (<root>/.worktrees/<branch>,
+        bin/agent make_worktree; the headless successor gets the same one), created here unless `create` is false (dry
+        run) and readied as agent spawn readies it — its slot recorded, .agents/linked linked, .agents/prepare run
+        and the worktree marked prepared on success; outside git `cwd`. Not `claude --bg --worktree`: the host isolates
+        such a session and refuses its `git -C <main clone>` and `$(…)` (bg-isolation probe)."""
+        if not self.root:
+            return self.cwd
+        self.wt_name = self.wt_name or free_worktree_name(self.root, self.rc_name)
+        if not create:
+            return self.root / ".worktrees" / self.wt_name
+        ag = _agent_module()
+        try:
+            path, branch, how = ag.make_worktree(self.root, self.rc_name, self.wt_name)
+            self.worktree = path
+            common = worktree_prep.common_dir(path)
+            if common is not None:
+                slot, prepared = worktree_prep.claim_slot(common, path, how != "reused")
+                self.notes += [ln for ln in worktree_prep.link_shared(path, worktree_prep.main_checkout(common))
+                               if ln.startswith("note:")]
+                role = f"hub-{self.succ}"
+                meta = {"role": role, "engine": "claude", "worktree": {"path": str(path), "branch": branch, "slot": slot}}
+                d = hc.work_dir(self.stage) / f"{role}-prepare"  # its prepare.log; set aside as …failed-<time> on failure
+                d.mkdir(parents=True, exist_ok=True)
+                try:
+                    ag.prepare_worktree(self.stage, self.tag, meta, common, prepared, ag.prepare_timeout(self.root),
+                                        False, d)
+                except hc.Failure:
+                    self.prepare_failed = True  # the headless fallback does not run it again in this start
+                    raise
+        except (hc.UsageError, hc.Failure) as e:
+            raise Start(f"no worktree for the successor: {e}")
+        return path
+
     def started(self, bg_id: str, mode: str) -> dict:
         self.mode = mode
-        if self.root:  # where `claude --bg --worktree` puts it (E26)
-            self.worktree = self.root / ".claude" / "worktrees" / self.wt_name
         return {"id": bg_id, "cwd": str(self.cwd), "mode": mode, "worktree": str(self.worktree or "")}
 
     def start_bg(self) -> dict:
-        """Start the background session from the root, in a new worktree; retry once without bypass (its disclaimer
-        was never accepted). Returns {id, cwd, mode, worktree}; the link is read afterwards (wait_link), once the id
+        """Start the background session in a new worktree of the root (bg_cwd); retry once without bypass (its
+        disclaimer was never accepted). Returns {id, cwd, mode, worktree}; the link is read afterwards (wait_link), once the id
         is recorded."""
         self.check_login()
-        mode, cwd = self.mode, self.cwd
+        mode, cwd = self.mode, self.bg_cwd()
         tried_bypass = False
         self.since_ms = int(time.time() * 1000) - 2000  # a little slack for the daemon's clock
         while True:
@@ -683,7 +717,7 @@ class Successor:
                                   f"--dangerously-skip-permissions` in a terminal) — started in {mode} instead")
                 continue
             if "not trusted" in out.lower():
-                raise Start(f"{cwd} is not trusted by the claude CLI — run `claude` there once and accept the trust "
+                raise Start(f"{self.root or cwd} is not trusted by the claude CLI — run `claude` there once and accept the trust "
                             f"prompt (`claude --bg` exited {res.returncode})")
             raise Start(f"`claude --bg` exited {res.returncode}: {tail(out, 300) or 'no output'}")
         m = BG_ID_RE.search(out)
@@ -771,9 +805,16 @@ through `ask` (the question register) and `agent send hub-{self.succ} "…"`.
         if self.effort:
             argv += ["--effort", self.effort]
         if self.root:
-            # agent spawn's own worktree: <root>/.worktrees/<branch>, a new branch from origin's default branch
-            branch = free_worktree_name(self.root, self.rc_name)
+            # agent spawn's own worktree: <root>/.worktrees/<branch>, a new branch from origin's default branch; the
+            # one a failed background start already made is reused
+            branch = self.wt_name or free_worktree_name(self.root, self.rc_name)
             argv += ["--worktree", branch]
+            if self.prepare_failed:
+                # the same prepare just failed in this start: once more would double its time; the next spawn into
+                # the worktree runs it (it stays marked unprepared)
+                argv.append("--no-prepare")
+                self.notes.append(f"{worktree_prep.PREPARE} failed in {self.root / '.worktrees' / branch}: the headless "
+                                  "successor starts without it; the next spawn into that worktree runs it again")
             self.worktree = self.root / ".worktrees" / branch
         res = subprocess.run(argv, capture_output=True, text=True, env=dict(self.env, HUB_TAG=self.tag),
                              stdin=subprocess.DEVNULL)
@@ -899,8 +940,8 @@ def main_checkout(cwd: Path) -> Optional[Path]:
 
 def free_worktree_name(root: Path, base: str) -> str:
     """`base`, else `base-2`, `base-3`…: the first name no worktree directory of `root` (`.claude/worktrees/` of
-    `claude --worktree`, `.worktrees/` of `agent spawn`) and no branch (`worktree-<name>`, `<name>`) holds yet.
-    `claude --bg --worktree` with a taken name does not fail: it joins the existing worktree (E26)."""
+    `claude --worktree` and older successors, `.worktrees/` of `agent spawn`) and no branch (`worktree-<name>`,
+    `<name>`) holds yet: `agent spawn --worktree` with a taken name joins the existing worktree."""
     def taken(name: str) -> bool:
         if (root / ".claude" / "worktrees" / name).exists() or (root / ".worktrees" / name).exists():
             return True
@@ -960,13 +1001,46 @@ def _age(pend: dict) -> float:
         return float("inf")
 
 
+def prepare_budget_s(cwd) -> int:
+    """Seconds a successor start may spend in the repository's .agents/prepare (bg_cwd, agent spawn): its
+    AGENT_HUB_PREPARE_TIMEOUT when the main checkout of `cwd` has an executable one, else 0."""
+    root = main_checkout(Path(cwd)) if cwd else None
+    if root is None or worktree_prep.prepare_state(root) != "ready":
+        return 0
+    try:
+        return _agent_module().prepare_timeout(root)
+    except hc.UsageError:  # the start itself refuses the bad value
+        return 0
+
+
+def bash_timeout(cwd) -> str:
+    """The Bash timeout the hub gives `hub succeed`: 300 s, plus the repository's prepare timeout."""
+    prep = prepare_budget_s(cwd)
+    if not prep:
+        return f"Bash timeout {BASH_TIMEOUT_MS}: it may take minutes"
+    ms = BASH_TIMEOUT_MS + prep * 1000
+    why = f"it may take minutes, and the repository's .agents/prepare up to {prep} s (AGENT_HUB_PREPARE_TIMEOUT) more"
+    if ms > BASH_MAX_MS:
+        return f"Bash run_in_background: true, timeout {ms}: {why}, beyond the {BASH_MAX_MS} foreground limit"
+    return f"Bash timeout {ms}: {why}"
+
+
+def start_budget(pend: dict) -> int:
+    """Seconds a reservation of a run that is starting a successor blocks: START_BUDGET_S plus the prepare time the
+    run recorded (`prepare_s`)."""
+    try:
+        return START_BUDGET_S + int(pend.get("prepare_s") or 0)
+    except (TypeError, ValueError):
+        return START_BUDGET_S
+
+
 def blocking(pend: dict, succ: int) -> bool:
     """A successor for this shift is being started (a reservation younger than START_BUDGET_S: an older one is a run
     that died) or was started and has not taken over (until `--fallback`, `--again` or the owner drops it)."""
     if pend.get("n") != succ or pend.get("taken_over"):
         return False
     if pend.get("kind") in IN_PROGRESS:
-        return _age(pend) < START_BUDGET_S
+        return _age(pend) < start_budget(pend)
     return True
 
 
@@ -975,7 +1049,7 @@ def wait_hint(stage: str, pend: dict) -> str:
     succ = pend.get("n")
     match = shlex.quote(r"\[hub-" + str(succ) + r"\] start:|auto-handoff")
     if pend.get("kind") in IN_PROGRESS:
-        left = max(30, int(START_BUDGET_S - _age(pend)) + 5)
+        left = max(30, int(start_budget(pend) - _age(pend)) + 5)
         at = (hc.now() + hc.dt.timedelta(seconds=left)).strftime("%H:%M")
         return (f"a run of `hub succeed` holds the shift until about {at}; wait (Bash run_in_background: true): "
                 f"{tool('jwait')} --journal --stage {stage} --match {match} --settle 1 --for {left}s "
@@ -1292,6 +1366,7 @@ def succeed(stage: str, n: int, handoff: Path, model: Optional[str], mode: Optio
         else:
             replaced = replace_successor(stage, n, cwd, succ, force)
     started = hc.now().isoformat(timespec="seconds")
+    prep_s = prepare_budget_s(cwd)  # the start runs the repository's .agents/prepare: its reservation lasts longer
     # One successor per shift and the chain counted under the lock, before anything starts: a second `hub succeed`
     # (a retry after a Bash timeout, a parallel call) sees the reservation, and an owner's reset is never overwritten.
     with state_lock(stage):
@@ -1310,7 +1385,7 @@ def succeed(stage: str, n: int, handoff: Path, model: Optional[str], mode: Optio
         reservation = {"n": succ, "at": started, "k": k}
         if not at_limit and not dry_run:
             data["chain"] = k
-            data["pending"] = {"n": succ, "kind": "starting", "at": started, "handoff": str(handoff),
+            data["pending"] = {"n": succ, "kind": "starting", "at": started, "handoff": str(handoff), "prepare_s": prep_s,
                                "model": model, "k": k, "engine": engine, "mode": mode, "approval_policy": approval, "sandbox_policy": sandbox_policy, "effort": effort,
                                "author": hc.session_id()}
             grilling.authorize_handoff(stage, data["pending"], owner_asked)
@@ -1339,10 +1414,10 @@ def succeed(stage: str, n: int, handoff: Path, model: Optional[str], mode: Optio
                                           f"handoff {handoff}")
         raise
     if dry_run:
+        argv = s.dry_spawn_argv() if engine == "codex" else [s.claude] + s.bg_argv(mode, s.bg_cwd(create=False))
         print(f"[plan] auto-handoff {s.k}/{limit}: start \"{s.title}\" from {s.cwd}"
-              + (" in a new worktree" if s.root else "") + ":\n  "
-              + " ".join(shlex.quote(x) for x in (s.dry_spawn_argv() if engine == "codex"
-                                                 else [s.claude] + s.bg_argv(mode))))
+              + (f" in a new worktree {s.root / '.worktrees' / s.wt_name}" if s.root else "") + ":\n  "
+              + " ".join(shlex.quote(x) for x in argv))
         if engine == "codex":
             print("\nCodex exec policy preview:\n  " + " ".join(shlex.quote(x) for x in s.dry_argv()))
         for note in effort_notes:
@@ -1356,7 +1431,7 @@ def succeed(stage: str, n: int, handoff: Path, model: Optional[str], mode: Optio
     else:
         try:
             got = s.start_bg()
-            pend = {"n": succ, "kind": "bg", "at": started, "handoff": str(handoff), "model": model, "k": k,
+            pend = {"n": succ, "kind": "bg", "at": started, "handoff": str(handoff), "model": model, "k": k, "prepare_s": prep_s,
                     "effort": effort, "link": "", **got}
             _record(stage, succ, pend, reservation)  # the id first: a crash while the link is read leaves it findable
             pend["link"] = s.wait_link(got["id"])
@@ -1373,12 +1448,12 @@ def succeed(stage: str, n: int, handoff: Path, model: Optional[str], mode: Optio
     hc.journal_append(stage, tag, line)
     print(line + "\n")
     phase = {"n": succ, "kind": "starting", "at": hc.now().isoformat(timespec="seconds"),
-             "handoff": str(handoff), "model": model, "k": k, "engine": engine, "mode": mode,
+             "handoff": str(handoff), "model": model, "k": k, "prepare_s": prep_s, "engine": engine, "mode": mode,
              "approval_policy": approval, "sandbox_policy": sandbox_policy, "effort": effort}
     _record(stage, succ, phase, reservation)  # fresh start budget, still owned by this launcher
     reservation = phase
     got = headless_or_owner(stage, s, why, replacing=replace, reservation=reservation)
-    pend = {"n": succ, "kind": "headless", "at": started, "handoff": str(handoff), "model": model, "k": k,
+    pend = {"n": succ, "kind": "headless", "at": started, "handoff": str(handoff), "model": model, "k": k, "prepare_s": prep_s,
             "why": why, "cwd": str(s.cwd), "engine": engine, "mode": mode, "approval_policy": approval, "sandbox_policy": sandbox_policy, "effort": effort, **got}
     _record(stage, succ, pend, reservation)
     report(stage, s, pend, takeover_timeout())

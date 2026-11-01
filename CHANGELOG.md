@@ -15,6 +15,10 @@
   Removed: `roles broadcast` (0 uses; confusable with `broadcast`) and the empty `dfix-patch2.py`. The
   `agent-send`/`-spawn`/`-status`/`-stop` aliases print a deprecation line to stderr and go in the next release.
 
+- **The macOS-only flake in `t_codex_hooks` (the busy-session prune-guard case) is fixed.** The test gave the hook a
+  0.5 s fail-safe deadline, but a BLOCK answer takes 0.5-1 s even with no lock contention, so the hook sometimes gave up
+  with no decision (two of three runs of PR #164 on macOS). The deadline is 4 s; the hooks are unchanged.
+
 - **A cancelled `await` is `CANCELLED`, not `FAILED`, and wakes nobody.** A supervisor stopped by SIGTERM, SIGHUP or
   SIGINT (the hub's own `kill <pid>` of a superseded wait: 53 of last week's 58 "await FAILED (signal 15)") journals
   `CANCELLED <label> (await interrupted by signal N, …)` without the `@hub` address, so the digest `jwait` does not
@@ -26,6 +30,20 @@
   did) instead of `default`, where a hub never reads (five await lines and an `agent send` on 01.11). A session
   registered in several stages and none named by `$HUB_TAG` is refused with "pass --stage"; an unregistered caller
   still gets `default`.
+
+- **Guard decisions leave a durable record.** `hooks/failsafe.py`, the wrapper every hook runs through, appends one
+  line `{ts, hook, decision, reason, session, tag, program}` to `<state dir>/guard-decisions.jsonl` for each delivered
+  deny, ask or block, keeping the last 5 000 lines. `program` is the command's program name only: no arguments and no
+  assignment values are stored, so no secret reaches the file. Counting denials (the polling guard's, for one) no longer
+  means searching transcripts. No new hook, no setting; a failed write never changes what the guard decided.
+
+- **A background hub successor starts in a plain git worktree, not `claude --bg --worktree`.** `hub succeed` makes
+  `<main checkout>/.worktrees/<stage>-hub-<n>` the way `agent spawn --worktree` does (slot, `.agents/linked`,
+  `.agents/prepare`) and starts `claude --bg` there; a headless fallback reuses that worktree with its prepare state
+  (a prepare that failed in this start is left to the next spawn). With an executable `.agents/prepare` the start's
+  reservation and the Bash timeout the hub is told grow by `AGENT_HUB_PREPARE_TIMEOUT`. The host isolated `--worktree`
+  sessions and refused their `git -C <main clone>` and `$(…)` commands (most of last week's host refusals); a plain
+  worktree is not isolated. The hub skill now says to avoid both in hub commands, since a Desktop hub stays isolated.
 
 - **Windows dispatch accepts every registered hook, including `scan_guard`.** Both adapter allowlists are checked
   against the hook manifest; native PowerShell controls also verify unknown-name rejection and scan allow/deny behavior.

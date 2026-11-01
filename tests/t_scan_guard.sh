@@ -70,6 +70,12 @@ def reason(r):
 # ---- positive control: the hook exists, runs, and refuses the incident command
 check(HOOK.is_file(), "hooks/scan_guard.py exists")
 check(verdict(bash("find ~ -name hive1.py -not -path '*/node_modules/*'")) == "deny", "the 15.10 incident command is refused")
+try:
+    last = json.loads((WORK / "hub" / ".state" / "guard-decisions.jsonl").read_text().splitlines()[-1])
+except (OSError, IndexError, ValueError):
+    last = {}
+check((last.get("hook"), last.get("decision"), last.get("program"), "command" in last) == ("scan_guard.py", "deny", "find", False) and last.get("reason"),
+      f"the refusal leaves its record in guard-decisions.jsonl ({last})")
 
 # ---- refused: commands (cwd is not the home unless a pair says so)
 REFUSED = [

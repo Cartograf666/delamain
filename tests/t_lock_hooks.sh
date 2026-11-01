@@ -21,6 +21,7 @@ grep -q '^```locks' $R/board.md && grep -q '^## Summary' $R/board.md; check $? 0
 hook(){ python3 -c 'import json,sys; print(json.dumps({"tool_name":"Bash","session_id":sys.argv[2],"cwd":sys.argv[3],"tool_input":{"command":sys.argv[1]}}))' "$1" "$2" "${3:-/}" | python3 $HOOKS/board_locks.py; }
 deny(){ hook "$@" | grep -q '"permissionDecision": "deny"'; }
 deny "gh pr merge 12 --squash" $ME; check $? 0 "deny: gh pr merge under another's main-merge"
+guard_record board_locks.py deny gh; check $? 0 "…and the deny leaves its record in guard-decisions.jsonl"
 hook "gh pr merge 12 --squash" $ME | grep -q 'held by \\"merge steward\\"'; check $? 0 "…the reason names the holder"
 deny "gh pr merge 12" $OTHER; check $? 1 "own lock: no decision"
 deny "git push origin HEAD:main" $ME; check $? 0 "deny: push to main"

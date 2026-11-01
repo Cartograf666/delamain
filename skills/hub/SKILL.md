@@ -22,7 +22,7 @@ Run the bundled tools through the host's shell tool. The plugin root is `PLUGIN_
 (GitHub CLI `hub`, an old `jlog`) and tell the owner in one line. `HUB_BIN` is set in detached workers. Paths below
 are relative to that root. Choose the executor engine before the model: offer the owner one choice at stage planning
 (Codex, Claude or mixed; the host is the default, an existing explicit choice already answers it), record it in the
-stage's `hub-rules.md`, pass `agent spawn --engine claude|codex`. Engine rules in full: `references/codex-hub.md`. For installation assessment or task routing, read
+stage's `hub-rules.md`, pass `agent spawn --engine claude|codex`. For installation assessment or task routing, read
 `<plugin-root>/docs/agents/README.md`; this skill owns the stage workflow once the plugin is selected.
 
 ## First commands
@@ -32,7 +32,7 @@ Do these before anything else, in this order:
 1. `hub start --stage <S> --goal "<goal>" --session self` — S names the work in 1–3 words (`retro-fixes`, never
    `hub-09`, `wp3`), the goal is one line in the owner's words. If the task gives no goal, ask the owner for that line
    first, as the first question of the grilling; never invent one. If `hub` answers `invalid choice` or `not a git
-   command`, the GitHub CLI is ahead of the plugin on PATH: run `<plugin-root>/bin/hub start …`, tell the owner in one line.
+   command`, the GitHub CLI shadows it: run `<plugin-root>/bin/hub start …` (above).
 2. `ask search <words of the goal>` — decisions already on record are settled.
 3. Establish the Business DoD, then plan and brief (*Planning a stage*). A clear owner request can already supply the
    agreed result and the owner's yes to the plan; ask only about business-material ambiguity. Honor an explicit
@@ -195,10 +195,10 @@ maps: `references/launch-and-executors.md`.
 1. A wake with nothing to do ends the turn at once: the Monitor keeps streaming, nothing to restart; after an `ALARM`,
    arm its `NEXT WAIT` in the same message as the host's `wrap_up`, without `update_plan`.
 2. In a worktree that Desktop created, sync with the base through the host's `sync_with_base_branch`, not `git merge`.
-3. A PR whose CI an executor runs is not bound to the host's Auto-fix or monitor: two systems would wake the hub on
-   one event.
+3. A PR whose CI an executor runs is not bound to the host's Auto-fix or monitor: two systems would wake the hub.
 4. Desktop pauses cross-session sends after 10 without the owner typing: `roles sent` after each; at budget 0
    `jlog "@<tag> …"` instead (`references/launch-and-executors.md`, *Optional modules*).
+5. No `$(…)` or `git -C <main clone>` in hub commands: a Desktop hub's host refuses both.
 
 ## Recommended hub rules
 
