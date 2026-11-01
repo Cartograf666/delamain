@@ -57,6 +57,16 @@ hs $R/HANDOFF-hub-stage-a-1.md 9000 | grep -q '"deny"'; check $? 1 "handoff_size
 hs $R/notes.md 90000 | grep -q '"deny"'; check $? 1 "handoff_size: other files are not checked"
 printf 'a%.0s' $(seq 1 15000) > $R/HANDOFF-x.md
 python3 -c 'import json,sys; print(json.dumps({"tool_name":"Edit","tool_input":{"file_path":sys.argv[1],"old_string":"aaaa","new_string":"b"*2000}}))' $R/HANDOFF-x.md | python3 $HOOKS/handoff_size.py | grep -q '"deny"'; check $? 0 "handoff_size: an Edit that grows past the cap is refused"
+# the same hook caps the "## Promoted lessons" section of a hub-rules.md (2048 bytes), not the file
+pl(){ python3 -c 'import json,sys; sec="## Promoted lessons\n"+"- rule (L-001)\n"*int(sys.argv[2])+"\n## Next\n"+"x"*9000+"\n"; print(json.dumps({"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":sys.argv[1],"content":"# rules\n"+sec}}))' "$1" "$2" | python3 $HOOKS/handoff_size.py; }
+pl $R/stage-a/hub-rules.md 300 | grep -q '"deny"'; check $? 0 "hub-rules.md: a Promoted lessons section over 2 KiB is refused"
+pl $R/stage-a/hub-rules.md 300 | grep -q 'Promoted lessons'; check $? 0 "…and the reason names the section"
+pl $R/stage-a/hub-rules.md 20 | grep -q '"deny"'; check $? 1 "hub-rules.md: a short section passes, however long the rest of the file is"
+python3 -c 'import json,sys; print(json.dumps({"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":sys.argv[1],"content":"## Promoted Lessons (one line each)\r\n"+"- rule (L-001)\r\n"*300}}))' $R/stage-a/hub-rules.md | python3 $HOOKS/handoff_size.py | grep -q '"deny"'; check $? 0 "hub-rules.md: a heading in other case with a suffix, CRLF lines: still capped"
+pl $R/stage-a/notes.md 300 | grep -q '"deny"'; check $? 1 "…another file with that section is not checked"
+printf '## Promoted lessons\n%s\n## Other\n' "$(printf 'y%.0s' $(seq 1 1900))" > $R/hub-rules.md
+python3 -c 'import json,sys; print(json.dumps({"tool_name":"Edit","tool_input":{"file_path":sys.argv[1],"old_string":"## Other","new_string":"- 300 more bytes "+"z"*300+"\n## Other"}}))' $R/hub-rules.md | python3 $HOOKS/handoff_size.py | grep -q '"deny"'; check $? 0 "hub-rules.md: an Edit that grows the section past the cap is refused"
+python3 -c 'import json,sys; print(json.dumps({"tool_name":"Edit","tool_input":{"file_path":sys.argv[1],"old_string":"## Other","new_string":"## Other\n"+"z"*5000}}))' $R/hub-rules.md | python3 $HOOKS/handoff_size.py | grep -q '"deny"'; check $? 1 "…an Edit that grows only the next section passes"
 # ---- questions hook (SessionStart)
 new_home
 echo '{}' | python3 $HOOKS/questions.py > $R/q0.out; check "$(wc -c < $R/q0.out | tr -d ' ')" 0 "questions: no register, no output"

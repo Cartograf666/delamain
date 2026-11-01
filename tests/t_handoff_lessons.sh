@@ -315,4 +315,108 @@ $B/hub handoff --stage stage-a --n 1 --out $C/pm.md > $R/pm2.out 2>&1; check $? 
 grep -q '^Open lessons to judge: L-MC-001 before merging a change that touches the lock board; L-MC-002 when a reviewer' $C/pm.md; check $? 0 "…§ 7 lists the prefixed lessons"
 grep -E '^Open lessons to judge:' $C/pm.md | grep -q 'L-MC-003\|no number\|lowercase\|too long'; check $? 1 "…and not the retired or malformed ones"
 cp $R/lessons.keep $L
+# 11. status derived from the verdict lines (shapes taken from the real lessons.md files of the hub home): `helped` from two
+# different shifts and no `hurt` -> promotable; any `hurt` -> retired; a hand-written promoted / retired stays; a repeat from
+# one shift counts once; the evidence after the dash cannot vote; two words in one verdict (`hurt-then-helped`) or `ignored` give none
+cat > $L <<'MD'
+## L-001 — under-header verdicts, shift as `hub-N date`
+- status: proposed
+- verdict: hub-35 2026-10-25 helped — evidence
+- verdict: hub-36 2026-10-26 helped — evidence
+
+## L-002 — id in parens, written under another entry; short and long list of ids
+- status: confirmed: 2026-10-25 hub-36
+- verdict (L-003, hub-20 26.10): helped — evidence
+- verdict (L-003, hub-21 26.10): helped — evidence
+- verdict (L-002/L-005, hub-22 27.10): helped — evidence
+- verdict (hub-23, 28.10): L-002/005 helped — evidence
+
+## L-003 — a verdict word after the shift, and a verdict in the head position
+- status: proposed
+- verdict: helped (hub-31, 23.10) — evidence
+- verdict: hub-42, 27.10: helped — evidence
+
+## L-004 — one shift twice, and a pending verdict
+- status: proposed
+- verdict (hub-5, 27.10): helped — first
+- verdict (hub-5, 27.10): helped — again
+- verdict: (to be judged by the next hub)
+
+## L-005 — helped twice, then hurt
+- status: confirmed: 2026-10-25 hub-36
+- verdict: hub-1 2026-10-25 helped — evidence
+- verdict: hub-2 2026-10-26 helped — evidence
+- verdict: hub-3 2026-10-27 hurt — evidence
+
+## L-006 — hand-written promoted stays, even with two helped
+- status: promoted: hub-rules.md 2026-10-27
+- verdict: hub-1 2026-10-25 helped — evidence
+- verdict: hub-2 2026-10-26 helped — evidence
+
+## L-007 — promoted, then hurt: the digest asks to retire it
+- status: promoted: hub-rules.md 2026-10-27
+- verdict: hub-3 2026-10-28 hurt — evidence
+
+## L-008 — hand-written retired stays, even with two helped
+- status: retired: 2026-10-27 hub-3 — superseded
+- verdict: hub-1 2026-10-25 helped — evidence
+- verdict: hub-2 2026-10-26 helped — evidence
+
+## L-009 — words in the evidence do not vote; ambiguous and ignored verdicts give none
+- status: proposed
+- verdict: hub-1 2026-10-25 helped — evidence that mentions hurt and helped
+- verdict: hub-2 2026-10-26 hurt-then-helped — first it hurt, then it helped
+- verdict: hub-3 2026-10-27 ignored → hurt — not applied
+- verdict: hub-4 2026-10-28 no effect — nothing came up
+- verdict: hub-5 2026-10-29 confounded — other changes
+
+## L-011 — shift named once however it is written; versions are not shifts; ids after the word are references
+- status: proposed
+- verdict: 2026-10-25 hub-35 helped — evidence
+- verdict (hub-35, 25.10): helped — evidence
+- verdict (Delamain 1.0.18, hub-38): helped (with L-001) — evidence
+- verdict: helped - a plain hyphen ends the head, so this hurt nobody
+- verdict: helped — no shift named
+- verdict: helped — no shift named either
+
+## L-012 — shift written in a different case counts once
+- status: proposed
+- verdict (Hub-7, 27.10): helped — a
+- verdict (hub-7, 27.10): helped — b
+
+## Verdicts of a shift, not a lesson
+- verdict (hub-8): helped — no id, under a heading that is not an entry: belongs to no lesson
+
+## L-010 — a fenced example is not a verdict
+- status: proposed
+```markdown
+- verdict: hub-8 2026-10-30 helped — example
+- verdict: hub-9 2026-10-31 helped — example
+```
+MD
+python3 - $B/hub <<'PY'
+import importlib.machinery, importlib.util, sys
+loader = importlib.machinery.SourceFileLoader("hubmod", sys.argv[1])
+m = importlib.util.module_from_spec(importlib.util.spec_from_loader("hubmod", loader)); loader.exec_module(m)
+got = {e[0]: e[2:5] for e in m.lessons_entries("stage-a")}
+want = {"L-001": ("promotable", 2, 0), "L-002": ("promotable", 2, 0), "L-003": ("promotable", 4, 0),
+        "L-004": ("proposed", 1, 0), "L-005": ("retired", 4, 1), "L-006": ("promoted", 2, 0),
+        "L-007": ("promoted", 0, 1), "L-008": ("retired", 2, 0), "L-009": ("proposed", 1, 0), "L-010": ("proposed", 0, 0), "L-011": ("promotable", 3, 0), "L-012": ("proposed", 1, 0)}
+bad = {k: (got.get(k), v) for k, v in want.items() if got.get(k) != v}
+assert not bad, bad
+PY
+check $? 0 "derived status: promotable / retired / kept by hand / counted once per shift, on the shapes in use"
+$B/hub takeover --stage stage-a --session $HUB2 --handoff $C/on3-done.md --dry-run > $R/dv1.out 2>&1; check $? 0 "derived status: takeover dry run"
+grep -qF "(proposed 4, confirmed 0); promotable: L-001 (helped ×2), L-002 (helped ×2), L-003 (helped ×4), … 1 more; promoted but hurt: L-007 (hurt ×1); retired by hurt: L-005 (hurt ×1); what to do: skills/handoff/references/lessons.md § Promoting a lesson" $R/dv1.out; check $? 0 "…the digest lists the promotable and the promoted-but-hurt lessons"
+LINE=$(grep '^Lessons of earlier shifts' $R/dv1.out | head -1); [ "$(printf %s "$LINE" | wc -c)" -le "$((560 + ${#L}))" ]; check $? 0 "…within 560 bytes besides the path"
+grep -qF "retired by hurt: L-005 (hurt ×1)" $R/dv1.out && ! grep -q "retired by hurt:[^;]*L-008" $R/dv1.out; check $? 0 "…a hand-written retired lesson is not listed as retired by hurt"
+echo '{"AGENT_HUB_HANDOFF_LESSONS": false}' > $R/config.json
+$B/hub takeover --stage stage-a --session $HUB2 --handoff $C/on3-done.md --dry-run > $R/dv1b.out 2>&1
+grep -qF "what to do: skills/handoff/references/lessons.md § Promoting a lesson" $R/dv1b.out; check $? 0 "…the pointer to the procedure is there with the setting off too"
+echo '{"AGENT_HUB_HANDOFF_LESSONS": true}' > $R/config.json
+$B/hub handoff --stage stage-a --n 1 --out $C/dv.md > $R/dv2.out 2>&1
+OPEN=$(grep '^Open lessons to judge:' $C/dv.md)
+case "$OPEN" in *L-001*L-002*L-003*L-004*L-009*L-010*) r=0;; *) r=1;; esac; check $r 0 "…§ 7 lists the open and the promotable lessons"
+case "$OPEN" in *L-005*|*L-006*|*L-007*|*L-008*) r=1;; *) r=0;; esac; check $r 0 "…and not the retired or promoted ones"
+cp $R/lessons.keep $L
 exit $fail
