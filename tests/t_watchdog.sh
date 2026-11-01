@@ -106,7 +106,7 @@ check "$(runs sd)" 1 "R3 detached: the hub has run once so far"
 check "$(tick)" 0 "R3 detached: tick exits 0"
 check "$(runs sd)" 2 "R3 detached: a line 16 min old, hub silent, no waiter → resumed once (agent send)"
 grep -q "\[watchdog\] woke hub-3 (agent send --stage sd hub-3, attempt 1): 1 lines waiting since" "$(J sd)"; check $? 0 "R3 detached: the record line names the transport"
-grep -q "\[cli\] @hub-3 (session resumed, pid [0-9]*) \[agent-hub watchdog\] sd: 1 journal lines addressed to you have waited since [0-9:]* and no jwait of yours is running\. Run your digest jwait with --since [0-9:]*, handle what it shows, and keep one waiter\. Stop these wake-ups: watchdog quiet --stage sd --reason" "$(J sd)"  # rename:keep: the wake prefix stays on the former name for one release
+grep -q "\[cli\] @hub-3 (session resumed, pid [0-9]*) \[agent-hub watchdog\] sd: 1 journal lines addressed to you have waited since [0-9:]* and no jwait of yours is running\. Run your digest jwait with --since [0-9:]*, handle what it shows, and follow its NEXT WAIT\. Stop these wake-ups: watchdog quiet --stage sd --reason" "$(J sd)"  # rename:keep: the wake prefix stays on the former name for one release
 check $? 0 "R3 detached: the hub got the wake text (digest jwait --since, one waiter, quiet)"
 grep -q "\[delamain watchdog\]" "$(J sd)"; check $? 1 "rename: the wake prefix written now is the former name, not the new form (a hub on an older plugin copy reads only it)"
 tick > /dev/null; check "$(runs sd)" 2 "R3 safety: a second tick in the same episode wakes no second time"

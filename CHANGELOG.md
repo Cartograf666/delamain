@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **An idle hub goes dormant instead of being pinged, and R7 stops retired hubs it used to only report.** When nothing
+  runs in a stage (no agent, no `await`, no open owner question), `jwait`'s NEXT WAIT on a `claude --bg` hub (watchdog
+  on) says *dormant*: end the turn with no waiter; R3 wakes it on a line. A dormant `claude --bg` hub idle for
+  2 h is stopped through R7's stop code (role kept, stage open) and resumed by R3 as before; a Desktop hub's NEXT WAIT
+  names `watchdog quiet`. R7 no longer counts a retired hub's own leftover `jwait`, a pending prompt (`idle/blocked`) or
+  MCP servers started under a shell as work, and its "stop it by hand" report goes to the watchdog's log, not the stage
+  journal (65 lines last week). R3 never wakes a hub for `[pace]` lines, R6 skips quiet stages, and a held line under a
+  live waiter is no longer reported as "jwait does not match" (11 of 11 such alarms last week).
+
 - **The macOS-only flake in `t_codex_hooks` (the busy-session prune-guard case) is fixed.** The test gave the hook a
   0.5 s fail-safe deadline, but a BLOCK answer takes 0.5-1 s even with no lock contention, so the hook sometimes gave up
   with no decision (two of three runs of PR #164 on macOS). The deadline is 4 s; the hooks are unchanged.

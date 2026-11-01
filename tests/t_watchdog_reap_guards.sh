@@ -10,9 +10,9 @@
 #             there, a transcript dated in the future, a transcript that is not found (kept under another CLAUDE_CONFIG_DIR),
 #             a running sub-agent (a file appended to in a directory whose own time is old), a scan that is cut short or fails,
 #             a session that wrote between the first look and the stop
-#   busy:     a status other than idle/done (busy, blocked, working, waiting, none), a live shell child of the process (a Bash
-#             call, a background task; also next to an MCP server): reported once a day in the job output and the stage
-#             journal, never stopped; a shell child that appears between the first look and the last one; a process table that
+#   busy:     a status other than idle/done or idle/blocked (busy, working without an own waiter, waiting, none), a live
+#             shell child of the process (a Bash call, a background task; also next to an MCP server): reported once a day
+#             in the job output and log.md, never stopped; a shell child that appears between the first look and the last one; a process table that
 #             cannot be read completely (a row that cannot be parsed, `ps` failing): nothing is stopped. A child that is no
 #             shell (an MCP server: a `sleep`, a Python child, a shell below it) does not protect: stopped
 #   config:   the own home's config.json read fresh before each stop, and strictly (corrupt, or JSON that is no object: nothing is
@@ -270,23 +270,25 @@ rows "$X"; tick "live role in a closed stage"; stopped "a live role recorded in 
 rows "$X"; tick "control, role retired in the closed stage"; stopped "control: retired there too: stopped" "stop e0000019 "
 
 # ================================================================== busy
-# only an idle, done session is stopped; the others are reported once a day (job output, log.md, stage journal), no notification
-JA=$AGENT_HUB_HOME/a/coordinator/work/journal-$(today).md
+# only an idle session is stopped (done, or blocked: a pending prompt of a retired hub is no work); the others are reported
+# once a day (job output and log.md, not the stage journal), no notification
+JA=$AGENT_HUB_HOME/a/coordinator/work/journal-$(today).md; LOG=$AGENT_HUB_HOME/.state/watchdog/log.md
 B1=$(sid e0000030); B2=$(sid e0000031); B3=$(sid e0000032); B4=$(sid e0000033); B5=$(sid e0000034); B6=$(sid e0000035); B7=$(sid e0000036)
 n=50; for k in "$B1" "$B2" "$B3" "$B4" "$B5" "$B6" "$B7"; do retire_hub a "$k" "hub-$n"; quiet_for "$k" 30; n=$((n + 1)); done
 rows "$B1|||busy|working" "$B2|||idle|blocked" "$B3|||idle|working" "$B4|||waiting|done" "$B5|||-|-" "$B6|||busy|done" "$B7"
-tick "status and state"; stopped "busy/working, idle/blocked, idle/working, waiting/done, no status, busy/done: not stopped; idle/done: stopped" "stop e0000036 "
-for pair in "e0000030 busy/working" "e0000031 idle/blocked" "e0000032 idle/working" "e0000033 waiting/done" "e0000034 ?/?" "e0000035 busy/done"; do
+tick "status and state"; stopped "busy/working, idle/working (no own waiter), waiting/done, no status, busy/done: not stopped; idle/done, idle/blocked: stopped" "stop e0000031 stop e0000036 "
+for pair in "e0000030 busy/working" "e0000032 idle/working" "e0000033 waiting/done" "e0000034 ?/?" "e0000035 busy/done"; do
   set -- $pair
   grep -q "a: retired hub $1 (a) is $2 for 30 min; stop it by hand: claude stop $1" "$R/tick.out"; check $? 0 "report line for $1 ($2)"
-  check "$(grep -c "retired hub $1 (a) is $2 for 30 min; stop it by hand: claude stop $1" "$JA")" 1 "…and one line in the stage journal for $1"
+  check "$(grep -c "retired hub $1 (a) is $2 for 30 min; stop it by hand: claude stop $1" "$LOG")" 1 "…and one line in the watchdog's log for $1"
 done
-check "$(grep -c 'is .* for 30 min; stop it by hand' "$R/tick.out")" 6 "…and one report per not-idle session, nothing for the idle one"
+check "$(grep -c 'is .* for 30 min; stop it by hand' "$R/tick.out")" 5 "…and one report per not-idle session, nothing for the idle ones"
+check "$(grep -c 'stop it by hand' "$JA")" 0 "…and none in the stage journal (a successor's digest reads it)"
 reset_log; WD run > "$R/tick.out" 2>&1; check "$(grep -c 'stop it by hand' "$R/tick.out")" 0 "the second tick the same day: no report again"
-check "$(grep -c 'stop it by hand' "$JA")" 6 "…and the journal keeps its six lines"
+check "$(grep -c 'stop it by hand' "$LOG")" 5 "…and the log keeps its five lines"
 reset_log; FX_NOW=$(python3 -c 'import datetime as d,sys; print((d.datetime.fromisoformat(sys.argv[1]) + d.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S"))' "$NOW") \
   AGENT_HUB_WATCHDOG_NOW=$(python3 -c 'import datetime as d,sys; print((d.datetime.fromisoformat(sys.argv[1]) + d.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S"))' "$NOW") WD run > "$R/tick.out" 2>&1
-check "$(grep -c 'stop it by hand' "$R/tick.out")" 6 "the next day: reported again, once"
+check "$(grep -c 'stop it by hand' "$R/tick.out")" 5 "the next day: reported again, once"
 grep -q "remote:\|local:" "$R/notify.log" "$R/remote.log"; check $? 1 "…and nothing was notified"
 for k in "$B1" "$B2" "$B3" "$B4" "$B5" "$B6"; do "$B/roles" set --stage a hub "$k" --kind cli --tag live > /dev/null; done   # out of the way of the later scenarios
 # a shell child of the process (Claude Code runs every Bash call in one) protects the session, whatever runs in it
