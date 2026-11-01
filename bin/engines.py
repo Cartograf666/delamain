@@ -37,6 +37,13 @@ def selected(given=None, cwd=None):
     return name
 
 
+def configured(cwd=None):
+    """The engine the owner configured (AGENT_HUB_ENGINE in the hub home or the repository), else None. The
+    environment is no decision: `agent` exports its own engine there to every agent it starts."""
+    value, origin = hc.setting_origin("AGENT_HUB_ENGINE", cwd=cwd)
+    return value if origin in ("home", "project") and value in ENGINES else None
+
+
 def codex_bin(cwd=None):
     if sys.version_info < (3, 11):
         raise hc.UsageError("Codex support requires Python 3.11+ (standard-library TOML parsing)")

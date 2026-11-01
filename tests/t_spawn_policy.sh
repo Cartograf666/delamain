@@ -117,6 +117,8 @@ AGENT_HUB_REASON_POLICY=refuse spawn e5 --engine codex --model gpt-fixture --dry
 rm -f $R/config.json
 spawn e6 --engine codex --model gpt-fixture --dry-run; grep -q 'differs' $R/e6.err; check $? 1 "negative: AGENT_HUB_ENGINE unset anywhere: nothing to deviate from, silent"
 AGENT_HUB_REASON_POLICY=refuse spawn e7 --engine codex --model gpt-fixture --dry-run; check $? 0 "…and a bare --engine codex passes under policy refuse"
+AGENT_HUB_ENGINE=claude spawn e8 --engine codex --model gpt-fixture --dry-run; grep -q 'differs' $R/e8.err; check $? 1 "negative: AGENT_HUB_ENGINE only in the environment (an agent's own engine) is no decision, silent"
+AGENT_HUB_ENGINE=claude AGENT_HUB_REASON_POLICY=refuse spawn e9 --engine codex --model gpt-fixture --dry-run; check $? 0 "…and passes under policy refuse"
 unset AGENT_HUB_LIMIT_PACE
 
 # ---- 3. Codex follows the same policy

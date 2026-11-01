@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+import engines
 import hubcore as hc
 
 ENGINES = ("claude", "codex")
@@ -401,10 +402,8 @@ def stage_lock(stage: Optional[str], cwd=None) -> Optional[dict]:
             rec = {"engine": rec}
         if isinstance(rec, dict) and rec.get("engine") in ENGINES:
             return {"engine": rec["engine"], "decision": str(rec.get("decision") or "owner's decision")}
-    value, origin = hc.setting_origin("AGENT_HUB_ENGINE", cwd=cwd)
-    if origin in ("home", "project") and value in ENGINES:
-        return {"engine": value, "decision": "AGENT_HUB_ENGINE"}
-    return None
+    value = engines.configured(cwd)
+    return {"engine": value, "decision": "AGENT_HUB_ENGINE"} if value else None
 
 
 def mode() -> str:

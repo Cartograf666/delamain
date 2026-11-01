@@ -7,7 +7,8 @@
   configured engine (hub home or repository, not the environment) the way it kept a stage lock, and the old key is
   still read for one release with a stderr note. `agent spawn --engine X` where X differs from the configured engine
   and has no `--reason` gets the same one-line warning as an effort above the default (`AGENT_HUB_REASON_POLICY`);
-  the same engine, no `--engine`, or no configured engine is silent; `hub reviewer` start lines that print `--engine` add
+  the same engine, no `--engine`, or no configured engine (hub home or repository config; the environment does not count,
+  `agent` sets it for every agent it starts) is silent; `hub reviewer` start lines that print `--engine` add
   their own `--reason`. The hub skill says "omit `--engine` unless you deviate".
 
 - **An idle hub goes dormant instead of being pinged, and R7 stops retired hubs it used to only report.** When nothing

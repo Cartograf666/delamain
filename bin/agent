@@ -780,7 +780,7 @@ def cmd_spawn(a) -> int:
     reason = spawn_policy.clean_reason(a.reason)
     above_default = spawn_policy.check_reason(model_names, effort, default_effort, allowed_efforts, reason, cwd,
                                               model_unknown=engine == "codex" and not a.model,
-                                              engine=a.engine, configured=hc.setting("AGENT_HUB_ENGINE", cwd=cwd))
+                                              engine=a.engine, configured=engines.configured(cwd))
     if above_default:
         hc.warn(above_default)
     # AGENT_HUB_EFFORT_RULES: the model x effort policy shared with the delegation hook (bin/subagent_rules.py)
