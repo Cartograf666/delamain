@@ -1212,7 +1212,7 @@ watchdog quiet --stage S --clear                   lift the pause; `watchdog qui
 ```
 
 Exit codes: 0 ok (also when another tick is running, and when the watchdog is off and `run` has nothing to do), 1 a
-failure (`notify-test`: no channel, or one failed), 2 a usage error. `quiet --reason` and `quiet --clear` without `--stage` act on `$HUB_STAGE`, else `default`.
+failure (`notify-test`: no channel, or one failed), 2 a usage error. `quiet --reason` and `quiet --clear` without `--stage` act on `$HUB_STAGE`, else the caller's registered stage, else `default`.
 The rules, the hosts it can wake, the safety rules and what leaves the machine are in
 [docs/monitoring.md](monitoring.md#watchdog-a-hub-that-sleeps-is-woken); the settings are in
 [Configuration](#configuration), all hub-wide (hub home `config.json` or the environment, never a repository's).
