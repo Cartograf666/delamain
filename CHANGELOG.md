@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Russian parameter rules no longer disable context handoff.** The context-budget hook treated
+  `Не передавай идентификаторы другого провайдера` and `параметры Codex ему не передавай` in user-provided
+  `AGENTS.md` instructions as a handoff prohibition. It now requires a standalone prohibition or an explicit
+  context, work, task, shift, session, hub or control object, including timing modifiers and recipient-first word order;
+  short stops such as `Никому не передавай.` or `Не передавай пока.` still latch.
+  Such parameter rules remain neutral and cannot clear an existing owner stop;
+  explicit handoff stops and resumptions retain their durable behavior.
+
 ## 1.0.25 — 2026-11-01
 
 - **The owner's engine choice is one value, `AGENT_HUB_ENGINE`; `agent spawn --engine` is for deviating.** The
