@@ -95,11 +95,12 @@ PHASES = {"none": 0, "checkpoint": 1, "prepared": 2, "dispatching": 3,
 # Allow bounded timing/recipient modifiers around an explicit handoff object, never arbitrary objects
 # such as identifiers or parameters. Horizontal whitespace keeps the scope within one clause.
 RUSSIAN_TRANSFER_GAP = (
-    r"(?:(?:пока|сейчас|больше|ещ[её]|никому|этот|эту|текущий|текущую)[ \t]+|"
+    r"(?:(?:пока|сейчас|больше|ещ[её]|никому|никуда|этот|эту|текущий|текущую)[ \t]+|"
     r"(?:(?:следующему|новому|другому)[ \t]+)?(?:агенту|координатору|хабу)[ \t]+){0,3}")
 RUSSIAN_TRANSFER_OBJECT = r"(?:контекст|работу|смену|задачу|дела|сессию|хаб|управление|handoff)"
-# Words that may close a standalone prohibition ("Не передавай пока.", "Не передавай никому.").
-RUSSIAN_TRANSFER_TAIL = r"(?:[ \t]+(?:пока|сейчас|больше|никому|никуда|ничего)){0,2}"
+# Words that may surround a standalone prohibition ("Никому не передавай.", "Не передавай пока.").
+RUSSIAN_TRANSFER_TAIL_WORD = r"(?:пока|сейчас|больше|никому|никуда|ничего|дальше)"
+RUSSIAN_TRANSFER_TAIL = rf"(?:[ \t]+{RUSSIAN_TRANSFER_TAIL_WORD}){{0,2}}"
 TRANSFER_STOP = re.compile(
     r"\b(?:do not|don't|never)\s+(?:continue\s+)?(?:the\s+)?(?:handoff|hand\s*over|transfer)\b|"
     r"\b(?:stop|pause|cancel|suspend)\s+(?:(?:the|this|any|all|automatic|stage|context)\s+)*(?:handoff|hand\s*over|transfer)\b|"
@@ -110,8 +111,9 @@ TRANSFER_STOP = re.compile(
     r"(?:^|[.;!\n])\s*(?:please\s+)?stop(?:\s+(?:now|here))?(?=\s*(?:[.;!\n]|$))|"
     # A bare Russian transfer verb also describes passing identifiers or tool parameters.
     # Only a standalone prohibition or an explicit handoff object stops context transfer.
-    rf"(?:^|[.;!\n])\s*(?:[-*]\s*)?(?:пожалуйста[, ]+)?(?:(?:пока|сейчас)[ \t]+)?не\s+(?:передавай(?:те)?|передавать){RUSSIAN_TRANSFER_TAIL}(?=\s*(?:[.!?;,]|$))|"
-    rf"\bне[ \t]+(?:передавай(?:те)?|передавать)[ \t]+{RUSSIAN_TRANSFER_GAP}{RUSSIAN_TRANSFER_OBJECT}\b|"
+    rf"(?:^|[.;!\n])\s*(?:[-*]\s*)?(?:пожалуйста[, ]+)?(?:{RUSSIAN_TRANSFER_TAIL_WORD}[ \t]+){{0,3}}не\s+(?:передавай(?:те)?|передавать)"
+    rf"{RUSSIAN_TRANSFER_TAIL}(?!\s*,\s*кроме\b)(?=\s*(?:[.!?;,]|$))|"
+    rf"\bне[ \t]+(?:передавай(?:те)?|передавать)[ \t]+{RUSSIAN_TRANSFER_GAP}{RUSSIAN_TRANSFER_OBJECT}\b(?![-\u2011])|"
     rf"\b{RUSSIAN_TRANSFER_OBJECT}[ \t]+{RUSSIAN_TRANSFER_GAP}не[ \t]+(?:передавай(?:те)?|передавать)\b|"
     r"(?:останови(?:те)?|отмени(?:те)?)\s+передачу|"
     r"передача (?:запрещена|отменена)|разрешение(?: на передачу)? отозвано|"
