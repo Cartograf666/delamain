@@ -34,6 +34,18 @@ fail=0
 check(){ if [ "$1" = "$2" ]; then echo "PASS $3"; else echo "FAIL $3 (got $1 want $2)"; fail=1; fi; }
 new_home(){ export AGENT_HUB_HOME="$(mktemp -d)"; }
 today(){ date -u +%F; }
+# guard_record HOOK DECISION PROGRAM: the last line of <state dir>/guard-decisions.jsonl (hooks/failsafe.py) names the
+# hook, the decision and the program of the command it judged (no arguments are recorded); the state dir is $AGENT_HUB_STATE_DIR, else $AGENT_HUB_HOME/.state
+guard_record(){ python3 - "${AGENT_HUB_STATE_DIR:-$AGENT_HUB_HOME/.state}/guard-decisions.jsonl" "$@" <<'PY'
+import json, sys
+path, hook, decision, program = sys.argv[1:]
+try:
+    r = json.loads(open(path).read().splitlines()[-1])
+except (OSError, IndexError, ValueError):
+    sys.exit(1)
+sys.exit(0 if (r.get("hook"), r.get("decision")) == (hook, decision) and r.get("program") == program and r.get("reason") and "command" not in r and r.get("ts") else 1)
+PY
+}
 # UTC clock arithmetic, portable (no GNU/BSD date flags): utc_iso -2 -> ISO minute two minutes ago
 utc_iso(){ python3 -c 'import datetime as d,sys; print((d.datetime.now(d.timezone.utc)+d.timedelta(minutes=int(sys.argv[1]))).strftime("%Y-%m-%dT%H:%M"))' "$1"; }
 utc_hhmm(){ python3 -c 'import datetime as d,sys; print((d.datetime.now(d.timezone.utc)+d.timedelta(minutes=int(sys.argv[1]))).strftime("%H:%M"))' "$1"; }

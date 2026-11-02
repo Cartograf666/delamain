@@ -94,7 +94,7 @@ BUILTIN_LEVELS = {
                         "full brief. Keep your own context small: a fresh agent per stage over resuming a long one."),
 }
 BUILTIN_COMMON = ("The level sets how much you delegate, not which model or effort; the subagent rules still "
-                  "apply. Name the level when you report what you delegated.")
+                  "apply.")
 DEFAULT_DELEGATION_RULES = [
     {"when": {"level": "0", "tool": ["Agent", "Task", "Workflow"]}, "decision": "deny",
      "reason": "Delegation level is 0 ({source}): do this yourself. The user can raise it with /delegation."},

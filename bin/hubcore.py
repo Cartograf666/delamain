@@ -141,8 +141,8 @@ HUB_WIDE_KEYS += ("AGENT_HUB_SENSITIVE_CLASSES",)
 JSON_KEYS += ("AGENT_HUB_SENSITIVE_CLASSES",)
 # Silence after which the hub opens its reply with `ask inbox` (bin/ask; a duration like 3h): hub home only.
 HUB_WIDE_KEYS += ("AGENT_HUB_OWNER_DIGEST_AFTER",)
-# The limit-pace advisor (bin/limit_pace.py): on | warn | off, and the owner's engine decision per stage. Hub home only:
-# a repository must not unlock a stage the owner locked to an engine.
+# The limit-pace advisor (bin/limit_pace.py): on | warn | off. AGENT_HUB_STAGE_ENGINES is retired in favour of
+# AGENT_HUB_ENGINE; it is still accepted (and noted on stderr) for one release.
 HUB_WIDE_KEYS += ("AGENT_HUB_LIMIT_PACE", "AGENT_HUB_STAGE_ENGINES")
 JSON_KEYS += ("AGENT_HUB_STAGE_ENGINES",)
 # The bundled Antigravity reviewer (bin/agy-review): which agy to run, its model and the quota floor. Hub home only: a
@@ -1181,10 +1181,11 @@ def read_config(path: Path, project: bool) -> dict:
     return out
 
 
-def setting_origin(name: str, default: Optional[str] = None, cwd=None) -> tuple:
+def setting_origin(name: str, default: Optional[str] = None, cwd=None, env: bool = True) -> tuple:
     """(value, origin) of a setting, origin one of "env", "project", "home", "default": which layer supplied it.
-    A setting whose meaning depends on who wrote it (a command a repository must not run) asks for it."""
-    raw = os.environ.get(name)
+    A setting whose meaning depends on who wrote it (a command a repository must not run) asks for it.
+    `env=False` skips the environment layer: the config files alone."""
+    raw = os.environ.get(name) if env else None
     if raw:
         return raw, "env"
     if name in PROJECT_KEYS:
@@ -1738,7 +1739,19 @@ def now() -> dt.datetime:
 
 
 def default_stage() -> str:
-    return os.environ.get("HUB_STAGE") or DEFAULT_STAGE
+    """The stage a tool works in without --stage: $HUB_STAGE, else the stage whose registry lists the calling session
+    (own_stage, the lookup signing_tag does), else `default`. A session registered somewhere that cannot be told apart
+    (several stages, none under $HUB_TAG alone) is refused instead of writing to `default`, where its hub never reads."""
+    env = os.environ.get("HUB_STAGE", "").strip()
+    if env:
+        return env
+    tag = os.environ.get("HUB_TAG", "").strip() or None
+    own = own_stage(tag) or (own_stage(None) if tag else None)
+    if own:
+        return own
+    if session_id() and other_stage_tag("", None, unique=False):
+        raise UsageError("this session is registered in several stages: pass --stage or set $HUB_STAGE")
+    return DEFAULT_STAGE
 
 
 def check_stage(stage: str) -> str:
@@ -1904,6 +1917,15 @@ def sub_agent_line(tag: str, text: str) -> bool:
     """A sub-agent's start or end line (hooks/subagent_journal.py): `[<parent tag>/<agent id>] SUB start …` or
     `… SUB end …`. It is for the record, so jwait never wakes on it, whatever its description says."""
     return bool(tag) and "/" in tag and (text + " ").startswith(SUB_LINE_PREFIXES)
+
+
+AWAIT_CANCEL_RE = re.compile(r"CANCELLED .* \(await interrupted by signal \d+, ")
+
+
+def await_cancel_line(text: str) -> bool:
+    """A cancelled `await` (bin/await: its supervisor got a stop signal while the command ran): the caller's own act,
+    so jwait never wakes on it, whatever its label, link or log path carries (a status word, an @-address)."""
+    return bool(AWAIT_CANCEL_RE.match(text))
 
 
 def quiet(text: str) -> str:
@@ -2115,9 +2137,10 @@ def registered_tag(stage: str) -> Optional[str]:
     return (hit[1].get("tag") or hit[0]) if hit else None
 
 
-def other_stage_tag(target: str, tag: Optional[str] = None) -> Optional[tuple]:
+def other_stage_tag(target: str, tag: Optional[str] = None, unique: bool = True) -> Optional[tuple]:
     """(stage, tag) of this session in the registry of a stage other than `target`; with `tag`, only a registration
-    carrying that tag. None when there is none or more than one (ambiguous: the caller must not guess a stage)."""
+    carrying that tag. None when there is none or more than one (ambiguous: the caller must not guess a stage);
+    unique=False returns the first of several."""
     if not session_id():
         return None
     try:
@@ -2125,7 +2148,7 @@ def other_stage_tag(target: str, tag: Optional[str] = None) -> Optional[tuple]:
     except OSError:
         return None
     hits = [(n, t) for n in names for t in [registered_tag(n)] if t and (tag is None or t == tag)]
-    return hits[0] if len(hits) == 1 else None
+    return hits[0] if len(hits) == 1 or (hits and not unique) else None
 
 
 def own_stage(tag: Optional[str]) -> Optional[str]:

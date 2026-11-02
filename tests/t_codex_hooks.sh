@@ -750,7 +750,10 @@ context_budget.main()
                     time.sleep(.01)
                 self.assertTrue(observed.exists(), 'waiter did not reach the shared guard')
                 self.assertIsNone(waiter.poll(), 'the deliberately busy session must still be waiting')
-                self.env['AGENT_HUB_HOOK_DEADLINE_S'] = '.5'
+                # A BLOCK answer alone takes 0.5-1 s of interpreter start-up and transcript parsing (more on a loaded
+                # macOS runner), so the fail-safe deadline must sit well above that; a hook stuck behind the guard
+                # still gives up at it without a decision, below the 5 s subprocess timeout.
+                self.env['AGENT_HUB_HOOK_DEADLINE_S'] = '4'
                 out = self.hook('context_budget.py', 'Bash', {'command': 'ls'}, transcript_path=str(transcript))
                 self.assertTrue(self.denied(out), 'another session must retain its BLOCK decision')
             finally:

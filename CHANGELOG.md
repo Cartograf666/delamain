@@ -2,6 +2,80 @@
 
 ## Unreleased
 
+## 1.0.25 — 2026-11-01
+
+- **The owner's engine choice is one value, `AGENT_HUB_ENGINE`; `agent spawn --engine` is for deviating.** The
+  per-stage `AGENT_HUB_STAGE_ENGINES` (unset in every config layer) is merged into it: limit-pace now keeps the
+  configured engine (hub home or repository, not the environment) the way it kept a stage lock, and the old key is
+  still read for one release with a stderr note. `agent spawn --engine X` where X differs from the configured engine
+  and has no `--reason` gets the same one-line warning as an effort above the default (`AGENT_HUB_REASON_POLICY`);
+  the same engine, no `--engine`, or no configured engine (hub home or repository config; the environment does not count,
+  `agent` sets it for every agent it starts) is silent; `hub reviewer` start lines that print `--engine` add
+  their own `--reason`. The hub skill says "omit `--engine` unless you deviate".
+
+- **The exit note quotes the line with the outcome.** `ENDED`/`REVIEWED`/`EXIT … last:` now quotes the last standalone
+  line of the agent's final text that starts with `VERDICT:` or a status word, else the last line that
+  names a `*-REPORT.md`, else the last line (quoted `>` lines and fenced blocks are skipped; a closing delegation summary no longer hides the verdict). The built-in delegation text no longer asks to name the level in a
+  report (`hooks/delegation.py`; a hub home's own `AGENT_HUB_DELEGATION_COMMON` keeps whatever it says).
+  `templates/brief-review.md` says one thing, as does a review role's own footer (`agent spawn`): the review goes to
+  the report path and the final answer ends with the `VERDICT:` line, with no journal line of the reviewer's own; only an
+  in-session sub-agent returns the review as its final text.
+  The executor footer says how to wait for CI (`await --wait … gh-ci-wait` in a background Bash). The hub skill says a
+  sub-agent's result is its text (≤ 20 lines), since the host forbids sub-agents report files.
+  The SessionStart owner-questions line is no longer injected into executors (`AGENT_ROLE` set by `agent spawn`, role
+  not `hub` / `hub-N`: a headless successor hub keeps it).
+  Removed: `roles broadcast` (0 uses; confusable with `broadcast`) and the empty `dfix-patch2.py`. The
+  `agent-send`/`-spawn`/`-status`/`-stop` aliases print a deprecation line to stderr and go in the next release.
+
+- **An idle hub goes dormant instead of being pinged, and R7 stops retired hubs it used to only report.** When nothing
+  runs in a stage (no agent, no `await`, no open owner question), `jwait`'s NEXT WAIT on a `claude --bg` hub (watchdog
+  on) says *dormant*: end the turn with no waiter; R3 wakes it on a line. A dormant `claude --bg` hub idle for
+  2 h is stopped through R7's stop code (role kept, stage open) and resumed by R3 as before; a Desktop hub's NEXT WAIT
+  names `watchdog quiet`. R7 no longer counts a retired hub's own leftover `jwait`, a pending prompt (`idle/blocked`) or
+  MCP servers started under a shell as work, and its "stop it by hand" report goes to the watchdog's log, not the stage
+  journal (65 lines last week). R3 never wakes a hub for `[pace]` lines, R6 skips quiet stages, and a held line under a
+  live waiter is no longer reported as "jwait does not match" (11 of 11 such alarms last week).
+
+- **The macOS-only flake in `t_codex_hooks` (the busy-session prune-guard case) is fixed.** The test gave the hook a
+  0.5 s fail-safe deadline, but a BLOCK answer takes 0.5-1 s even with no lock contention, so the hook sometimes gave up
+  with no decision (two of three runs of PR #164 on macOS). The deadline is 4 s; the hooks are unchanged.
+
+- **A cancelled `await` is `CANCELLED`, not `FAILED`, and wakes nobody.** A supervisor stopped by SIGTERM, SIGHUP or
+  SIGINT (the hub's own `kill <pid>` of a superseded wait: 53 of last week's 58 "await FAILED (signal 15)") journals
+  `CANCELLED <label> (await interrupted by signal N, …)` without the `@hub` address, so the digest `jwait` does not
+  deliver it. A command that itself dies by a signal, or a group that could not be stopped, stays `FAILED`;
+  `--ok CANCELLED` is a usage error.
+
+- **Without `--stage` and `$HUB_STAGE`, the tools work in the caller's own stage.** `jlog`, `await`, `agent`, `jwait`,
+  `roles` and `watchdog` take the stage whose registry lists the calling session (the lookup the line signature already
+  did) instead of `default`, where a hub never reads (five await lines and an `agent send` on 01.11). A session
+  registered in several stages and none named by `$HUB_TAG` is refused with "pass --stage"; an unregistered caller
+  still gets `default`.
+
+- **Guard decisions leave a durable record.** `hooks/failsafe.py`, the wrapper every hook runs through, appends one
+  line `{ts, hook, decision, reason, session, tag, program}` to `<state dir>/guard-decisions.jsonl` for each delivered
+  deny, ask or block, keeping the last 5 000 lines. `program` is the command's program name only: no arguments and no
+  assignment values are stored, so no secret reaches the file. Counting denials (the polling guard's, for one) no longer
+  means searching transcripts. No new hook, no setting; a failed write never changes what the guard decided.
+
+- **A background hub successor starts in a plain git worktree, not `claude --bg --worktree`.** `hub succeed` makes
+  `<main checkout>/.worktrees/<stage>-hub-<n>` the way `agent spawn --worktree` does (slot, `.agents/linked`,
+  `.agents/prepare`) and starts `claude --bg` there; a headless fallback reuses that worktree with its prepare state
+  (a prepare that failed in this start is left to the next spawn). With an executable `.agents/prepare` the start's
+  reservation and the Bash timeout the hub is told grow by `AGENT_HUB_PREPARE_TIMEOUT`. The host isolated `--worktree`
+  sessions and refused their `git -C <main clone>` and `$(…)` commands (most of last week's host refusals); a plain
+  worktree is not isolated. The hub skill now says to avoid both in hub commands, since a Desktop hub stays isolated.
+
+- **Lessons promote themselves.** The status of an entry in `<stage>/lessons.md` is derived from its verdict lines when
+  `hub takeover` reads the file: `helped` from two different shifts and no `hurt` makes it promotable, any `hurt`
+  retires it (a hand-written `promoted` or `retired` stays; the verdict shapes in use are read, including `(L-002,
+  hub-20 …)` and `L-001/002`). The takeover digest lists "promotable: L-… (helped ×N)" and any promoted lesson a shift
+  found harmful. The hub promotes a promotable lesson into the stage `hub-rules.md`, section "Promoted lessons", one line
+  with its source id (a lesson a tool could catch goes to the plugin backlog as a pointer), without asking the owner. The
+  `handoff_size` hook now also caps that section at 2 KiB. The digest line points to the procedure and also lists lessons
+  retired by a `hurt`, so the hub can confirm or contest it. No new command, hook or key; about 20 more lines of prose
+  in the lessons reference, no new rule outside it.
+
 - **Windows dispatch accepts every registered hook, including `scan_guard`.** Both adapter allowlists are checked
   against the hook manifest; native PowerShell controls also verify unknown-name rejection and scan allow/deny behavior.
 

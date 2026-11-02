@@ -44,7 +44,7 @@ flowchart LR
     agents -->|"JSON event output"| log
     agents -->|"reads after each step"| inbox
     agents -->|"jlog: DONE / BLOCKED / QUESTION"| journal
-    hub -->|"jlog, roles broadcast"| journal
+    hub -->|"jlog"| journal
     journal -->|"jwait wakes the hub"| hub
     hub <-->|"ask add / close / search"| questions
     hub <-->|"lock take / release"| board
@@ -63,11 +63,11 @@ flowchart LR
 | `agent desktop-idle` | List the Claude Desktop sessions idle for `--idle-for` (default 12 h) that still hold their `claude` and MCP processes, with the memory each holds, and which are safe to archive (clean worktree, nothing unpushed, no open PR/MR). Read-only; `--ids` prints the ids to archive. |
 | `jlog` | Append `- HH:MM [tag] text` to today's stage journal. In another stage's journal the derived tag is stage-qualified (`[core-c-hub-30]`); the writer's `jwait --tag hub-30` on its own stage (core-c) also wakes on the answer `@core-c-hub-30`. |
 | `tell` | Write to another stage's hub: one journal line `@hub …` (`--question`, `--role`) in that stage's journal, signed with your stage-qualified tag, and the registered direct address (session id, kind, title, the name for a cross-session message). `--address` prints the address only. A headless holder gets the text through `agent send` (it reads its inbox, not a journal). The answer comes back in your own journal (`tell <your stage>`). The journal is the preferred channel; a direct message goes only to this address. |
-| `broadcast` | One line to the hub of every open stage at once: `tell` to each stage of every known hub home (`--this-home`: only the resolved one) whose registry has a live hub, leaving out your own hub (`--include-self`), closed stages and `--exclude S`. `--urgent` / `--question` as in `tell`; `--dry-run` lists the recipients; `--json` for scripts. Names the recipients that have not written for over `--silent-hours` (default 12, 0 = off) — their own journal line or the last turn of their session, not the lines addressed to them nor the transcript file's mtime — before the summary, also in `--dry-run`. Signed with your stage-qualified tag, or `owner` from an unregistered terminal or the Desktop `/broadcast`. Exit 1 when any recipient did not take the line (each failure is printed with tell's output). Not `roles broadcast`, which addresses roles within one stage. |
+| `broadcast` | One line to the hub of every open stage at once: `tell` to each stage of every known hub home (`--this-home`: only the resolved one) whose registry has a live hub, leaving out your own hub (`--include-self`), closed stages and `--exclude S`. `--urgent` / `--question` as in `tell`; `--dry-run` lists the recipients; `--json` for scripts. Names the recipients that have not written for over `--silent-hours` (default 12, 0 = off) — their own journal line or the last turn of their session, not the lines addressed to them nor the transcript file's mtime — before the summary, also in `--dry-run`. Signed with your stage-qualified tag, or `owner` from an unregistered terminal or the Desktop `/broadcast`. Exit 1 when any recipient did not take the line (each failure is printed with tell's output). |
 | `jwait` | The only waiter: block (in the background) until new journal or log lines match, or until an alarm time. With `--journal` it marks itself in `<hub home>/.jwait-state/<stage>/<caller>.armed.json` while it waits (pid, stage, tags, deadline), so the watchdog can tell a hub that waits from one that sleeps; it removes the file when it ends, also on SIGTERM and SIGHUP. |
 | `await` | Run a wait command (the repo's CI wait script, a merge, a lock) detached from the caller and journal **one** line `@hub WORD LABEL — LINK (exit N, 12m, log PATH)` when it ends; nothing while it runs. Starts a supervisor in its own session and returns at once, so the hub makes it an ordinary foreground call and keeps its single `jwait`. WORD: exit 0 → `--ok` (default `DONE`, `MERGED` for a merge), 124 or the end of `--timeout` (default 2h) → `TIMEOUT`, anything else, a command that cannot start or a stopped supervisor → `FAILED`; `--on RC=WORD` maps more (`--on 3=CONFLICT`). With `--wait` (attached) it also prints that line and exits 0 only when the command itself exited 0, 3 otherwise, 1 when the journal write failed; `--ok FAILED|TIMEOUT`, `--on 0=WORD`, `--on RC=<the --ok word>` and abbreviated options are usage errors (exit 2). LINK is `--link` or the last URL the command printed. Signed `<tag>-await`, which the hub's own `jwait` does not drop. [Waiting for CI](launch-modes.md#waiting-for-ci-a-merge-or-a-lock). |
 | `gh-ci-wait` | `gh-ci-wait [PR] [--repo O/R] [--require NAME …] [--allow-neutral] [--timeout 45m] [--interval 10s] [--grace 3m]`: wait for a GitHub PR's checks, as a command for `await` (`await --ok PASSED --label "PR #N" -- gh-ci-wait N --require 'tests (ubuntu-latest)' --require 'tests (macos-latest)'`). Decides by every check's bucket, not by `gh`'s exit code, which is 0 for a cancelled check. Exit 0 all passed (with `--require`: the named checks reported and passed; without it also every workflow run of the head completed); 1 failed or cancelled; 124 deadline (checked after every `gh` call, before any success); 3 no checks or a required one within `--grace`; 4 a needed check skipped (or neutral without `--allow-neutral`); 2 usage or `gh` unusable. The last line it prints is the deciding check's URL. [Waiting for CI](launch-modes.md#waiting-for-ci-a-merge-or-a-lock). |
-| `roles` | Who plays which role, by full session id; cross-session send budget; broadcast. |
+| `roles` | Who plays which role, by full session id; cross-session send budget. |
 | `ask` | The owner-question register: questions with a default action and a due time, answers, decisions taken by agents. `ask inbox [--since T] [--stage S] [--json] [--if-quiet]` is the owner's digest across all stages: per stage what finished since the owner's last answer, which questions wait (overdue first), which decisions the hubs took, live and blocked agents; under 2 000 characters, read-only. |
 | `lock` | The lock board for shared resources: `main-merge` is built in, every other resource is named by your project in `lock-rules.json`. `lock rules` shows, writes and tests those rules. |
 | `hub start / takeover / handoff` | Register the first hub of a stage; hand a hub shift over in one command each. The shift number is derived. `hub handoff --finish` refuses a draft whose § 0–2 still hold `TODO` (`--allow-todo` overrides), `hub succeed` makes the same check, and `takeover` warns about such a handoff. Start and takeover run only in a fresh worktree of the project and move the session there otherwise (exit 4, `MOVE <path>`). `start` wants a stage name that says what the work is and a `--goal` line (see *Names*, below). `takeover` also records where the hub runs as `host:` in the stage's `hub` record of `roles.json` (`desktop`, `detached`, `bg` or `term`; left out for a Codex hub and when it cannot be told), and its digest prints the watchdog line: an active do-not-wake marker, and that the watchdog is on. |
@@ -385,9 +385,9 @@ The advice follows one order, and a model or effort is never changed silently:
    class: Opus/Fable ↔ Astra high (an executor that decides as it goes: Sol high), Sonnet high ↔ Terra medium
    (or Sol medium), Haiku high ↔ Luna medium. Compare the percentages, even when the engine with more remaining has a worse pace forecast.
    If both are short, recommend the one with more room and warn that it may run out before reset.
-3. **Preserve the owner's engine lock.** For `AGENT_HUB_STAGE_ENGINES`, a ready `ask add` asks whether to allow the
+3. **Preserve the owner's engine decision.** For a launch on the configured `AGENT_HUB_ENGINE` (hub home or repository), a ready `ask add` asks whether to allow the
    other engine for **this launch**, with the equivalent model/effort and both weekly figures. The default is to run
-   this launch on the locked engine. Permission for one launch leaves the stage's engine decision intact.
+   this launch on the configured engine. Permission for one launch leaves the engine decision intact.
 4. **State uncertainty.** If either weekly reading is unknown or stale, report the missing comparison and suggest
    a fresh probe. Continue under the requested engine choice; missing data does not create a gate.
    Below 3% remaining with an unverified alternative, explicitly warn of practical exhaustion and offer a probe
@@ -423,10 +423,6 @@ A later forecast crossing (on pace → ahead → over pace) is announced once pe
 context for the next launch's quota comparison, not a scheduling instruction. A level that falls
 and rises again within the same window is not announced twice. The record is `<state dir>/limit-pace/crossings.json`.
 `agent spawn` and the watchdog write it; the digest and `agent-top` only read.
-
-```json
-{ "AGENT_HUB_STAGE_ENGINES": { "dolya": { "engine": "codex", "decision": "Q-DL-054" } } }
-```
 
 ## Agent lifecycle
 
@@ -736,16 +732,16 @@ Settings are environment variables; each can also be set in a `config.json` (bel
 | Variable | Default | Meaning |
 |---|---|---|
 | `AGENT_HUB_HOME` | `~/agent-hub` | The hub home above. The environment (any path), or a repository's `.agent-hub/config.json` with `"project"` or `"user"` only; the hub home's `config.json` cannot set it. [Where the hub's files live](#where-the-hubs-files-live). |
-| `HUB_STAGE` | `default` | Stage when `--stage` is not given (environment only). |
+| `HUB_STAGE` | the stage whose registry lists the calling session, else `default` | Stage when `--stage` is not given (environment only). A session registered in several stages and none named by `$HUB_TAG` must pass `--stage`. |
 | `HUB_TAG` | from `roles` | Journal tag of the caller (set for agents automatically; environment only). Without it the tag is the registry entry of this session's id; for a Claude Desktop session whose CLI restarted (a new `$CLAUDE_CODE_SESSION_ID` under the same `local_…` id) it is found through `$CLAUDE_CODE_HOST_SESSION_ID`, provided Desktop's own record of that session names this CLI session, and the registry's CLI id is refreshed. |
 | `AGENT_HUB_TZ` | local zone | IANA time zone of journal times and deadlines. Hub-wide. |
 | `AGENT_HUB_MODEL_MAP` | none | Opt-in pin of aliases to model ids (without it an alias follows the CLI, which resolves it to its latest model), e.g. `sonnet=claude-sonnet-…,opus=claude-opus-…` (in JSON also `{"sonnet": "…"}`). A model id may use letters, digits and `. _ : @ [ ] / -` only (a Bedrock id or an ARN is fine); a pair outside that is reported and left out. |
 | `AGENT_HUB_DEFAULT_EFFORT` | `high` | Effort for `agent spawn` without `--effort` and without an `AGENT_HUB_EFFORT_DEFAULTS` entry for the model, for every model including `haiku`. |
 | `AGENT_HUB_EFFORT_DEFAULTS` | none | JSON object `{"<model>": "<effort>", …}`: the effort of `agent spawn` without `--effort`, per model, for both engines (Codex by its own names and efforts). A key is a glob or a plain word matched anywhere in the model name; the alias given and the id it maps to are both tried, the first matching key wins. A repository may set it. It is also the yardstick of `--reason`: an effort ranked above it needs one. |
 | `AGENT_HUB_REASON_MODELS` | none | Hub-wide. JSON list of models (globs or plain words) that count as above the default: `agent spawn` of one needs `--reason "…"`. A Codex spawn without `--model` and without `AGENT_HUB_CODEX_DEFAULT_MODEL` has an unknown model (the plugin does not reproduce the Codex CLI's config layers): with this list set, policy `refuse` refuses it ("the model the Codex CLI will choose cannot be checked: pass --model", a `--reason` does not help) and `warn` prints one warning that the model check was skipped; with the list empty (the default) nothing changes. The per-model effort default of an unknown model is the general one. `hub succeed` passes a reason of its own, so a refusing policy never stops the autopilot chain. |
-| `AGENT_HUB_REASON_POLICY` | `warn` | Hub-wide. What an `agent spawn` above the default (an effort above the model's default, or a model of `AGENT_HUB_REASON_MODELS`) gets when it has no `--reason`: `warn` (one stderr line, the agent starts), `refuse` (usage error, nothing starts), `off`. The reason goes into the journal's start line and the agent's `meta.json`. |
+| `AGENT_HUB_REASON_POLICY` | `warn` | Hub-wide. What an `agent spawn` above the default (an effort above the model's default, a model of `AGENT_HUB_REASON_MODELS`, or an `--engine` other than `AGENT_HUB_ENGINE`) gets when it has no `--reason`: `warn` (one stderr line, the agent starts), `refuse` (usage error, nothing starts), `off`. The reason goes into the journal's start line and the agent's `meta.json`. |
 | `AGENT_HUB_RESUME_MAX_CTX` | `250k` | Hub-wide. Tokens of context (`250000`, `250k`, `1m`; `0` = no limit) above which `agent send` refuses to resume a stopped agent: every turn of a resume re-reads the whole context, and a fresh agent from a handoff file costs less. The refusal says so and queues nothing; `agent send <role> --resume-anyway "…"` overrides it. The size is the last main-thread model call's input as `agent status` shows it (`ctx 300k`); a log without one (Codex's `exec --json` carries no per-call input) is not refused. |
-| `AGENT_HUB_ENGINE` | `claude` | Default executor engine (`claude` or `codex`); Codex SessionStart selects `codex` for that host. |
+| `AGENT_HUB_ENGINE` | `claude` | The owner's executor engine (`claude` or `codex`); Codex SessionStart selects `codex` for that host. Hubs omit `agent spawn --engine` and pass it, with `--reason`, only to deviate from a configured value, i.e. one set in the hub home or the repository's `config.json` (a bare deviation gets a one-line warning under `AGENT_HUB_REASON_POLICY`; unset there, or set only in the environment, which `agent` fills with its own engine for every agent it starts, there is nothing to deviate from). `hub reviewer` start lines that print `--engine` carry their own `--reason`. Set in the hub home or a repository, it is also the engine decision limit-pace keeps: it proposes an `ask add` for permission to use the other engine for this launch, and the default runs the configured engine. The retired `AGENT_HUB_STAGE_ENGINES` (per stage) is still read, with a stderr note, for one more release. |
 | `CODEX_BIN` | `codex` on PATH | Codex executable for detached workers. |
 | `AGENT_HUB_CODEX_DEFAULT_MODEL` | CLI configured model | Optional Codex model pin when spawn omits `--model`. |
 | `AGENT_HUB_CODEX_MODEL_MAP` | none | Explicit Codex model aliases; Claude aliases are not translated automatically. |
@@ -778,7 +774,6 @@ Settings are environment variables; each can also be set in a `config.json` (bel
 | `AGENT_HUB_SPAWN_HOLD_LOAD` | none (off) | R5: the 1-minute load average per core above which the watchdog holds spawns (`1.5`, `0.75`); the hold ends below 80 % of it. Empty or invalid (warned) = off. Hub-wide. |
 | `AGENT_HUB_SPAWN_HOLD` | `warn` | What `agent spawn` does while a load hold is on: `warn` (a warning, the spawn goes on) or `refuse` (exit 1); `--ignore-hold` passes either. Invalid (warned) = `warn`. Resumes (`agent send`) are never held. Hub-wide. |
 | `AGENT_HUB_LIMIT_PACE` | `on` | [Limit pace](#limit-pace): `on` (advice, and the one hard stop of `agent spawn`), `warn` (advice only), `off` (neither, and no watchdog R6). Hub-wide. |
-| `AGENT_HUB_STAGE_ENGINES` | none | The owner's engine decision per stage, a JSON object: `{"<stage>": "codex"}` or `{"<stage>": {"engine": "codex", "decision": "Q-…"}}`. Limit-pace proposes an `ask add` for permission to use the other engine for this launch; the default runs the locked engine. Hub-wide: a repository cannot unlock a stage. |
 | `AGENT_HUB_HANDOFF_MAX_BYTES` | `15360` | Size cap of `HANDOFF-*.md` enforced by the hook. Hub-wide. |
 | `AGENT_HUB_HANDOFF_LESSONS` | `off` | `hub handoff` adds § 7, "Lessons of this shift"; `--finish`, `succeed --handoff` and the successor's `takeover` warn (never refuse) while § 7 is missing, holds `TODO` or names neither a lesson id nor `none: <reason>`; procedure in the [handoff skill](../skills/handoff/references/lessons.md), format in [Architecture](architecture.md#formats). A yes/no setting. Hub-wide: a repository's `config.json` cannot set it. |
 | `AGENT_HUB_SCOPE_DIRS` | none | Directories, separated by `:`, where the `handoff_size` and `questions` hooks act in addition to the hub home and repositories with `.agent-hub/`. Hub-wide: a repository's `config.json` cannot set it. |
@@ -928,6 +923,18 @@ hook installs `hooks/failsafe.py` first: its stdout is delivered only as one com
 always 0 (also after an import error), and a timer answers "no decision" 1.5 s before the `timeout` of
 `hooks/hooks.json` (`AGENT_HUB_HOOK_DEADLINE_S` overrides the deadline, environment only; the tests use it).
 
+The same wrapper keeps the durable record of what the guards decided. Each delivered `deny`, `ask` or `block` appends one
+JSON line to `<state dir>/guard-decisions.jsonl` (`<hub home>/.state`, or `$AGENT_HUB_STATE_DIR`; mode 0600):
+`{ts, hook, decision, reason, session, tag, program}` — the hook script (with its subcommand, e.g. `delegation.py pre-tool`),
+the decision, the first line of the guard's reason (at most 120 characters; the lines below it may quote the command),
+the session id from the hook input, `$HUB_TAG` when the session is a hub agent, and `program`: the basename of the command's
+first word after any `VAR=value` assignments (the tool name when the call has no command). Arguments and assignment values
+are never stored, so a secret on a command line does not reach the file. The file keeps the last 5 000 lines; an answer
+with no decision writes nothing. The record is best effort — written after the answer is out, and a write that fails changes
+nothing for the guard. A line torn by a short write stays one broken line (the next record starts on a new line), and a
+trim that failed midway leaves a `.guard-decisions.<pid>.tmp` that the next trim removes once it is a minute old; readers
+skip lines that are not JSON. There is no switch and no report command: read the file.
+
 ### Autopilot: the hub hands over by itself
 
 Registered Claude and Codex main hubs with autopilot enabled latch durable `handoff_due` at the first context
@@ -980,11 +987,12 @@ hub:
    `claude attach <id>`, and prints a `jwait` for the successor's takeover line (`AGENT_HUB_SUCCESSOR_TIMEOUT`).
    The successor is a background Remote Control session, not a Claude Desktop session (see
    [where the owner finds it](#where-the-owner-finds-the-successor) below). It starts from the repository's main
-   checkout, in a new worktree of its own (`--worktree <stage>-hub-<n+1>` → `<main checkout>/.claude/worktrees/<stage>-hub-<n+1>` on branch
-   `worktree-<stage>-hub-<n+1>`, from `origin`'s default branch (Claude Code's `worktree.baseRef`, default `fresh`); a taken name gets `-2`, `-3`…), never in the hub's
+   checkout, in a new plain worktree of its own (`<main checkout>/.worktrees/<stage>-hub-<n+1>` on branch
+   `<stage>-hub-<n+1>` from `origin`'s default branch, made, linked and prepared (`.agents/prepare`) as `agent spawn --worktree` does it; a taken name gets `-2`,
+   `-3`…; not `claude --worktree`, whose host isolation refuses `git -C <main clone>` and `$(…)`), never in the hub's
    own directory — that may be a Desktop session's worktree, removed when the session is archived. Without `--cwd` the
    directory is the hub's registered worktree, else the shell's. A directory outside git, or in another repository than the
-   stage's project, is refused (exit 2, nothing started); only a stage with no project (`--no-project`) starts in place. Nothing removes the worktree by itself: `agent worktrees --prune` does once a later hub has taken the stage over and the branch is merged, clean and pushed (`claude rm <id>` too).
+   stage's project, is refused (exit 2, nothing started); only a stage with no project (`--no-project`) starts in place. Nothing removes the worktree by itself: `agent worktrees --prune` does once a later hub has taken the stage over and the branch is merged, clean and pushed.
 3. When the line arrives the old hub tells you in one line the successor's name and link and where it is: a
    background Remote Control session named `<stage>-hub-<n+1>`; in Claude Desktop it is listed under the repository's
    address group (for a repository not hosted on github.com a separate group from your folder group), on the phone in the
@@ -1212,7 +1220,7 @@ watchdog quiet --stage S --clear                   lift the pause; `watchdog qui
 ```
 
 Exit codes: 0 ok (also when another tick is running, and when the watchdog is off and `run` has nothing to do), 1 a
-failure (`notify-test`: no channel, or one failed), 2 a usage error. `quiet --reason` and `quiet --clear` without `--stage` act on `$HUB_STAGE`, else `default`.
+failure (`notify-test`: no channel, or one failed), 2 a usage error. `quiet --reason` and `quiet --clear` without `--stage` act on `$HUB_STAGE`, else the caller's registered stage, else `default`.
 The rules, the hosts it can wake, the safety rules and what leaves the machine are in
 [docs/monitoring.md](monitoring.md#watchdog-a-hub-that-sleeps-is-woken); the settings are in
 [Configuration](#configuration), all hub-wide (hub home `config.json` or the environment, never a repository's).

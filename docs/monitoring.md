@@ -111,14 +111,16 @@ can be woken.
 | R3 | The hub is silent (not busy, no activity for 15 min), lines addressed to it have waited 15 min (or a night-queue item has, inside `AGENT_HUB_NIGHT`), and no `jwait` of its own runs. | Wakes the hub. |
 | R4 | A Claude hub whose last turn ended on an API error, or a confirmed idle Codex app hub whose last own turn ended with explicit `server_overloaded`, 15 min ago or more. | Wakes the same session/thread, whether or not anything waits. |
 | R5 | The machine, only when `AGENT_HUB_SPAWN_HOLD_LOAD` is set: the 1-minute load average per core above it. | Writes `<state dir>/spawn-hold.json`; see the load hold below. |
-| R6 | Each engine's plan week ([limit pace](reference.md#limit-pace)), for a stage with a hub. | One journal line `[pace] @hub LIMIT …` per forecast crossing, stage, window and level; the owner is notified once per window projected to run out. Forecast context only: each launch compares fresh remaining weekly quota. |
-| R7 | The machine: the `claude --bg` session of a hub that is retired in this home (`roles retire hub`, or replaced by a successor) and live nowhere on the machine, quiet for `AGENT_HUB_WATCHDOG_WAKE_AFTER` (at least 15 min) and idle. | `claude stop <id>`; a busy, blocked or shell-holding one is reported once a day; see the reaping of retired hubs below. |
+| R6 | Each engine's plan week ([limit pace](reference.md#limit-pace)), for a stage with a hub that is not quiet. | One journal line `[pace] @hub LIMIT …` per forecast crossing, stage, window and level; the owner is notified once per window projected to run out. Forecast context only: each launch compares fresh remaining weekly quota. |
+| R7 | The machine: the `claude --bg` session of a hub that is retired in this home (`roles retire hub`, or replaced by a successor) and live nowhere on the machine, quiet for `AGENT_HUB_WATCHDOG_WAKE_AFTER` (at least 15 min) and idle. | `claude stop <id>`; a busy or working one is reported once a day in the watchdog's log; see the reaping of retired hubs below. Also a dormant hub idle 2 h (below). |
 
 "Addressed to the hub" is what the hub's own digest `jwait` would deliver (its tags, its status words, not its own lines),
 that no `jwait` of the hub has consumed (`.jwait-state/<caller>.json`, under its tag or its session id), stamped after
 the hub took over. "No `jwait` of its own" is the file `.jwait-state/<stage>/<caller>.armed.json`, which `jwait --journal` writes
 while it waits; a file whose process is gone is ignored and deleted. When a live waiter exists but lines still wait, the
 watchdog does not wake: it writes one journal line (no status word, no `@`) saying that the waiter does not match them.
+A held line (another stage's hub, see `jwait`'s `HELD`) is not a mismatch: a live waiter delivers it within 30 minutes by
+design. The pacer's `[pace]` lines never wake a hub (R3 leaves them out): they are context for the next launch.
 The watchdog's record lines (a wake, a failed wake, the mismatch above) carry no status word and no `@`, so they never count as waiting; the R2 line is addressed to the hub on purpose and does. Times are `AGENT_HUB_WATCHDOG_WAKE_AFTER` (15m).
 
 ### Which host is woken how
@@ -153,7 +155,7 @@ authentication, `other`/unknown errors, bare completion and user-aborted turns. 
 `ErrorNotification.willRetry` is not persisted; runtime error notifications alone are not terminal evidence.
 
 The wake text names the number of lines and the time they have waited since, tells the hub to run its digest `jwait` with
-`--since` that time, handle what it shows and keep one waiter, and names `watchdog quiet`. After a stop and resume it adds
+`--since` that time, handle what it shows and follow its NEXT WAIT, and names `watchdog quiet`. After a stop and resume it adds
 that the background commands of the hub's last turn were stopped. It carries no line text. It starts with
 `[agent-hub watchdog]` (the name before the rename, still written for one release because a hub on an older plugin copy
 knows only that form; `[delamain watchdog]` is read the same), which the context-budget hook (both engines) recognises
@@ -238,15 +240,21 @@ A row of `claude agents --json` is stopped only when all of these hold:
    keeps `known_homes()`): one that does not exist is no home, one that exists but cannot be reached stops R7 for the tick;
 4. it is not the `id` (or `bg_id`) of a pending auto-handoff record of any stage of any known home (a successor that has
    not registered yet), and not named by a running `hub takeover` / `hub start` (below);
-5. it is **idle**: `status` is `idle` and `state` is `done`. `busy`, `working`, `blocked`, `waiting`, a missing value or
-   any other one protects it, and so does **a live shell among the direct children of its process**, whatever runs in it:
+5. it is **idle**: `status` is `idle` and `state` is `done`, `blocked` (a pending prompt: the hub is retired, its work is
+   over) or `working` when the only work below its process is its own leftover `jwait` (the pid of a
+   `.jwait-state/<stage>/<caller>.armed.json` that still runs a jwait) beside its MCP and LSP servers (a name with
+   `mcp`, `language-server`, `lsp`, `pyright`, `gopls`, `rust-analyzer`, `clangd`, `jdtls`, matched on the process
+   name, so only a native binary or a server that sets its process title; a node- or Python-hosted server shows as
+   `node`/`Python` and, like any other direct child, keeps a `working` session protected). `busy`, `waiting`, a missing value or any other one protects it, and so does
+   **a live shell among the direct children of its process** that holds anything but MCP servers (a command naming `mcp`,
+   such as `npm exec @upstash/context7-mcp`, and what runs below it) and the own waiter:
    Claude Code starts every Bash call and background task as a shell (`/bin/zsh -c …`, the user's shell or
    `CLAUDE_CODE_SHELL`). A direct child that is no shell, such as an MCP or LSP server the session keeps for its whole
    life (`npm exec …`, `node …`, `uvx …`) or the host's `caffeinate`, does not protect the session, nor does anything
    below it (in 1.0.17 and earlier every descendant counted, and a retired hub with an
    MCP server was never stopped). A process table that cannot be read completely (`ps` fails, or any row of its answer
-   cannot be parsed) or does not list the session's pid is unknown and protects it as well. Such a session is not stopped: once a day, while it is quiet, one line in the job output, `log.md`
-   and the stage journal says `retired hub <id8> (<stage>) is <status/state> for <age>; stop it by hand: claude stop <id8>`
+   cannot be parsed) or does not list the session's pid is unknown and protects it as well. Such a session is not stopped: once a day, while it is quiet, one line in the job output and
+   `log.md` (not the stage journal, which every successor's digest reads) says `retired hub <id8> (<stage>) is <status/state> for <age>; stop it by hand: claude stop <id8>`
    (no notification);
 6. it has been quiet for `AGENT_HUB_WATCHDOG_WAKE_AFTER`, but at least 15 minutes (a foreground tool call of a live session
    ends within the 10-minute Bash cap). Activity is the newest of: the last write of its transcript (every project
@@ -296,10 +304,17 @@ role recorded in one still protects its session.
 Not covered, deliberately: a session whose home is in no registry of homes (a project home is registered when a stage is
 registered in it; delete `homes.json` and it is invisible until its next `roles set`); a retired hub that is idle and done,
 has no shell child and has not written anything for 15 minutes yet is working (a long MCP call under a stale status; an MCP
-server started through a shell, `sh -c …`, protects its session instead); and a background task whose command runs `exec`
+server started through a shell whose commands do not name `mcp` protects its session instead); and a background task whose command runs `exec`
 itself (`exec ./long-job.sh`), which replaces its shell, is not seen as work: if it writes nothing for 15 minutes, its retired
-hub is stopped and the task with it: it is stopped, and `claude --bg --resume <id>` brings it back. A busy, blocked or shell-holding retired hub is
+hub is stopped and the task with it: it is stopped, and `claude --bg --resume <id>` brings it back. A busy or shell-holding retired hub is
 never stopped by R7: the report line is the whole of it.
+
+### Dormant hubs
+
+When nothing runs in a stage (no agent, no `await`, no open owner question), `jwait`'s NEXT WAIT on a `claude --bg` hub
+(watchdog on) says *dormant*: the hub ends its turn with no waiter and costs nothing; R3 wakes it on the next
+line addressed to it. A dormant `claude --bg` hub idle for 2 h is stopped through R7's last look (role kept, stage open);
+R3 resumes it with `claude --bg --resume`. A Desktop hub cannot be woken from outside: there NEXT WAIT names `watchdog quiet`.
 
 ### The load hold (R5)
 

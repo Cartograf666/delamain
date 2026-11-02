@@ -140,16 +140,18 @@ grep -q 'not found' $O/a4.out; check $? 0 "…saying so"; check "$(grep -c '' $J
 EXIT=0 $B/await --wait -- /bin/sh -c 'kill -9 $$' >/dev/null 2>&1
 check "$(grep -c '@hub FAILED .*killed by signal 9' $J)" 1 "command killed by a signal -> FAILED"
 
-# 5. the supervisor is stopped by SIGTERM: the command is stopped too, one FAILED line
+# 5. the supervisor is stopped by SIGTERM (the hub's own kill of a superseded wait): the command is stopped too, one
+# CANCELLED line without the @hub address
 : > $J; rm -f $G/* $PIDFILE*
 out=$($B/await --label stopme -- $O/hang.sh); pid=$(echo "$out" | sed -n 's/^await: started supervisor pid \([0-9]*\).*/\1/p')
 waitfor $PIDFILE || echo "hang never started"
 kill $pid
-waitline 'FAILED stopme'; check $? 0 "SIGTERM on the supervisor journals FAILED"
+waitline 'CANCELLED stopme'; check $? 0 "SIGTERM on the supervisor journals CANCELLED"
+check "$(grep -c '@hub\|FAILED' $J)" 0 "…not addressed to the hub, not FAILED"
 check "$(grep -c '' $J)" 1 "…once"; grep -q 'interrupted by signal 15' $J; check $? 0 "…saying why"
 sleep 0.5; ! kill -0 "$(cat $PIDFILE.child)" 2>/dev/null; check $? 0 "…and the command's process group is gone"
 
-# 5b. SIGINT (Ctrl-C of an attached await): the command is stopped, one FAILED line, no orphan
+# 5b. SIGINT (Ctrl-C of an attached await): the command is stopped, one CANCELLED line, no orphan
 : > $J; rm -f $G/* $PIDFILE*
 $B/await --wait --label ctrlc -- $O/hang.sh > /dev/null 2>&1 & pid=$!
 waitfor $PIDFILE || echo "hang never started"
@@ -157,7 +159,7 @@ kill -INT $pid
 for _ in $(seq 1 100); do kill -0 $pid 2>/dev/null || break; sleep 0.1; done
 kill -0 $pid 2>/dev/null && kill -9 $pid   # the rule under test missing: do not hang the suite
 wait $pid; rc=$?
-check "$(grep -c '@hub FAILED ctrlc .*interrupted by signal 2' $J)" 1 "SIGINT journals one FAILED line"
+check "$(grep -c '\] CANCELLED ctrlc .*interrupted by signal 2' $J)" 1 "SIGINT journals one CANCELLED line"
 check $rc 3 "…and the supervisor exits 3 (not the ok word), not 130"
 sleep 0.5; ! kill -0 "$(cat $PIDFILE.child)" 2>/dev/null; check $? 0 "…the command's process group is gone"
 
@@ -175,7 +177,7 @@ check "$(grep -c '@hub TIMEOUT stubborn ' $J)" 1 "stubborn grandchild: one TIMEO
 [ -s $PIDFILE.grand ]; check $? 0 "positive control: the grandchild's pid was recorded (the next check is not vacuous)"
 sleep 0.5; ! kill -0 "$(cat $PIDFILE.grand)" 2>/dev/null; check $? 0 "a grandchild that ignores SIGTERM is SIGKILLed with the group"
 
-# 5d. a signal in the supervisor's start-up (while it is still importing) still ends in a FAILED line
+# 5d. a signal in the supervisor's start-up (while it is still importing) still ends in a CANCELLED line
 : > $J
 # a sitecustomize that sleeps stretches the interpreter start-up, so the kill lands inside it unless `await` waits for
 # the supervisor's "ready" before it returns the pid
@@ -183,8 +185,8 @@ mkdir -p $O/slow; printf 'import time\ntime.sleep(1)\n' > $O/slow/sitecustomize.
 for i in 1 2 3; do
   out=$(PYTHONPATH=$O/slow $B/await --label early$i -- $O/hang.sh); kill "$(echo "$out" | sed -n 's/^await: started supervisor pid \([0-9]*\).*/\1/p')"
 done
-for _ in $(seq 1 150); do [ "$(grep -c 'FAILED early' $J)" = 3 ] && break; sleep 0.1; done
-check "$(grep -c 'FAILED early.*interrupted by signal 15' $J)" 3 "kill right after the start (slow interpreter start-up): all three waits journal FAILED"
+for _ in $(seq 1 150); do [ "$(grep -c 'CANCELLED early' $J)" = 3 ] && break; sleep 0.1; done
+check "$(grep -c 'CANCELLED early.*interrupted by signal 15' $J)" 3 "kill right after the start (slow interpreter start-up): all three waits journal CANCELLED"
 pkill -f "[$]O/hang.sh" 2>/dev/null; true
 
 # 5e. a reused --log: the link comes from this run's output, not from the older content
@@ -275,10 +277,81 @@ check "$(grep -c 'NEW: ' $O/j1.out)" 1 "…with one block"
 check "$(grep -c '@hub MERGED MR !7' $O/j1.out)" 1 "…holding exactly that line"
 wait
 
+# 6b. the digest jwait does not deliver a cancel (a killed supervisor), and still delivers a FAILED after it
+: > $J; rm -f $G/* $PIDFILE*
+( armed $O/j2.out
+  out=$($B/await --label superseded -- $O/hang.sh); waitfor $PIDFILE
+  kill "$(echo "$out" | sed -n 's/^await: started supervisor pid \([0-9]*\).*/\1/p')"
+  waitline 'CANCELLED superseded'; sleep 1.5
+  EXIT=1 $B/await --label red -- /bin/sh -c 'exit 1' >/dev/null ) &
+$B/jwait --journal --tag hub-1 --tag hub --hub-events --settle 1 --for 60s > $O/j2.out 2>&1; rc=$?
+check $rc 0 "the hub's jwait wakes on the FAILED line"
+check "$(grep -c 'superseded' $O/j2.out)" 0 "…and the cancel was not delivered"
+check "$(grep -c '@hub FAILED red' $O/j2.out)" 1 "…only the FAILED line"
+check "$(grep -c 'CANCELLED superseded' $J)" 1 "negative control: the cancel is in the journal"
+wait
+
+# 6c. a signal after the command has already ended (here: inside the classification, deterministic) keeps the
+# command's own verdict: a red command is FAILED and addressed, never a silent CANCELLED (review 1 of PR #164)
+cat > $O/late.py <<'PY2'
+import argparse, importlib.machinery, importlib.util, os, signal, sys
+path, work = sys.argv[1:3]
+sys.argv = [path, "--wait"]
+loader = importlib.machinery.SourceFileLoader("await_mod", path)
+mod = importlib.util.module_from_spec(importlib.util.spec_from_loader("await_mod", loader)); loader.exec_module(mod)
+signal.alarm(60)
+real_human = mod.human
+def late_signal(secs):
+    os.kill(os.getpid(), signal.SIGTERM)  # the command has exited and been reaped: the hub's kill arrives now
+    return real_human(secs)
+mod.human = late_signal
+args = argparse.Namespace(timeout="1m", ok="DONE")
+for rc in (1, 124, 0):
+    print(f"rc {rc}:", mod.run_wait(args, ["/bin/sh", "-c", f"exit {rc}"], __import__("pathlib").Path(work + "/late.log"), {}))
+# the leader has exited, a poller it left in its group still runs: the late signal stops the group too (review 2)
+pidf = work + "/late-child.pid"
+print("orphan:", mod.run_wait(args, ["/bin/sh", "-c", f"sleep 300 & echo $! > {pidf}; exit 1"],
+                              __import__("pathlib").Path(work + "/late.log"), {})[0])
+child = int(open(pidf).read())
+import time
+for _ in range(50):
+    try:
+        os.kill(child, 0)
+    except ProcessLookupError:
+        break
+    time.sleep(0.1)
+try:
+    os.kill(child, 0); print("child: alive"); os.kill(child, signal.SIGKILL)
+except ProcessLookupError:
+    print("child: gone")
+PY2
+late=$(python3 -I $O/late.py $B/await $O 2>&1)
+echo "$late" | grep -q "^rc 1: ('FAILED', 'exit 1, "; check $? 0 "a late signal after exit 1: still FAILED"
+echo "$late" | grep -q "^rc 124: ('TIMEOUT', 'exit 124, "; check $? 0 "…after exit 124: still TIMEOUT"
+echo "$late" | grep -q "^rc 0: ('DONE', 'exit 0, .*True)"; check $? 0 "…after exit 0: still the ok word"
+check "$(echo "$late" | grep '^orphan:')" "orphan: FAILED" "a leader that exited 1 and left a child: still FAILED"
+check "$(echo "$late" | grep '^child:')" "child: gone" "…and the late signal stopped the child left in its group"
+
+# 6d. a cancel wakes nobody whatever its label, link or log path carries (a status word, @hub)
+: > $J; rm -f $G/* $PIDFILE*
+( armed $O/j3.out
+  for l in "wait for MERGED" "notify @hub"; do
+    out=$($B/await --label "$l" --link "https://ci.example/DONE/@hub" -- $O/hang.sh); waitfor $PIDFILE; rm -f $PIDFILE
+    kill "$(echo "$out" | sed -n 's/^await: started supervisor pid \([0-9]*\).*/\1/p')"
+    waitline "CANCELLED $l"
+  done; sleep 1.5
+  $B/await --label red2 -- /bin/sh -c 'exit 1' >/dev/null ) &
+$B/jwait --journal --tag hub-1 --tag hub --hub-events --settle 1 --for 60s > $O/j3.out 2>&1
+check "$(grep -c 'CANCELLED' $O/j3.out)" 0 "a cancel labelled with MERGED or @hub is not delivered"
+check "$(grep -c '@hub FAILED red2' $O/j3.out)" 1 "…the next FAILED is"
+check "$(grep -c 'CANCELLED' $J)" 2 "negative control: both cancels are in the journal"
+wait
+
 # 7. usage errors
 $B/await --on 3=conflict -- true > $O/u1.out 2>&1; check $? 2 "bad --on word"
 $B/await --on x -- true > $O/u2.out 2>&1; check $? 2 "bad --on shape"
 $B/await --ok merged -- true > $O/u3.out 2>&1; check $? 2 "bad --ok word"
+$B/await --ok CANCELLED -- true > $O/u8.out 2>&1; check $? 2 "--ok CANCELLED: a cancel never reads as success"
 $B/await --timeout soon -- true > $O/u4.out 2>&1; check $? 2 "bad --timeout"
 $B/await --tag 'x]y' -- true > $O/u7.out 2>&1; check $? 2 "a tag with brackets is refused before anything is started"
 $B/await --help | grep -q -- 'ci_wait --mr 12 --on'; check $? 1 "negative: the help example does not put --on after the -- (there it is the command's own flag)"

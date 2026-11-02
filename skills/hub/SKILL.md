@@ -22,7 +22,7 @@ Run the bundled tools through the host's shell tool. The plugin root is `PLUGIN_
 (GitHub CLI `hub`, an old `jlog`) and tell the owner in one line. `HUB_BIN` is set in detached workers. Paths below
 are relative to that root. Choose the executor engine before the model: offer the owner one choice at stage planning
 (Codex, Claude or mixed; the host is the default, an existing explicit choice already answers it), record it in the
-stage's `hub-rules.md`, pass `agent spawn --engine claude|codex`. Engine rules in full: `references/codex-hub.md`. For installation assessment or task routing, read
+stage's `hub-rules.md`; omit `agent spawn --engine` unless you deviate (then `--reason`). For installation assessment or task routing, read
 `<plugin-root>/docs/agents/README.md`; this skill owns the stage workflow once the plugin is selected.
 
 ## First commands
@@ -32,7 +32,7 @@ Do these before anything else, in this order:
 1. `hub start --stage <S> --goal "<goal>" --session self` — S names the work in 1–3 words (`retro-fixes`, never
    `hub-09`, `wp3`), the goal is one line in the owner's words. If the task gives no goal, ask the owner for that line
    first, as the first question of the grilling; never invent one. If `hub` answers `invalid choice` or `not a git
-   command`, the GitHub CLI is ahead of the plugin on PATH: run `<plugin-root>/bin/hub start …`, tell the owner in one line.
+   command`, the GitHub CLI shadows it: run `<plugin-root>/bin/hub start …` (above).
 2. `ask search <words of the goal>` — decisions already on record are settled.
 3. Establish the Business DoD, then plan and brief (*Planning a stage*). A clear owner request can already supply the
    agreed result and the owner's yes to the plan; ask only about business-material ambiguity. Honor an explicit
@@ -67,7 +67,7 @@ Waiting is **one** `jwait`, using the shell harness rather than a polling loop.
   batch arrives as an event that already carries the lines: handle it, do not read an output file, do not re-arm.
   Every `jwait` that ends prints a last line `NEXT WAIT: …`: arm exactly that, nothing else. While an agent or an
   `await` of the stage runs it is a Monitor stream; when nothing runs it is ONE Bash `run_in_background` long wait
-  (hours), so an idle hub costs no call until a line comes. Several waiters are never armed at once.
+  (hours), or on a `claude --bg` hub *dormant*: end the turn with no waiter, the watchdog resumes you on a line.
 - **Codex:** `references/codex-hub.md` (*Waiting on a Codex hub*).
 
 A stopped `jwait` loses no lines once its caller has run before: the next one delivers them.
@@ -79,16 +79,17 @@ A stopped `jwait` loses no lines once its caller has run before: the next one de
 - `jwait --file <script output> --match 'AWAITING ANSWER'` — a script's question; one asked before `jwait` started is
   delivered too.
 - `jwait --until 20:23 --note "check the nightly import"` — an alarm; exit 3 and a line `ALARM …`.
-- Sources and filters combine in one command. What was read is remembered.
+- Sources and filters combine in one command.
 
 A CI, merge or lock wait is never a background Bash of the hub itself: run `await --ok MERGED --label "MR !N" --on
-2=TIMEOUT -- <the repo's wait command>` (santinel: `python -m scripts.ci_wait --mr N`, which needs `--on 2=TIMEOUT`;
-`bin/await`, a foreground call that returns at once; if `command -v await` finds nothing, an executor does the wait). It journals nothing while the command runs and
-one line `@hub MERGED|DONE|FAILED|TIMEOUT|<--on word> … <link>` when it ends: that line is the wake, and
-FAILED/TIMEOUT/CONFLICT are decisions for the hub, not retries. An executor that waits on CI uses the same `await`.
+2=TIMEOUT -- <the repo's wait command>` (santinel: `python -m scripts.ci_wait --mr N`; `bin/await`, a foreground call
+that returns at once; if `command -v await` finds nothing, an executor does the wait). Silent while it runs,
+it journals one line `@hub MERGED|DONE|FAILED|TIMEOUT|<--on word> … <link>` when it ends: that is the wake, and
+FAILED/TIMEOUT/CONFLICT are decisions, not retries; a superseded wait you `kill` journals CANCELLED, no wake. An
+executor that waits on CI uses the same `await`.
 
 A message starting `[agent-hub watchdog]` or `[delamain watchdog]` means the watchdog woke you: run the digest `jwait`
-with its `--since HH:MM`, handle what it shows, keep one waiter. Going quiet on purpose: `watchdog quiet`
+with its `--since HH:MM`, handle what it shows, follow its NEXT WAIT. Going quiet on purpose: `watchdog quiet`
 (`references/stage-lifecycle.md`).
 
 ## Talking
@@ -98,7 +99,7 @@ with its `--since HH:MM`, handle what it shows, keep one waiter. Going quiet on 
 - To another stage's hub: `tell <stage> "…"` (`--question`; every hub: `broadcast "…"`); the answer reaches you only in your own journal. A direct
   cross-session message only when the journal cannot do, and only to the address from `tell <stage> --address` /
   `roles --stage <stage> get hub`, never a session chosen by its display name. Codex: `references/codex-hub.md`.
-- `roles list | get | set | retire | broadcast` — the role registry.
+- `roles list | get | set | retire` — the role registry.
 - `ask search <words…>` — what the owner already decided; `ask add … --default … --due …` — a question with the action
   you take if nobody answers; `ask decided` — your own decision on a matter the owner normally decides; `ask close`,
   `done`, `digest`, `list`. Standing permissions (`ask allow`, `ask revoke`): `references/owner-and-planning.md`.
@@ -159,16 +160,16 @@ launch to use. A change smaller than its brief (a typo, a doc line) the hub may 
   an owner decision through `ask add`; a hook refuses them in a hub, the owner's own request for a session passes.
 
 Every sub-agent brief ends with a call budget: "if not done after N tool calls, stop and return a partial result and
-what is left" (N = 40 for a probe or a read, up to 80 for a wide read-only investigation); ask for a result of ≤ 20
-lines, details in a file. `hub handoff` refuses while a sub-agent of your session runs. More:
-`references/launch-and-executors.md`.
+what is left" (N = 40 for a probe or a read, up to 80 for a wide read-only investigation); ask for ≤ 20 lines
+of text; the host forbids its files. `hub handoff` refuses while a sub-agent of your session runs.
+More: `references/launch-and-executors.md`.
 
 ## Executors
 
 - Before each launch, use [limit-pace advice](../../docs/reference.md#limit-pace) for its engine, model and effort;
   keep engine locks (ask about this launch only; default: run locked engine), and keep ready work moving.
 - Work that pushes or waits is a headless agent:
-  `agent spawn --engine claude|codex --role R --cwd DIR [--model MODEL] [--effort high] --brief FILE [--worktree [BRANCH]]`;
+  `agent spawn --role R --cwd DIR [--model MODEL] [--effort high] --brief FILE [--worktree [BRANCH]]`;
   the role says what the work is (`mainmerge-fix`, never `wp23`). It survives the hub's handoff and any hub can talk to it. Its tag is `hub-<N>-<role>` (a sub-tag `hub-<N>/…` is
   filtered out of your own `jwait`). An abnormal end leaves `EXIT <role>: …` in the journal, a normal one without a
   status word `ENDED <role>: …` (`REVIEWED …` for a review role).
@@ -194,10 +195,10 @@ maps: `references/launch-and-executors.md`.
 1. A wake with nothing to do ends the turn at once: the Monitor keeps streaming, nothing to restart; after an `ALARM`,
    arm its `NEXT WAIT` in the same message as the host's `wrap_up`, without `update_plan`.
 2. In a worktree that Desktop created, sync with the base through the host's `sync_with_base_branch`, not `git merge`.
-3. A PR whose CI an executor runs is not bound to the host's Auto-fix or monitor: two systems would wake the hub on
-   one event.
+3. A PR whose CI an executor runs is not bound to the host's Auto-fix or monitor: two systems would wake the hub.
 4. Desktop pauses cross-session sends after 10 without the owner typing: `roles sent` after each; at budget 0
    `jlog "@<tag> …"` instead (`references/launch-and-executors.md`, *Optional modules*).
+5. No `$(…)` or `git -C <main clone>` in hub commands: a Desktop hub's host refuses both.
 
 ## Recommended hub rules
 

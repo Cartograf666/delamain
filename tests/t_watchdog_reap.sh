@@ -117,7 +117,8 @@ check "$(stops)" "$EXPECT" "the three idle quiet retired hubs are stopped, and o
 check "$(count 'stopped the background session of retired hub-1 (a0000001), quiet 30 min' "$(J a)")" 1 "journal: one line with the tag, the id and the quiet minutes (the process is 40 min old, the transcript 30)"
 check "$(count 'stopped the background session of retired hub-15 (a0000004)' "$(J a)")" 1 "journal: a hub matched by cli_session_id"
 grep -q "a: retired hub a0000003 (a) is busy/done for 30 min; stop it by hand: claude stop a0000003" "$R/tick.out"; check $? 0 "a busy retired hub is not stopped: one report line says how to stop it by hand"
-check "$(count 'retired hub a0000003 (a) is busy' "$(J a)")" 1 "…and the stage journal has it too"
+check "$(count 'retired hub a0000003 (a) is busy' "$R/.state/watchdog/log.md")" 1 "…and the watchdog's log has it"
+check "$(count 'retired hub a0000003 (a) is busy' "$(J a)")" 0 "…and the stage journal does not (a successor's digest reads it)"
 check "$(count 'stopped the background' "$(J a)")" 3 "journal: three stop lines in all"
 grep -q "remote:\|local:" "$R/notify.log" "$R/remote.log"; check $? 1 "nothing is notified: R7 stays on the machine"
 grep -c "claude rm\|\"rm\"" "$R/claude.log" | grep -q '^0$'; check $? 0 "never claude rm"
@@ -125,7 +126,7 @@ check "$(FX claude-calls "$R/claude.log" | grep -c '^resume')" 0 "no resume eith
 # the fake removes a stopped row, so a second tick has nothing to do; a repeat of the same rows is stopped again only by a new tick
 reset_log; check "$(tick)" 0 "second tick exits 0"
 check "$(stops)" "" "second tick: nothing left to stop"
-check "$(count 'retired hub a0000003 (a) is busy' "$(J a)")" 1 "second tick: the busy one is not reported again the same day"
+check "$(count 'retired hub a0000003 (a) is busy' "$R/.state/watchdog/log.md")" 1 "second tick: the busy one is not reported again the same day"
 grep -q "remote:\|local:" "$R/notify.log" "$R/remote.log"; check $? 1 "…and no notification went out for it"
 
 # ---- the same rows listed twice stay one stop; a failing stop is reported and retried

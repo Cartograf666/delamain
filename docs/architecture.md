@@ -121,7 +121,7 @@ PreToolUse hook imports it on every Bash call.
 | Hook | Event | Acts |
 |---|---|---|
 | `board_locks` | PreToolUse, Bash | In every session on the machine, but only on merges and pushes to protected branches and on commands a `lock-rules.json` names. |
-| `handoff_size` | PreToolUse, Write or Edit of `HANDOFF-*.md` | Only in the hub home, in a repository with `.agent-hub/`, or under a directory of `AGENT_HUB_SCOPE_DIRS`. |
+| `handoff_size` | PreToolUse, Write or Edit of `HANDOFF-*.md` (≤ 15 KB) and of `hub-rules.md` (its `## Promoted lessons` section ≤ 2 KiB) | Only in the hub home, in a repository with `.agent-hub/`, or under a directory of `AGENT_HUB_SCOPE_DIRS`. |
 | `questions` | SessionStart | The same places, and in hub agents (`HUB_TAG` set by `agent spawn`). |
 | `session_cards` | PreToolUse of Desktop's `start_session` / `hand_off_to_session`; SessionStart | Only in a session registered as the `hub` role of a stage; a non-hub, or a registry that cannot be read, is never blocked. |
 | `subagent_journal` | SubagentStart, SubagentStop (async) | Only for a session registered in a stage's role registry: one `SUB start` / `SUB end` line in that stage's journal ([launch modes](launch-modes.md#journal-lines-from-sub-agents)); it never blocks a sub-agent. |
@@ -156,13 +156,16 @@ handoffs; procedure and rules in `skills/handoff/references/lessons.md`):
 
 ```markdown
 ## L-001 — when the successor reviews a change that touches migrations
-- status: proposed        (proposed | confirmed: DATE hub-N | promoted: <file> DATE (ask id) | retired: DATE hub-N — reason)
+- status: proposed        (you write only this, and later `promoted: <file> DATE` or `retired: DATE hub-N — reason`)
 - by: hub-3, 2026-10-22
 - lesson: one or two sentences, an instruction the next hub can follow
 - evidence: the moment it rests on — a journal line (time + tag), an MR/PR, an ask id, a session id
 - confidence: low | medium | high
 - verdict: hub-4 2026-10-23 helped — evidence     (appended by later shifts; repeatable)
 ```
+
+The status is derived from the verdicts when `hub takeover` reads the file: `helped` from two different shifts and no `hurt`
+is promotable (the hub promotes it into the stage `hub-rules.md`), any `hurt` retires it.
 
 **Question register entry** (`questions.md`, kept by `ask`):
 

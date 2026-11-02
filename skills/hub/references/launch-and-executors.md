@@ -28,8 +28,9 @@ itself: one line with the reason, and `ask decided` (*Planning a stage* in `SKIL
    otherwise **background** (through the host's native subagent API).
 
 - An in-session sub-agent depends on the host's session lifecycle; its native follow-up API is for that session.
-  Use a detached executor when a successor must reach or resume it. In Claude, compaction preserves the sub-agent. Ask it for a short result (≤ 20 lines,
-  details in a file): its completion notice and result land in your context.
+  Use a detached executor when a successor must reach or resume it. In Claude, compaction preserves the sub-agent. Ask it for a short result (≤ 20 lines
+  of text; the host forbids sub-agents report files, so a file needs `agent spawn` or the sub-agent's own script
+  writing it): its completion notice and result land in your context.
 - **Every sub-agent brief ends with a call budget:** "if not done after N tool calls, stop and return a partial result
   and what is left". Recommended N: 40 for a probe or a read, up to 80 for a wide read-only investigation; it is a
   recommendation, set yours in `hub-rules.md`. *Why:* nobody watches a sub-agent; without a bound a confused one runs
@@ -96,7 +97,7 @@ Sol reviewer for Sol-authored work, bring that entry into line with the approved
   changes explicit and keep ready work moving; forecast and five-hour context do not schedule work after reset.
 - Work that commits, pushes or waits (a merge steward, a rehearsal, a CI wait — see "Choosing how to launch work") is
   a headless agent, not an in-session sub-agent:
-  `agent spawn --engine claude|codex --role R --cwd DIR [--model MODEL] [--effort high] --brief FILE [--worktree [BRANCH]]`.
+  `agent spawn [--engine claude|codex, only to deviate from AGENT_HUB_ENGINE, with --reason] --role R --cwd DIR [--model MODEL] [--effort high] --brief FILE [--worktree [BRANCH]]`.
   It survives the hub's handoff and any hub can talk to it. The executor's tag is `hub-<N>-<role>` (a sub-tag
   `hub-<N>/…` would be filtered out of your own `jwait`; `agent spawn` refuses it). A run that ends abnormally leaves
   `EXIT <role>: …` in the journal under its tag; one that ends normally without a status word of its own, `ENDED <role>: …`
@@ -231,8 +232,8 @@ Added with the CI-wait tool; the core `SKILL.md` carries the short form.
    headless one adds `--wait`, which prints the line and exits 0 only when the command itself succeeded, 3 otherwise
    (FAILED/TIMEOUT/…): trust that exit code or the word, not "it returned". On GitHub the command is
    `gh-ci-wait N --require 'NAME' …` (never `gh pr checks --watch`: it exits 0 on a cancelled check; see *Waiting for CI* in `docs/launch-modes.md`).
-4. `kill <supervisor pid>` (printed by `await`) stops a wait; a missing line after the deadline means the supervisor was
-   SIGKILLed — read the log path from the start message.
+4. `kill <supervisor pid>` (printed by `await`) stops a wait and journals `CANCELLED <label>` without `@hub`: no wake;
+   a missing line after the deadline means the supervisor was SIGKILLed — read the log path from the start message.
 
 ## Optional modules
 

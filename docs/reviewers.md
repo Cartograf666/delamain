@@ -77,7 +77,7 @@ start: agent spawn --role review-agent --cwd <REPO> --model opus --effort high -
 
 $ AGENT_HUB_ENGINE=codex hub reviewer --for code --stage web
 reviewer: agent (agent gpt-6-astra/high)
-start: agent spawn --role review-agent --cwd <HUB_HOME>/web/coordinator/work --engine codex --sandbox workspace-write --model gpt-6-astra --effort high --stage web --brief <BRIEF>
+start: agent spawn --role review-agent --cwd <HUB_HOME>/web/coordinator/work --engine codex --sandbox workspace-write --model gpt-6-astra --effort high --stage web --reason 'reviewer policy: claude author -> codex reviewer' --brief <BRIEF>
 ```
 
 For a Claude `agent` reviewer the hub fills `<REPO>` (a checkout holding the head commit) and `<BRIEF>` (the brief

@@ -197,13 +197,13 @@ setup
 succeed --model haiku --permission-mode bypassPermissions > /dev/null 2>&1
 call --bg argv | grep -q -- "--permission-mode acceptEdits --settings"; check $? 0 "bypass: acceptEdits for haiku"
 unset FAKE_BG
-# the hub in a worktree, the root trusted: started from the root at once (the worktree's trust does not matter)
+# the hub in a worktree, the root trusted: started in the root's new worktree at once (the root's trust covers it)
 setup; export FAKE_BG=untrusted
 mkrepo(){ M=$R/main; mkdir -p $M; git -C $M init -q; git -C $M -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   git -C $M worktree add -q $R/wt -b wt 2>/dev/null; MR=$(cd $M && pwd -P); }
 mkrepo
 FAKE_TRUSTED=$M $B/hub succeed --stage stage-a --handoff $H --cwd $R/wt --model opus > /dev/null 2>&1; check $? 0 "trusted root: exit 0"
-check "$(call --bg count):$(call --bg cwd):$(pending kind)" "1:$MR:bg" "trusted root: started from the main checkout at once"
+check "$(call --bg count):$(call --bg cwd):$(pending kind)" "1:$MR/.worktrees/stage-a-hub-2:bg" "trusted root: started in a worktree of the main checkout at once"
 # an untrusted root -> headless hub, and the journal says why
 setup; mkrepo
 $B/hub succeed --stage stage-a --handoff $H --cwd $R/wt --model opus > $R/hl.out 2>&1; check $? 0 "untrusted root: exit 0 (headless fallback)"
@@ -427,22 +427,71 @@ grep -q "is taking over; not stopped" $R/r8.out; check $? 0 "r2(8): …and it sa
 wtrepo(){ M=$R/repo; mkdir -p $M; git -C $M init -q; git -C $M -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   git -C $M worktree add -q $M/.claude/worktrees/x -b claude/x 2>/dev/null; git -C $M worktree add -q $M/.worktrees/x -b x 2>/dev/null
   MR=$(cd $M && pwd -P); }
+real(){ python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$1"; }
+# `claude --bg` starts in a plain worktree <root>/.worktrees/<branch>, made as agent spawn makes it — not with
+# `claude --bg --worktree`, whose host isolation refuses `git -C <main clone>` and `$(…)` in the session
 for hubdir in .claude/worktrees/x .worktrees/x .; do
   setup; wtrepo
   $B/hub succeed --stage stage-a --handoff $H --cwd $M/$hubdir --model opus > $R/wt.out 2>&1; rc=$?
-  check "$rc:$(call --bg cwd)" "0:$MR" "worktree ($hubdir): started from the main checkout"
-  call --bg argv | grep -q -- "^--bg --remote-control stage-a-hub-2 -n Hub stage-a #2 --worktree stage-a-hub-2 "; check $? 0 "worktree ($hubdir): --worktree stage-a-hub-2"
-  check "$(pending cwd):$(pending worktree)" "$MR:$MR/.claude/worktrees/stage-a-hub-2" "worktree ($hubdir): root and worktree recorded"
-  J | grep -q "terminal: claude attach bg-1234abcd; in the new worktree $MR/.claude/worktrees/stage-a-hub-2 of $MR; waiting"; check $? 0 "worktree ($hubdir): the journal line names the worktree and the root"
+  check "$rc:$(real "$(call --bg cwd)")" "0:$MR/.worktrees/stage-a-hub-2" "worktree ($hubdir): started in the plain worktree of the main checkout"
+  call --bg argv | grep -q -- "--worktree"; check $? 1 "worktree ($hubdir): no --worktree on the command line"
+  call --bg argv | grep -q -- "^--bg --remote-control stage-a-hub-2 -n Hub stage-a #2 "; check $? 0 "worktree ($hubdir): named stage-a-hub-2"
+  check "$(git -C $M worktree list --porcelain | grep -c "^worktree $MR/.worktrees/stage-a-hub-2$"):$(git -C $M show-ref --verify --quiet refs/heads/stage-a-hub-2 && echo branch)" "1:branch" "worktree ($hubdir): a git worktree on its own branch"
+  check "$(pending cwd):$(pending worktree)" "$MR:$MR/.worktrees/stage-a-hub-2" "worktree ($hubdir): root and worktree recorded"
+  J | grep -q "terminal: claude attach bg-1234abcd; in the new worktree $MR/.worktrees/stage-a-hub-2 of $MR; waiting"; check $? 0 "worktree ($hubdir): the journal line names the worktree and the root"
 done
-# a taken name (a worktree directory, or the branch `claude --worktree` would create) -> the next free one
-setup; wtrepo; mkdir -p $M/.claude/worktrees/stage-a-hub-2; git -C $M branch worktree-stage-a-hub-2-2
+# a taken name (a worktree directory of either kind, or a branch) -> the next free one
+setup; wtrepo; mkdir -p $M/.claude/worktrees/stage-a-hub-2; git -C $M branch stage-a-hub-2-2
 $B/hub succeed --stage stage-a --handoff $H --cwd $M/.worktrees/x --model opus > /dev/null 2>&1
-call --bg argv | grep -q -- " --worktree stage-a-hub-2-3 "; check $? 0 "worktree: a taken name (directory, branch) gets the next free suffix"
-# --dry-run says where it would start
+check "$(real "$(call --bg cwd)")" "$MR/.worktrees/stage-a-hub-2-3" "worktree: a taken name (directory, branch) gets the next free suffix"
+# --dry-run says where it would start and makes nothing
 setup; wtrepo
 $B/hub succeed --stage stage-a --handoff $H --cwd $M/.claude/worktrees/x --model opus --dry-run > $R/dry.out 2>&1
-grep -q "start \"Hub stage-a #2\" from $MR in a new worktree:" $R/dry.out && grep -q -- "--worktree stage-a-hub-2 " $R/dry.out; check $? 0 "worktree: --dry-run shows the root and --worktree"
+grep -q "start \"Hub stage-a #2\" from $MR in a new worktree $MR/.worktrees/stage-a-hub-2:" $R/dry.out; check $? 0 "worktree: --dry-run shows the root and the worktree"
+grep -q -- "--worktree" $R/dry.out; check $? 1 "worktree: --dry-run shows no --worktree"
+[ -e $M/.worktrees/stage-a-hub-2 ]; check $? 1 "worktree: --dry-run creates no worktree"
+# a background start that fails after its worktree exists: the headless successor takes that worktree, not a -2
+setup; wtrepo
+FAKE_BG=untrusted FAKE_TRUSTED=/nowhere $B/hub succeed --stage stage-a --handoff $H --cwd $M/.worktrees/x --model opus > $R/wf.out 2>&1
+check "$(pending kind):$(pending worktree):$(real "$(call -p-run cwd)")" "headless:$MR/.worktrees/stage-a-hub-2:$MR/.worktrees/stage-a-hub-2" "worktree: the headless fallback reuses the background start's worktree"
+# the background successor's worktree is readied as agent spawn readies it: .agents/prepare runs before `claude --bg`,
+# the worktree is marked prepared, and a fallback that reuses it keeps that state (a prepare that failed runs again)
+prepper(){ setup; wtrepo; mkdir -p $M/.agents
+  printf '#!/bin/sh\n[ -n "$FAIL_ONCE" ] && [ ! -e %s/failed ] && { touch %s/failed; echo boom; exit 1; }\necho "$AGENT_ROLE $AGENT_HUB_SLOT $(pwd -P)" >> %s/prep.log\n' $R $R $R > $M/.agents/prepare
+  chmod +x $M/.agents/prepare; git -C $M add .agents; git -C $M -c user.email=t@t -c user.name=t commit -q -m prepare; }
+prepared(){ python3 -c 'import json,os,sys; d=json.load(open(sys.argv[1])); print(d.get(os.path.realpath(sys.argv[2]),{}).get("prepared"))' "$(git -C $M rev-parse --path-format=absolute --git-common-dir)/delamain-worktrees.json" "$1"; }
+prepper
+$B/hub succeed --stage stage-a --handoff $H --cwd $M/.worktrees/x --model opus > $R/wp.out 2>&1
+check "$?:$(cat $R/prep.log 2>/dev/null | wc -l | tr -d ' '):$(prepared $MR/.worktrees/stage-a-hub-2):$(call --bg count)" "0:1:True:1" "prepare: ran once in the new worktree, marked prepared, then --bg"
+grep -q "^hub-2 [0-9][0-9]* $MR/.worktrees/stage-a-hub-2$" $R/prep.log; check $? 0 "prepare: run in the worktree with its role and slot"
+prepper
+FAKE_BG=untrusted FAKE_TRUSTED=/nowhere $B/hub succeed --stage stage-a --handoff $H --cwd $M/.worktrees/x --model opus > $R/wp2.out 2>&1
+check "$(pending kind):$(cat $R/prep.log 2>/dev/null | wc -l | tr -d ' ')" "headless:1" "prepare: the headless fallback reuses the prepared worktree without preparing it again"
+prepper
+FAIL_ONCE=1 $B/hub succeed --stage stage-a --handoff $H --cwd $M/.worktrees/x --model opus > $R/wp3.out 2>&1
+check "$(call --bg count):$(pending kind):$(pending worktree):$(cat $R/prep.log 2>/dev/null | wc -l | tr -d ' '):$(prepared $MR/.worktrees/stage-a-hub-2)" "none:headless:$MR/.worktrees/stage-a-hub-2:0:False" "prepare: a failed prepare starts no --bg; the fallback in the same worktree does not run it again (still unprepared)"
+J | grep -q "worktree prepare of .*stage-a-hub-2 failed"; check $? 0 "prepare: the failure is journaled"
+grep -q "the next spawn into that worktree runs it again" $R/wp3.out; check $? 0 "prepare: hub succeed says the next spawn retries it"
+# the start budget: a repository with an executable .agents/prepare adds its timeout to the reservation and to the
+# Bash timeout the hub is told to give `hub succeed`; without one both stay as they were
+check "$(pending prepare_s)" 300 "prepare budget: the reservation records the prepare timeout"
+ap(){ python3 - "$BR_BIN" "$@" <<'PY2'
+import sys
+sys.path.insert(0, sys.argv[1])
+import autopilot as ap, hubcore as hc
+what, arg = sys.argv[2], sys.argv[3]
+if what == "bash":
+    print(ap.bash_timeout(arg))
+else:  # blocking: a "starting" reservation 250 s old, with prepare_s = arg
+    at = (hc.now() - hc.dt.timedelta(seconds=250)).isoformat(timespec="seconds")
+    print(ap.blocking({"n": 2, "kind": "starting", "at": at, "prepare_s": int(arg)}, 2))
+PY2
+}
+check "$(ap blocking 300):$(ap blocking 0)" "True:False" "prepare budget: a 250 s old start blocks with a 300 s prepare, not without one"
+ap bash $M | grep -q "^Bash timeout 600000: .*\.agents/prepare up to 300 s"; check $? 0 "prepare budget: the Bash timeout grows by the prepare timeout and says why"
+AGENT_HUB_PREPARE_TIMEOUT=400 ap bash $M | grep -q "^Bash run_in_background: true, timeout 700000"; check $? 0 "prepare budget: beyond the foreground limit -> run_in_background"
+setup; wtrepo
+check "$(ap bash $M)" "Bash timeout 300000: it may take minutes" "prepare budget: no .agents/prepare -> 300000 as before"
 # the headless successor: agent spawn --cwd <root> --worktree <branch> -> <root>/.worktrees/<branch> from the root's HEAD
 setup; wtrepo
 $B/hub succeed --stage stage-a --handoff $H --cwd $M/.claude/worktrees/x --model opus --headless > $R/wh.out 2>&1; check $? 0 "headless worktree: exit 0"
