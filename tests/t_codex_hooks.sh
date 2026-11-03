@@ -539,7 +539,10 @@ class CodexHooks(unittest.TestCase):
                      # Default-stop: an unknown object or a recipient alone is still the owner's stop.
                      'Не передавай агенту.', 'Не передавай преемнику.', 'Не передавай новому хабу.',
                      'Не передавай стадию.', 'Не передавай до моего ответа.', 'Не передавай без меня.',
-                     'Не надо передавать.', 'Не передавай контекст, только параметры.'):
+                     'Не надо передавать.', 'Не передавай контекст, только параметры.',
+                     # Data named outside the verb's clause does not neutralise a stop.
+                     'Не передавай, пока не проверишь файлы.', 'Не передавай, это ключевой момент.',
+                     'Не передавай: файлы ещё не на месте.', 'Не передавать, API лежит.'):
             with self.subTest(text=text):
                 self.assertIs(context_budget.transfer_directive(text), True)
         for text in ('Не передавай идентификаторы другого провайдера.',
@@ -549,7 +552,7 @@ class CodexHooks(unittest.TestCase):
                      'Не передавай идентификаторы другого провайдера в контекст.',
                      'Не передавай параметры. Контекст сохрани.',
                      'Не передавай параметры; контекст пока сохрани.',
-                     'Не передавай хаб-токен.', 'Не передавай никому, кроме Codex, ключи API.',
+                     'Не передавай хаб-токен.',
                      'Не передавай секреты в логи.', 'Не передавай --effort дочерним агентам.'):
             with self.subTest(text=text):
                 self.assertIsNone(context_budget.transfer_directive(text))

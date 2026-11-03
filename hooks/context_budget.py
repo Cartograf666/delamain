@@ -106,10 +106,12 @@ RUSSIAN_HANDOFF_OBJECT_RE = re.compile(
     rf"\b{RUSSIAN_TRANSFER_VERB}[ \t]+{RUSSIAN_TRANSFER_GAP}{RUSSIAN_TRANSFER_OBJECT}\b(?![-\u2011])|"
     rf"\b{RUSSIAN_TRANSFER_OBJECT}[ \t]+{RUSSIAN_TRANSFER_GAP}{RUSSIAN_TRANSFER_VERB}\b", re.IGNORECASE)
 RUSSIAN_DATA_OBJECT_RE = re.compile(
-    r"\b(?:идентификатор|параметр|аргумент|ключ|токен|секрет|парол|кред|учёт|учет|переменн|флаг|"
+    r"\b(?:идентификатор|параметр|аргумент|ключ(?!ев)|токен|секрет|парол|кред|учёт|учет|переменн|флаг|"
     r"настройк|конфиг|значени|заголов|ссылк|файл|данн|модел|адрес|логин|хеш|хэш|номер)\w*|"
     r"\b(?:id|uuid|api|url|env|sha|cookie|effort|token|secret|key)s?\b", re.IGNORECASE)
 RUSSIAN_SENTENCE = re.compile(r"[^.;!?\n]+")
+# Data names count only in the verb's own clause: "Не передавай, пока не проверишь файлы." is a stop.
+RUSSIAN_CLAUSE = re.compile(r"[^.;!?\n,:\u2014\u2013(]+")
 TRANSFER_STOP = re.compile(
     r"\b(?:do not|don't|never)\s+(?:continue\s+)?(?:the\s+)?(?:handoff|hand\s*over|transfer)\b|"
     r"\b(?:stop|pause|cancel|suspend)\s+(?:(?:the|this|any|all|automatic|stage|context)\s+)*(?:handoff|hand\s*over|transfer)\b|"
@@ -140,7 +142,9 @@ def russian_transfer_stop(text):
     for sentence in RUSSIAN_SENTENCE.findall(text):
         if not RUSSIAN_TRANSFER_VERB_RE.search(sentence):
             continue
-        if RUSSIAN_HANDOFF_OBJECT_RE.search(sentence) or not RUSSIAN_DATA_OBJECT_RE.search(sentence):
+        clauses = [c for c in RUSSIAN_CLAUSE.findall(sentence) if RUSSIAN_TRANSFER_VERB_RE.search(c)]
+        if (RUSSIAN_HANDOFF_OBJECT_RE.search(sentence)
+                or not any(RUSSIAN_DATA_OBJECT_RE.search(c) for c in clauses)):
             return True
     return False
 
