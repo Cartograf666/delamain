@@ -92,15 +92,24 @@ READY_MARKER = "[delamain handoff-continuation-ready]"
 PHASES = {"none": 0, "checkpoint": 1, "prepared": 2, "dispatching": 3,
           "submitted": 4, "bound": 5, "taking-over": 6, "taken-over": 7}
 # These patterns record negative directives and explicit resumption only. They never establish a grant.
-# Allow bounded timing/recipient modifiers around an explicit handoff object, never arbitrary objects
-# such as identifiers or parameters. Horizontal whitespace keeps the scope within one clause.
+# A Russian "не передавай" is a stop by default: a missed stop hands work over against the owner,
+# a false one only keeps the hub in place. It is neutral only when its sentence names technical data
+# ("Не передавай идентификаторы", "параметры Codex ему не передавай") and no adjacent handoff object.
+# Horizontal whitespace keeps the adjacency within one clause.
+RUSSIAN_TRANSFER_VERB = r"не[ \t]+(?:(?:надо|нужно)[ \t]+)?(?:передавай(?:те)?|передавать)"
 RUSSIAN_TRANSFER_GAP = (
     r"(?:(?:пока|сейчас|больше|ещ[её]|никому|никуда|этот|эту|текущий|текущую)[ \t]+|"
     r"(?:(?:следующему|новому|другому)[ \t]+)?(?:агенту|координатору|хабу)[ \t]+){0,3}")
 RUSSIAN_TRANSFER_OBJECT = r"(?:контекст|работу|смену|задачу|дела|сессию|хаб|управление|handoff)"
-# Words that may surround a standalone prohibition ("Никому не передавай.", "Не передавай пока.").
-RUSSIAN_TRANSFER_TAIL_WORD = r"(?:пока|сейчас|больше|никому|никуда|ничего|дальше)"
-RUSSIAN_TRANSFER_TAIL = rf"(?:[ \t]+{RUSSIAN_TRANSFER_TAIL_WORD}){{0,2}}"
+RUSSIAN_TRANSFER_VERB_RE = re.compile(rf"\b{RUSSIAN_TRANSFER_VERB}\b", re.IGNORECASE)
+RUSSIAN_HANDOFF_OBJECT_RE = re.compile(
+    rf"\b{RUSSIAN_TRANSFER_VERB}[ \t]+{RUSSIAN_TRANSFER_GAP}{RUSSIAN_TRANSFER_OBJECT}\b(?![-\u2011])|"
+    rf"\b{RUSSIAN_TRANSFER_OBJECT}[ \t]+{RUSSIAN_TRANSFER_GAP}{RUSSIAN_TRANSFER_VERB}\b", re.IGNORECASE)
+RUSSIAN_DATA_OBJECT_RE = re.compile(
+    r"\b(?:идентификатор|параметр|аргумент|ключ|токен|секрет|парол|кред|учёт|учет|переменн|флаг|"
+    r"настройк|конфиг|значени|заголов|ссылк|файл|данн|модел|адрес|логин|хеш|хэш|номер)\w*|"
+    r"\b(?:id|uuid|api|url|env|sha|cookie|effort|token|secret|key)s?\b", re.IGNORECASE)
+RUSSIAN_SENTENCE = re.compile(r"[^.;!?\n]+")
 TRANSFER_STOP = re.compile(
     r"\b(?:do not|don't|never)\s+(?:continue\s+)?(?:the\s+)?(?:handoff|hand\s*over|transfer)\b|"
     r"\b(?:stop|pause|cancel|suspend)\s+(?:(?:the|this|any|all|automatic|stage|context)\s+)*(?:handoff|hand\s*over|transfer)\b|"
@@ -109,12 +118,6 @@ TRANSFER_STOP = re.compile(
     r"\b(?:stop|pause|suspend)\s+(?:all (?:work|activity)|everything)\b|"
     r"(?:^|[.;!\n])\s*(?:please\s+)?stop\s+(?:working|the\s+current\s+task)(?=\s*(?:[.;!\n]|$))|"
     r"(?:^|[.;!\n])\s*(?:please\s+)?stop(?:\s+(?:now|here))?(?=\s*(?:[.;!\n]|$))|"
-    # A bare Russian transfer verb also describes passing identifiers or tool parameters.
-    # Only a standalone prohibition or an explicit handoff object stops context transfer.
-    rf"(?:^|[.;!\n])\s*(?:[-*]\s*)?(?:пожалуйста[, ]+)?(?:{RUSSIAN_TRANSFER_TAIL_WORD}[ \t]+){{0,3}}не\s+(?:передавай(?:те)?|передавать)"
-    rf"{RUSSIAN_TRANSFER_TAIL}(?!\s*,\s*кроме\b)(?=\s*(?:[.!?;,]|$))|"
-    rf"\bне[ \t]+(?:передавай(?:те)?|передавать)[ \t]+{RUSSIAN_TRANSFER_GAP}{RUSSIAN_TRANSFER_OBJECT}\b(?![-\u2011])|"
-    rf"\b{RUSSIAN_TRANSFER_OBJECT}[ \t]+{RUSSIAN_TRANSFER_GAP}не[ \t]+(?:передавай(?:те)?|передавать)\b|"
     r"(?:останови(?:те)?|отмени(?:те)?)\s+передачу|"
     r"передача (?:запрещена|отменена)|разрешение(?: на передачу)? отозвано|"
     r"не продолжай(?:те)?(?=\s*(?:[.!?;]|$|ничего|никакую (?:работу|деятельность)|всю (?:работу|деятельность)))|"
@@ -133,9 +136,18 @@ ASSISTANT_BLOCKER = re.compile(
 DIRECTIVE_KEYS = ("transfer_stop", "transfer_directives_seen", "transfer_scan_complete")
 
 
+def russian_transfer_stop(text):
+    for sentence in RUSSIAN_SENTENCE.findall(text):
+        if not RUSSIAN_TRANSFER_VERB_RE.search(sentence):
+            continue
+        if RUSSIAN_HANDOFF_OBJECT_RE.search(sentence) or not RUSSIAN_DATA_OBJECT_RE.search(sentence):
+            return True
+    return False
+
+
 def transfer_directive(text):
     # A prohibition in the same source wins over resumption; implementation-only pauses match neither.
-    if TRANSFER_STOP.search(text):
+    if TRANSFER_STOP.search(text) or russian_transfer_stop(text):
         return True
     if "?" not in text and TRANSFER_RESUME.search(text):
         return False

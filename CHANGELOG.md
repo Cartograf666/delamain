@@ -2,13 +2,13 @@
 
 ## Unreleased
 
-- **Russian parameter rules no longer disable context handoff.** The context-budget hook treated
-  `Не передавай идентификаторы другого провайдера` and `параметры Codex ему не передавай` in user-provided
-  `AGENTS.md` instructions as a handoff prohibition. It now requires a standalone prohibition or an explicit
-  context, work, task, shift, session, hub or control object, including timing modifiers and recipient-first word order;
-  short stops such as `Никому не передавай.` or `Не передавай пока.` still latch.
-  Such parameter rules remain neutral and cannot clear an existing owner stop;
-  explicit handoff stops and resumptions retain their durable behavior.
+- **Russian parameter rules no longer disable context handoff; a Russian `не передавай` still stops it.** The
+  context-budget hook treated `Не передавай идентификаторы другого провайдера` and `параметры Codex ему не передавай`
+  in user-provided `AGENTS.md` instructions as a handoff prohibition. Now a sentence with `не передавай`
+  (`не надо передавать`) stays a stop by default, including `Не передавай агенту.` or `Не передавай до моего ответа.`,
+  and is neutral only when it names identifiers, parameters, keys, tokens, secrets, settings, files or similar data
+  without an adjacent handoff object (`контекст`, `работу`, `задачу`, `смену`, `хаб`…). Such parameter rules
+  cannot clear an existing owner stop; explicit handoff stops and resumptions retain their durable behavior.
 
 ## 1.0.25 — 2026-11-01
 
