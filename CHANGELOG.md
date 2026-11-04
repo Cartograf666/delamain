@@ -4,11 +4,13 @@
 
 - **The watchdog stops retired hubs it used to report forever; a project hook no longer leaves its probes behind.**
   Three hubs replaced days earlier still ran on the owner's machine (dbt-elt #43 and #47, ci-speedup #6, ~800 MB). R7
-  missed them three ways: the CLI touches an idle background session's transcript without writing to it, so the
-  quiet time was measured from the touch (now: no later than 15 min after the newest entry `timestamp`); it leaves
-  `state: working` on a session whose last turn ended "waiting for the successor", which R7 only reported (now: with
-  no work below it, let go after 2 h of silence); and a stage closed with `hub close` hid the hubs replaced before the
-  close (now candidates; the hub the close retired itself is still not, and a closed stage's journal gets no line).
+  missed them three ways: the quiet time was measured from bookkeeping lines the CLI keeps appending to an idle
+  background session's transcript (`cost-state`, `last-prompt`; now: no later
+  than 15 min after the newest entry `timestamp` when only such lines follow it); it leaves `state: working` on a session
+  whose last turn ended "waiting for the successor", which R7 only reported (now: let go when the transcript ends with a
+  finished turn, nothing but MCP/LSP servers run below it and it has been quiet 2 h; a dormant hub keeps wanting `done`);
+  and a stage closed with `hub close` hid the hubs replaced before the close (now candidates; a session the close
+  retired itself stays protected, and a closed stage's journal gets no line).
   `hub handoff` (`handoff-facts.sh`) and `hub takeover` (`takeover.sh`) run the project script in a process group of
   its own and take the whole group down, TERM then KILL, on their timeout or on SIGTERM/SIGHUP/SIGINT (the host's Bash
   call running out): two prod probes of a handoff-facts.sh had been blocked for three days under a killed `hub handoff`.

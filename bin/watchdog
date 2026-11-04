@@ -24,8 +24,8 @@ Rules, per stage and tick (docs/monitoring.md has the long form):
       when it runs out before the reset. AGENT_HUB_LIMIT_PACE=off turns it off
   R7  the `claude --bg` session of a hub that is retired in its stage and live nowhere on the machine (no live role of any
       stage of any known hub home, not a pending successor, not named by a running `hub takeover`; in a closed stage, one
-      replaced before the close), idle (status idle, state done, blocked, or working with no work below it for 2 h; no live
-      process anywhere below its own) and quiet for the wake-after time (at least 15 min; transcript entries — not a touch
+      replaced before the close), idle (status idle, state done, blocked, or working over a finished turn, 2 h quiet, only
+      MCP/LSP servers as other children; no live process anywhere below its own) and quiet for the wake-after time (at least 15 min; transcript entries — not a touch
       of the file —, sub-agent writes and the actual start of its process count) → `claude stop` (never `claude rm`: the history stays resumable with `claude attach <id>`
       or `claude --bg --resume <id>`). Its own leftover jwait (armed file), a pending prompt (idle/blocked) and MCP servers,
       also under a shell, do not keep it alive. A quiet one that is busy or has a child process at work is only reported,
@@ -1288,8 +1288,8 @@ def reap_registry() -> tuple:
                 if not (isinstance(rec, dict) and rec.get("role") == "hub"):
                     continue
                 ids = session_ids(rec.get("session"), rec.get("cli_session_id"))
-                if off:
-                    protected += ids
+                if off or (stage not in open_stages and closed_by_close(rec)):
+                    protected += ids  # a session `hub close` left running is the owner's to stop, whatever older records say
                 elif ids and i == 0 and (stage in open_stages or not closed_by_close(rec)):
                     retired.append((stage, rec.get("tag") or "hub", ids))
     return retired, protected
@@ -1393,34 +1393,78 @@ def tree_mtimes(path: str) -> list:
 
 
 # How much later than the newest `timestamp` of its entries a transcript may be written to and still count as written then.
-# The CLI touches the file of an idle background session without appending anything (seen on 2.1.310: an mtime of this
-# morning over a last entry five days old), so the mtime alone keeps a retired hub "quiet 20 min" forever.
+# An idle background session's transcript keeps growing by bookkeeping lines with no timestamp (seen on 2.1.310:
+# `cost-state`, `last-prompt`, `bridge-session` five days after the last entry), so the mtime alone kept a retired hub
+# "quiet 20 min" forever. Only these types may follow the newest timestamp; anything else there (an `api-request-blob`, a
+# line that does not parse, an unknown type) is activity whose time is unknown, and the mtime stands.
 TRANSCRIPT_SLACK = dt.timedelta(minutes=15)
 TRANSCRIPT_TAIL = 256 * 1024
+IDLE_BOOKKEEPING = frozenset({"cost-state", "last-prompt", "bridge-session", "custom-title", "agent-name", "atis-latch",
+                              "mode", "permission-mode", "worktree-state", "relocated"})
+TURN_END = frozenset({"turn_duration", "stop_hook_summary"})  # the `system` entries written when a turn has ended
+
+
+def transcript_tail(path: str):
+    """(newest entry time, whether that entry ends a turn) from the last TRANSCRIPT_TAIL bytes of a transcript, or None when
+    the tail cannot be read or says nothing for sure: no entry with a timestamp, or anything but IDLE_BOOKKEEPING after the
+    newest one (including a line that does not parse; only the first line of a tail that starts mid-file may be cut)."""
+    try:
+        with open(path, "rb") as fh:
+            start = max(0, os.fstat(fh.fileno()).st_size - TRANSCRIPT_TAIL)
+            fh.seek(start)
+            lines = fh.read().splitlines()
+    except OSError:
+        return None
+    if start and lines:
+        lines = lines[1:]
+    newest, ended, after = None, False, False
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            e = json.loads(line)
+        except ValueError:
+            e = None
+        stamp = e.get("timestamp") if isinstance(e, dict) else None
+        try:
+            t = dt.datetime.fromisoformat(stamp.replace("Z", "+00:00")) if isinstance(stamp, str) else None
+        except ValueError:
+            t = None
+        if t is not None and t.tzinfo is not None:
+            if newest is None or t >= newest:
+                newest, after = t, False
+                ended = e.get("type") == "system" and e.get("subtype") in TURN_END
+        elif not (isinstance(e, dict) and "timestamp" not in e and e.get("type") in IDLE_BOOKKEEPING):
+            after = True
+    if newest is None or after:
+        return None
+    return newest, ended
 
 
 def transcript_time(path: str, mtime: float) -> float:
-    """When the transcript at `path` was last written to by its session: its mtime, but no later than the newest entry
-    `timestamp` in its last TRANSCRIPT_TAIL bytes plus TRANSCRIPT_SLACK. A tail with no readable timestamp leaves the mtime;
-    so does a file that cannot be read here (transcript_times reports a failure to look at it)."""
+    """When the transcript at `path` was last written to by its session: its mtime, but no later than TRANSCRIPT_SLACK
+    after the newest entry when only bookkeeping follows it (transcript_tail); otherwise the mtime."""
+    tail = transcript_tail(path)
+    return mtime if tail is None else min(mtime, (tail[0] + TRANSCRIPT_SLACK).timestamp())
+
+
+def turn_ended(sid: str) -> bool:
+    """Whether every transcript of the session (any project directory) ends with a finished turn: its newest entry is a
+    TURN_END entry and only bookkeeping follows. False when none is found or anything is unknown."""
+    projects, found = session_effort.claude_home() / "projects", False
     try:
-        with open(path, "rb") as fh:
-            fh.seek(max(0, os.fstat(fh.fileno()).st_size - TRANSCRIPT_TAIL))
-            tail = fh.read()
+        dirs = sorted(e.path for e in os.scandir(projects) if e.is_dir())
     except OSError:
-        return mtime
-    newest = None
-    for line in tail.splitlines():
-        try:
-            stamp = json.loads(line).get("timestamp")
-            t = dt.datetime.fromisoformat(stamp.replace("Z", "+00:00")) if isinstance(stamp, str) else None
-        except (ValueError, AttributeError):  # the first line of the tail is cut; any other line that is no entry
+        return False
+    for d in dirs:
+        path = os.path.join(d, sid + ".jsonl")
+        if not os.path.exists(path):
             continue
-        if t is not None and t.tzinfo is not None:
-            newest = t if newest is None or t > newest else newest
-    if newest is None:
-        return mtime
-    return min(mtime, (newest + TRANSCRIPT_SLACK).timestamp())
+        tail = transcript_tail(path)
+        if tail is None or not tail[1]:
+            return False
+        found = True
+    return found
 
 
 def transcript_times(sid: str) -> tuple:
@@ -1563,9 +1607,10 @@ def work_children(pid, procs: dict, waiters=()) -> list:
 def busy_reason(row: dict, procs: dict, quiet=None) -> str:
     """Why the session of a retired hub's row may be working, "" when nothing says so. Only an `idle` status is quiet, with
     a `done` state, a `blocked` one (a pending prompt: the hub is retired, its work is over) or a `working` one whose only
-    work is the session's own journal waiter (own_waiters; any other direct child an MCP or LSP server) or that has been
-    `quiet` (a timedelta) for REAP_WORKING_QUIET with no work child at all: the CLI leaves the state of a session whose last
-    turn ended on "waiting for the successor" at `working` for good. Busy, waiting, running, a missing
+    work is the session's own journal waiter (own_waiters; any other direct child an MCP or LSP server), or with no work
+    child and only MCP or LSP servers as other direct children, `quiet` (a timedelta, None: not allowed) for
+    REAP_WORKING_QUIET and a transcript whose last entry ends a turn (turn_ended): the CLI leaves the state of a session
+    whose last turn ended on "waiting for the successor" at `working` for good. Busy, waiting, running, a missing
     or any other value protects the session, and so does a live shell among the direct children of its process that
     holds anything but MCP servers and the own waiter (a Bash call, a background task). Its MCP servers do not (see
     work_children). A pid that is not in the table is unknown, and protects as well."""
@@ -1580,9 +1625,10 @@ def busy_reason(row: dict, procs: dict, quiet=None) -> str:
     if below:
         return f"running a child process ({os.path.basename(below[0][1]).lstrip('-')}" + (f" and {len(below) - 1} more" if len(below) > 1 else "") + ")"
     # the shell children are proven passive above: only a direct child that is no shell has to be explained
-    long_quiet = quiet is not None and quiet >= REAP_WORKING_QUIET
-    if state == "working" and not long_quiet and not (waiters and all(p in waiters or MCP_RE.search(cmd) or LSP_RE.search(cmd)
-                                                   for p, (pp, _, cmd) in procs.items() if pp == pid and not is_shell(cmd))):
+    servers_only = all(p in waiters or MCP_RE.search(cmd) or LSP_RE.search(cmd)
+                       for p, (pp, _, cmd) in procs.items() if pp == pid and not is_shell(cmd))
+    if state == "working" and not (servers_only and waiters) and not (
+            servers_only and quiet is not None and quiet >= REAP_WORKING_QUIET and turn_ended(row.get("sessionId") or "")):
         return f"{status}/{state}"
     return ""
 
@@ -1598,7 +1644,7 @@ def registry_blocker(row: dict, short: str):
     return None
 
 
-def stop_blocker(cli, row: dict, cwd, need: dt.timedelta, now: dt.datetime, registry=None):
+def stop_blocker(cli, row: dict, cwd, need: dt.timedelta, now: dt.datetime, registry=None, working_ok=True):
     """(why, say) when the session of `row` must not be stopped now (`say`: worth a line in the output), else None. Called
     right before `claude stop`, which is addressed by the 8-character id. Two stages, the second as short as it can be:
     1. the scans: the registries of every home (see registry_blocker) and the session's activity (its quiet time, from a
@@ -1609,7 +1655,8 @@ def stop_blocker(cli, row: dict, cwd, need: dt.timedelta, now: dt.datetime, regi
        owner may have resumed the session meanwhile); the registries once more (a role set, a successor or a takeover
        started while the listing was being made); and, last of all, AGENT_HUB_WATCHDOG_REAP (the environment and the strictly
        read config.json).
-    `registry` replaces registry_blocker (a dormant hub's own check, dormant_blocker).
+    `registry` replaces registry_blocker (a dormant hub's own check, dormant_blocker); `working_ok` False keeps an
+    idle/working session protected whatever its quiet time (a dormant hub must still be idle/done at the last look).
     Raises ReapAbort when a registry or the setting cannot be read."""
     registry = registry or registry_blocker
     short = (row.get("id") or (row.get("sessionId") or "")[:8]).strip()
@@ -1637,7 +1684,7 @@ def stop_blocker(cli, row: dict, cwd, need: dt.timedelta, now: dt.datetime, regi
     if procs is None:
         return "`ps` failed or could not be read completely just before the stop", True
     last = last_activity(seen, procs)
-    busy = busy_reason(seen, procs, None if last is None else now - last)
+    busy = busy_reason(seen, procs, None if last is None or not working_ok else now - last)
     if busy:
         return f"the session {short} is {busy} now", False
     if last is None or now - last < need:
@@ -1804,7 +1851,7 @@ def rule_dormant(tick: Tick, stage: str, rec: dict) -> None:
 
         def registry(r, short):
             return dormant_blocker(tick, stage, rec)
-        blocker = stop_blocker(cli, row, cwd, DORMANT_STOP_AFTER, tick.now, registry)
+        blocker = stop_blocker(cli, row, cwd, DORMANT_STOP_AFTER, tick.now, registry, working_ok=False)
         if blocker:
             if blocker[1]:
                 tick.say(stage, "R7", f"not stopping the dormant {tag}: {blocker[0]}")

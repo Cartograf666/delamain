@@ -188,6 +188,22 @@ PY
 : > "$R/claude.log"; WD run --stage dm > "$R/tick.out" 2>&1
 case "$(calls)" in *stop*) r=1 ;; *) r=0 ;; esac; check $r 0 "idle/working (the listing says it waits): not stopped"
 FX rows "$FAKE_WD_ROWS" "${D:0:8}" "$D" background idle "$CWD" "$LIVE"
+# idle/done at the first look, idle/working at the last one, over a finished turn quiet 2 h 10 min: a dormant hub is not
+# let go the way a retired one is (R7's last look keeps `working` protected for it)
+python3 - "$CLAUDE_CONFIG_DIR/projects/p/$D.jsonl" <<'PY'
+import json, os, sys
+p = sys.argv[1]; st = os.stat(p)
+last = max(json.loads(l)["timestamp"] for l in open(p) if '"timestamp"' in l)
+open(p, "a").write(json.dumps({"type": "system", "subtype": "turn_duration", "timestamp": last}) + "\n")
+os.utime(p, (st.st_atime, st.st_mtime))
+PY
+cat > "$R/to-working.py" <<'PY'
+import json, os
+p = os.environ["FAKE_WD_ROWS"]; r = json.load(open(p)); r[0]["state"] = "working"; json.dump(r, open(p, "w"))
+PY
+: > "$R/claude.log"; FAKE_WD_ON_AGENTS="2:python3 $R/to-working.py" WD run --stage dm > "$R/tick.out" 2>&1
+case "$(calls)" in *stop*) r=1 ;; *) r=0 ;; esac; check $r 0 "turns idle/working right before the stop: not stopped"
+FX rows "$FAKE_WD_ROWS" "${D:0:8}" "$D" background idle "$CWD" "$LIVE"
 printf '{"sessions": ["%s"], "pid": %s}\n' "$D" "$$" > "$R/dm/.takeover-test.json"   # a running `hub takeover` names it
 : > "$R/claude.log"; WD run --stage dm > "$R/tick.out" 2>&1
 case "$(calls)" in *stop*) r=1 ;; *) r=0 ;; esac; check $r 0 "named by a running hub takeover / hub start: not stopped"

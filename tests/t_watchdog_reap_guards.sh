@@ -284,6 +284,17 @@ echo '{"closed": {"at": "2026-10-06T10:00", "why": "test", "hub": "hub-2"}}' > "
 rows "$X1" "$X2"; tick "closed stage"; stopped "closed stage: the hub replaced before the close is stopped, the one the close retired is not" "stop e000001a "
 check "$(cat "$R"/cz/coordinator/work/journal-*.md 2>/dev/null | grep -c 'stopped the background')" 0 "…and the closed stage's journal is not written"
 grep -q "cz: stopped the background session of retired hub-1 (e000001a)" "$R/tick.out"; check $? 0 "…the job output has the line"
+# A → B → A, then the close: the old "replaced" record of A does not make the session the close left running a candidate
+X3=$(sid e000001c); X4=$(sid e000001d); quiet_for "$X3" 30; quiet_for "$X4" 30
+for k in "$X3" "$X4" "$X3"; do "$B/roles" set --stage cy hub "$k" --kind cli --tag hub-x > /dev/null; done
+python3 - "$R/cy/roles.json" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); rec = d["roles"].pop("hub")
+d["retired"].append(dict(rec, role="hub", retired_at="2026-10-06T10:00:00", retired_why="stage closed: test"))
+json.dump(d, open(p, "w"))
+PY
+echo '{"closed": {"at": "2026-10-06T10:00", "why": "test", "hub": "hub-x"}}' > "$R/cy/stage.json"
+rows "$X3" "$X4"; tick "closed stage, A B A"; stopped "A → B → A → close: B (replaced) is stopped, A (left by the close) is not" "stop e000001d "
 
 # ================================================================== busy
 # only an idle session is stopped (done, or blocked: a pending prompt of a retired hub is no work); the others are reported
@@ -304,28 +315,57 @@ reset_log; WD run > "$R/tick.out" 2>&1; check "$(grep -c 'stop it by hand' "$R/t
 check "$(grep -c 'stop it by hand' "$LOG")" 5 "…and the log keeps its five lines"
 reset_log; FX_NOW=$(python3 -c 'import datetime as d,sys; print((d.datetime.fromisoformat(sys.argv[1]) + d.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S"))' "$NOW") \
   AGENT_HUB_WATCHDOG_NOW=$(python3 -c 'import datetime as d,sys; print((d.datetime.fromisoformat(sys.argv[1]) + d.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S"))' "$NOW") WD run > "$R/tick.out" 2>&1
-check "$(grep -c 'stop it by hand' "$R/tick.out")" 4 "the next day: reported again, once (the idle/working one is quiet for a day now: stopped)"
-check "$(stops)" "stop e0000032 " "…and the idle/working one with no work child, quiet over 2 h, is the one stopped"
+check "$(grep -c 'stop it by hand' "$R/tick.out")" 5 "the next day: reported again, once"
+check "$(stops)" "" "…and the idle/working one, quiet a day but with no finished turn at the end of its transcript, is not stopped"
 grep -q "remote:\|local:" "$R/notify.log" "$R/remote.log"; check $? 1 "…and nothing was notified"
 for k in "$B1" "$B2" "$B3" "$B4" "$B5" "$B6"; do "$B/roles" set --stage a hub "$k" --kind cli --tag live > /dev/null; done   # out of the way of the later scenarios
-# idle/working with no work child: the CLI keeps `working` on a session whose last turn ended "waiting for the successor";
-# after 2 h of silence it is let go (a clock 200 min ahead: the process is that old), before that it is only reported
+# tail SID LINE…: append JSON lines to the session's transcript (`{T}` in a line: the time of its newest entry), keeping its mtime
+tail_add(){ python3 - "$CLAUDE_CONFIG_DIR/projects/p/$1.jsonl" "${@:2}" <<'PY'
+import json, os, sys
+path, *lines = sys.argv[1:]
+st = os.stat(path)
+last = max(json.loads(l)["timestamp"] for l in open(path) if '"timestamp"' in l)
+with open(path, "a") as fh:
+    for line in lines:
+        fh.write(line.replace("{T}", last) + "\n")
+os.utime(path, (st.st_atime, st.st_mtime))
+PY
+}
+END='{"type": "system", "subtype": "turn_duration", "durationMs": 9000, "timestamp": "{T}"}'
+# idle/working: the CLI keeps `working` on a session whose last turn ended "waiting for the successor". With a finished
+# turn at the end of its transcript, nothing but MCP servers below it and 2 h of silence it is let go (a clock 200 min
+# ahead: the process is that old); before that, or without the finished turn, it is only reported
 X=$(sid e00000f1); retire_hub a "$X" hub-70
 NOW=$(at_offset 200); export FX_NOW=$NOW AGENT_HUB_WATCHDOG_NOW=$NOW
-quiet_for "$X" 100; rows "$X|||idle|working"; tick "idle/working, quiet 100 min (under 2 h)"; stopped "idle/working, quiet 100 min: not stopped" ""
+quiet_for "$X" 100; tail_add "$X" "$END"; rows "$X|||idle|working"; tick "idle/working, quiet 100 min (under 2 h)"; stopped "idle/working, turn ended, quiet 100 min: not stopped" ""
 grep -q "retired hub e00000f1 (a) is idle/working for 100 min" "$R/tick.out"; check $? 0 "…and reported"
-quiet_for "$X" 150; rows "$X|||idle|working"; tick "idle/working, quiet 150 min"; stopped "idle/working, quiet 2 h 30 min: stopped" "stop e00000f1 "
-X=$(sid e00000f2); retire_hub a "$X" hub-71; quiet_for "$X" 150
+quiet_for "$X" 150; rows "$X|||idle|working"; tick "idle/working, no finished turn, quiet 150 min"; stopped "idle/working, quiet 2 h 30 min, the last entry is the assistant's: not stopped" ""
+quiet_for "$X" 150; tail_add "$X" "$END"; rows "$X|||idle|working"; tick "idle/working, turn ended, quiet 150 min"; stopped "idle/working, turn ended, quiet 2 h 30 min: stopped" "stop e00000f1 "
+X=$(sid e00000f5); retire_hub a "$X" hub-74; quiet_for "$X" 150; tail_add "$X" "$END" '{"type": "api-request-blob", "id": "r1"}'
+rows "$X|||idle|working"; tick "idle/working, a request after the end"; stopped "…not with anything but bookkeeping after the finished turn (an api-request-blob)" ""
+X=$(sid e00000f2); retire_hub a "$X" hub-71; quiet_for "$X" 150; tail_add "$X" "$END"
 spawn python3 -c 'import subprocess, time; subprocess.Popen(["sh", "-c", "sleep 3001; true"]); time.sleep(3000)'; ROWPID=$SPAWNED; sleep 1
-rows "$X|||idle|working"; tick "idle/working with a shell child, quiet 150 min"; stopped "…but not with a command in flight (a shell child), however quiet" ""
+rows "$X|||idle|working"; tick "idle/working with a shell child, quiet 150 min"; stopped "…not with a command in flight (a shell child), however quiet" ""
 unset ROWPID
-# a transcript the CLI touched without writing (mtime a minute ago, newest entry 5 h old) is as quiet as its entries say;
-# control: the same mtime over an entry written a minute ago
+X=$(sid e00000f6); retire_hub a "$X" hub-75; quiet_for "$X" 150; tail_add "$X" "$END"
+spawn python3 -c 'import subprocess, time; subprocess.Popen(["sleep", "3001"]); time.sleep(3000)'; ROWPID=$SPAWNED; sleep 1
+rows "$X|||idle|working"; tick "idle/working with a non-shell child"; stopped "…not with a direct child that is no MCP or LSP server (a command that ran \`exec\`)" ""
+unset ROWPID
+# a transcript that keeps growing by bookkeeping lines with no timestamp (cost-state, last-prompt: mtime a minute ago,
+# newest entry 5 h old) is as quiet as its entries say; controls: an entry written a minute ago, a line that is no
+# bookkeeping after the old entry (its time is unknown: the mtime stands)
 X=$(sid e00000f3); retire_hub a "$X" hub-72
-FX transcript "$X" 300 ok; FX age "$CLAUDE_CONFIG_DIR/projects/p/$X.jsonl" 1
-rows "$X"; tick "touched transcript"; stopped "a transcript touched a minute ago over a 5 h old entry: stopped" "stop e00000f3 "
+FX transcript "$X" 300 ok; tail_add "$X" '{"type": "cost-state", "x": 1}' '{"type": "last-prompt", "lastPrompt": "go"}'
+FX age "$CLAUDE_CONFIG_DIR/projects/p/$X.jsonl" 1
+rows "$X"; tick "bookkeeping after an old entry"; stopped "bookkeeping lines a minute ago over a 5 h old entry: stopped" "stop e00000f3 "
 X=$(sid e00000f4); retire_hub a "$X" hub-73; quiet_for "$X" 1
 rows "$X"; tick "control, written a minute ago"; stopped "control: an entry written a minute ago: not stopped" ""
+X=$(sid e00000f7); retire_hub a "$X" hub-76
+FX transcript "$X" 300 ok; tail_add "$X" '{"type": "api-request-blob", "id": "r2"}'; FX age "$CLAUDE_CONFIG_DIR/projects/p/$X.jsonl" 1
+rows "$X"; tick "control, a request after an old entry"; stopped "control: an api-request-blob a minute ago after a 5 h old entry: not stopped" ""
+X=$(sid e00000f8); retire_hub a "$X" hub-77
+FX transcript "$X" 300 ok; printf '{"type": "assistant", "timest' >> "$CLAUDE_CONFIG_DIR/projects/p/$X.jsonl"; FX age "$CLAUDE_CONFIG_DIR/projects/p/$X.jsonl" 1
+rows "$X"; tick "control, a line being written"; stopped "control: a half-written line a minute ago after a 5 h old entry: not stopped" ""
 NOW=$(at_offset 40); export FX_NOW=$NOW AGENT_HUB_WATCHDOG_NOW=$NOW
 # a shell child of the process (Claude Code runs every Bash call in one) protects the session, whatever runs in it
 X=$(sid e0000037); retire_hub a "$X" hub-60; quiet_for "$X" 30
