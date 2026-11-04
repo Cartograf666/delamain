@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.26 — 2026-11-04
+
 - **The watchdog stops retired hubs it used to report forever; a project hook no longer leaves its probes behind.**
   Three hubs replaced days earlier still ran on the owner's machine (dbt-elt #43 and #47, ci-speedup #6, ~800 MB). R7
   missed them three ways: the quiet time was measured from bookkeeping lines the CLI keeps appending to an idle
