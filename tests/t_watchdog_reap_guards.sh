@@ -295,6 +295,16 @@ json.dump(d, open(p, "w"))
 PY
 echo '{"closed": {"at": "2026-10-06T10:00", "why": "test", "hub": "hub-x"}}' > "$R/cy/stage.json"
 rows "$X3" "$X4"; tick "closed stage, A B A"; stopped "A → B → A → close: B (replaced) is stopped, A (left by the close) is not" "stop e000001d "
+# …also when the close ran in ANOTHER home: a session `hub close` retired there is protected here
+X5=$(sid e000001e); quiet_for "$X5" 30; retire_hub a "$X5" hub-32
+RB set --stage xz hub "$X5" --kind cli --tag hub-1 > /dev/null
+python3 - "$H2/xz/roles.json" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); rec = d["roles"].pop("hub")
+d["retired"].append(dict(rec, role="hub", retired_at="2026-10-06T10:00:00", retired_why="stage closed: test"))
+json.dump(d, open(p, "w"))
+PY
+rows "$X5"; tick "closed in another home"; stopped "retired here, retired by hub close in home B: not stopped" ""
 
 # ================================================================== busy
 # only an idle session is stopped (done, or blocked: a pending prompt of a retired hub is no work); the others are reported
@@ -343,6 +353,9 @@ quiet_for "$X" 150; rows "$X|||idle|working"; tick "idle/working, no finished tu
 quiet_for "$X" 150; tail_add "$X" "$END"; rows "$X|||idle|working"; tick "idle/working, turn ended, quiet 150 min"; stopped "idle/working, turn ended, quiet 2 h 30 min: stopped" "stop e00000f1 "
 X=$(sid e00000f5); retire_hub a "$X" hub-74; quiet_for "$X" 150; tail_add "$X" "$END" '{"type": "api-request-blob", "id": "r1"}'
 rows "$X|||idle|working"; tick "idle/working, a request after the end"; stopped "…not with anything but bookkeeping after the finished turn (an api-request-blob)" ""
+X=$(sid e00000f9); retire_hub a "$X" hub-78; quiet_for "$X" 150
+tail_add "$X" "$END" '{"type": "user", "timestamp": "2000-01-01T00:00:00.000Z", "message": {"role": "user", "content": "late"}}'
+rows "$X|||idle|working"; tick "idle/working, an older entry after the end"; stopped "…not with an entry dated before the finished turn written after it (a clock step)" ""
 X=$(sid e00000f2); retire_hub a "$X" hub-71; quiet_for "$X" 150; tail_add "$X" "$END"
 spawn python3 -c 'import subprocess, time; subprocess.Popen(["sh", "-c", "sleep 3001; true"]); time.sleep(3000)'; ROWPID=$SPAWNED; sleep 1
 rows "$X|||idle|working"; tick "idle/working with a shell child, quiet 150 min"; stopped "…not with a command in flight (a shell child), however quiet" ""
@@ -366,6 +379,9 @@ rows "$X"; tick "control, a request after an old entry"; stopped "control: an ap
 X=$(sid e00000f8); retire_hub a "$X" hub-77
 FX transcript "$X" 300 ok; printf '{"type": "assistant", "timest' >> "$CLAUDE_CONFIG_DIR/projects/p/$X.jsonl"; FX age "$CLAUDE_CONFIG_DIR/projects/p/$X.jsonl" 1
 rows "$X"; tick "control, a line being written"; stopped "control: a half-written line a minute ago after a 5 h old entry: not stopped" ""
+X=$(sid e00000fa); retire_hub a "$X" hub-79; quiet_for "$X" 1
+tail_add "$X" '{"type": "user", "timestamp": "2000-01-01T00:00:00.000Z", "message": {"role": "user", "content": "late"}}'
+rows "$X"; tick "control, an older entry after a fresh one"; stopped "control: an entry dated 2000 after one written a minute ago (a clock step): not stopped" ""
 NOW=$(at_offset 40); export FX_NOW=$NOW AGENT_HUB_WATCHDOG_NOW=$NOW
 # a shell child of the process (Claude Code runs every Bash call in one) protects the session, whatever runs in it
 X=$(sid e0000037); retire_hub a "$X" hub-60; quiet_for "$X" 30

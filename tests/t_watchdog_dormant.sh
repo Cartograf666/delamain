@@ -204,6 +204,10 @@ PY
 : > "$R/claude.log"; FAKE_WD_ON_AGENTS="2:python3 $R/to-working.py" WD run --stage dm > "$R/tick.out" 2>&1
 case "$(calls)" in *stop*) r=1 ;; *) r=0 ;; esac; check $r 0 "turns idle/working right before the stop: not stopped"
 FX rows "$FAKE_WD_ROWS" "${D:0:8}" "$D" background idle "$CWD" "$LIVE"
+sed 's/"working"/"blocked"/' "$R/to-working.py" > "$R/to-blocked.py"
+: > "$R/claude.log"; FAKE_WD_ON_AGENTS="2:python3 $R/to-blocked.py" WD run --stage dm > "$R/tick.out" 2>&1
+case "$(calls)" in *stop*) r=1 ;; *) r=0 ;; esac; check $r 0 "turns idle/blocked right before the stop: not stopped (a dormant hub must be idle/done)"
+FX rows "$FAKE_WD_ROWS" "${D:0:8}" "$D" background idle "$CWD" "$LIVE"
 printf '{"sessions": ["%s"], "pid": %s}\n' "$D" "$$" > "$R/dm/.takeover-test.json"   # a running `hub takeover` names it
 : > "$R/claude.log"; WD run --stage dm > "$R/tick.out" 2>&1
 case "$(calls)" in *stop*) r=1 ;; *) r=0 ;; esac; check $r 0 "named by a running hub takeover / hub start: not stopped"

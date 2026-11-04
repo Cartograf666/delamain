@@ -1264,17 +1264,15 @@ def closed_by_close(rec: dict) -> bool:
 def reap_registry() -> tuple:
     """([(stage, tag, [ids])] of the retired hub records that may be stopped, [ids] that must not be stopped).
 
-    Candidates are the retired hubs of the watchdog's own home: each home's watchdog reaps its own. In a stage closed with
-    `hub close` only a hub retired before the close (replaced by a successor) is one; what the close retired itself stays
-    with the close's ATTENTION line (a hub replaced earlier and left running would otherwise run on unseen once the stage
-    closes).
+    Candidates are the retired hubs of the watchdog's own home, closed stages included (a hub replaced before the close
+    and left running would otherwise run on unseen): each home's watchdog reaps its own. A session that `hub close` retired
+    (in any home) is protected instead: it stays with the close's ATTENTION line, whatever older records of it say.
     The protection spans EVERY known home and every stage of it, closed ones too: a live role of any kind (a session retired
     as a hub in one stage or home may be live in another), the pending auto-handoff successor, the sessions named by a
     running takeover, and the retired hubs of a home that switched R7 off (its setting is respected there). The list is read
     afresh on every call. Raises ReapAbort when a home, a registry, a pending record or a marker cannot be read."""
     homes = reap_homes()
     now = clock()
-    open_stages = set(stage_names())
     retired, protected = [], []
     for i, home in enumerate(homes):
         off = i > 0 and home_reap_off(home)
@@ -1288,9 +1286,9 @@ def reap_registry() -> tuple:
                 if not (isinstance(rec, dict) and rec.get("role") == "hub"):
                     continue
                 ids = session_ids(rec.get("session"), rec.get("cli_session_id"))
-                if off or (stage not in open_stages and closed_by_close(rec)):
+                if off or closed_by_close(rec):
                     protected += ids  # a session `hub close` left running is the owner's to stop, whatever older records say
-                elif ids and i == 0 and (stage in open_stages or not closed_by_close(rec)):
+                elif ids and i == 0:
                     retired.append((stage, rec.get("tag") or "hub", ids))
     return retired, protected
 
@@ -1407,7 +1405,8 @@ TURN_END = frozenset({"turn_duration", "stop_hook_summary"})  # the `system` ent
 def transcript_tail(path: str):
     """(newest entry time, whether that entry ends a turn) from the last TRANSCRIPT_TAIL bytes of a transcript, or None when
     the tail cannot be read or says nothing for sure: no entry with a timestamp, or anything but IDLE_BOOKKEEPING after the
-    newest one (including a line that does not parse; only the first line of a tail that starts mid-file may be cut)."""
+    newest one (including a line that does not parse; only the first line of a tail that starts mid-file may be cut), or an
+    entry dated before one written above it."""
     try:
         with open(path, "rb") as fh:
             start = max(0, os.fstat(fh.fileno()).st_size - TRANSCRIPT_TAIL)
@@ -1431,9 +1430,10 @@ def transcript_tail(path: str):
         except ValueError:
             t = None
         if t is not None and t.tzinfo is not None:
-            if newest is None or t >= newest:
-                newest, after = t, False
-                ended = e.get("type") == "system" and e.get("subtype") in TURN_END
+            if newest is not None and t < newest:
+                return None  # an entry older than one above it (a clock step, a late write): the order says nothing
+            newest, after = t, False
+            ended = e.get("type") == "system" and e.get("subtype") in TURN_END
         elif not (isinstance(e, dict) and "timestamp" not in e and e.get("type") in IDLE_BOOKKEEPING):
             after = True
     if newest is None or after:
@@ -1655,8 +1655,8 @@ def stop_blocker(cli, row: dict, cwd, need: dt.timedelta, now: dt.datetime, regi
        owner may have resumed the session meanwhile); the registries once more (a role set, a successor or a takeover
        started while the listing was being made); and, last of all, AGENT_HUB_WATCHDOG_REAP (the environment and the strictly
        read config.json).
-    `registry` replaces registry_blocker (a dormant hub's own check, dormant_blocker); `working_ok` False keeps an
-    idle/working session protected whatever its quiet time (a dormant hub must still be idle/done at the last look).
+    `registry` replaces registry_blocker (a dormant hub's own check, dormant_blocker); `working_ok` False wants the last look
+    to be idle/done with no journal waiter of any stage below it (a dormant hub), whatever its quiet time.
     Raises ReapAbort when a registry or the setting cannot be read."""
     registry = registry or registry_blocker
     short = (row.get("id") or (row.get("sessionId") or "")[:8]).strip()
@@ -1685,6 +1685,8 @@ def stop_blocker(cli, row: dict, cwd, need: dt.timedelta, now: dt.datetime, regi
         return "`ps` failed or could not be read completely just before the stop", True
     last = last_activity(seen, procs)
     busy = busy_reason(seen, procs, None if last is None or not working_ok else now - last)
+    if not busy and not working_ok and (seen.get("state") != "done" or own_waiters(seen.get("pid"), procs)):
+        busy = f"{seen.get('status') or '?'}/{seen.get('state') or '?'}" + (" with a waiter" if seen.get("state") == "done" else "")
     if busy:
         return f"the session {short} is {busy} now", False
     if last is None or now - last < need:
