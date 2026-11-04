@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **The watchdog stops retired hubs it used to report forever; a project hook no longer leaves its probes behind.**
+  Three hubs replaced days earlier still ran on the owner's machine (dbt-elt #43 and #47, ci-speedup #6, ~800 MB). R7
+  missed them three ways: the CLI touches an idle background session's transcript without writing to it, so the
+  quiet time was measured from the touch (now: no later than 15 min after the newest entry `timestamp`); it leaves
+  `state: working` on a session whose last turn ended "waiting for the successor", which R7 only reported (now: with
+  no work below it, let go after 2 h of silence); and a stage closed with `hub close` hid the hubs replaced before the
+  close (now candidates; the hub the close retired itself is still not, and a closed stage's journal gets no line).
+  `hub handoff` (`handoff-facts.sh`) and `hub takeover` (`takeover.sh`) run the project script in a process group of
+  its own and take the whole group down, TERM then KILL, on their timeout or on SIGTERM/SIGHUP/SIGINT (the host's Bash
+  call running out): two prod probes of a handoff-facts.sh had been blocked for three days under a killed `hub handoff`.
+
 - **Russian parameter rules no longer disable context handoff; a Russian `не передавай` still stops it.** The
   context-budget hook treated `Не передавай идентификаторы другого провайдера` and `параметры Codex ему не передавай`
   in user-provided `AGENTS.md` instructions as a handoff prohibition. Now a sentence with `не передавай`

@@ -245,7 +245,9 @@ A row of `claude agents --json` is stopped only when all of these hold:
    `.jwait-state/<stage>/<caller>.armed.json` that still runs a jwait) beside its MCP and LSP servers (a name with
    `mcp`, `language-server`, `lsp`, `pyright`, `gopls`, `rust-analyzer`, `clangd`, `jdtls`, matched on the process
    name, so only a native binary or a server that sets its process title; a node- or Python-hosted server shows as
-   `node`/`Python` and, like any other direct child, keeps a `working` session protected). `busy`, `waiting`, a missing value or any other one protects it, and so does
+   `node`/`Python` and, like any other direct child, keeps a `working` session protected), or `working` with no work
+   below it once it has been quiet for 2 hours (the CLI leaves `working` on a session whose last turn ended on "waiting
+   for the successor"; until 1.0.25 such a hub was reported every day and never stopped). `busy`, `waiting`, a missing value or any other one protects it, and so does
    **a live shell among the direct children of its process** that holds anything but MCP servers (a command naming `mcp`,
    such as `npm exec @upstash/context7-mcp`, and what runs below it) and the own waiter:
    Claude Code starts every Bash call and background task as a shell (`/bin/zsh -c …`, the user's shell or
@@ -258,7 +260,9 @@ A row of `claude agents --json` is stopped only when all of these hold:
    (no notification);
 6. it has been quiet for `AGENT_HUB_WATCHDOG_WAKE_AFTER`, but at least 15 minutes (a foreground tool call of a live session
    ends within the 10-minute Bash cap). Activity is the newest of: the last write of its transcript (every project
-   directory holding a file of that name), the writes of every file and directory under its own directory
+   directory holding a file of that name), but no later than 15 minutes after the newest `timestamp` among its last
+   256 KB of entries (the CLI touches the transcript of an idle background session without writing to it, which kept
+   such a hub "quiet 20 min" for days; a tail with no timestamp leaves the write time), the writes of every file and directory under its own directory
    `projects/*/<session>/` (`subagents/` first; a directory's own time does not move when a file inside it is appended to,
    so every file is looked at) and the **actual start of the process** the row names, read with `ps` (a session resumed a
    minute ago and left idle is not quiet; the optional `startedAt` of the row is not used). Unknown activity leaves the session
@@ -297,9 +301,10 @@ the history stays and the next tick finds nothing listed.
 `watchdog run --dry-run` prints `[plan] <stage>: would stop the background session of retired hub-N (<id8>), quiet M min`
 and stops nothing. A real stop writes one line to the job output, `log.md` and the stage journal; a failed stop is
 reported with the exit code and the next tick tries again. Nothing is sent to a notification channel: R7 stays on the
-machine. If `claude agents --json` fails, R7 does nothing. Stages closed with `hub close` are outside the watchdog: their
-retired hubs are not candidates (a busy hub of a closed stage stays with the ATTENTION line of `hub close`), but a live
-role recorded in one still protects its session.
+machine. If `claude agents --json` fails, R7 does nothing. In a stage closed with `hub close`, only a hub retired before
+the close (replaced by a successor and left running) is a candidate, and its stop goes to the job output and `log.md`, not
+the closed stage's journal; what the close retired itself (`retired_why` "stage closed: …") is not (a busy hub of a
+closed stage stays with the ATTENTION line of `hub close`). A live role recorded in a closed stage still protects its session.
 
 Not covered, deliberately: a session whose home is in no registry of homes (a project home is registered when a stage is
 registered in it; delete `homes.json` and it is invisible until its next `roles set`); a retired hub that is idle and done,

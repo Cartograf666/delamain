@@ -91,6 +91,17 @@ grep -q "TODO" $R/H.md && grep -q "deploy-window (\*)" $R/H.md && grep -q "hub t
 $B/hub handoff --stage stage-a --n 17 --out $R/H.md >/dev/null 2>&1; check $? 1 "negative: handoff does not overwrite"
 printf '#!/bin/sh\necho "| Production | v1.4 deployed | release notes |"\n' > $R/stage-a/handoff-facts.sh; chmod +x $R/stage-a/handoff-facts.sh
 $B/hub handoff --stage stage-a --n 17 --out $R/H2.md >/dev/null 2>&1; grep -q '^| Production | v1.4 deployed' $R/H2.md; check $? 0 "handoff-facts.sh rows go into § 1"
+# a hook whose probe ignores SIGTERM (a stuck prod query): a SIGTERM to `hub handoff` (the host's Bash call ran out) takes the
+# probe down with it; killing only the script used to leave the probe running for days
+mv $R/stage-a/handoff-facts.sh $R/facts-ok.sh
+printf '#!/bin/sh\nsh -c '"'"'trap "" TERM; echo $$ > %s; while :; do sleep 1; done'"'"'\n' "$R/probe.pid" > $R/stage-a/handoff-facts.sh
+chmod +x $R/stage-a/handoff-facts.sh; rm -f $R/probe.pid
+$B/hub handoff --stage stage-a --n 17 --out $R/H3.md > /dev/null 2>&1 & HPID=$!
+for _ in $(seq 50); do [ -s $R/probe.pid ] && break; sleep 0.2; done
+kill -0 "$(cat $R/probe.pid)" 2>/dev/null; check $? 0 "the hook's probe runs (control)"
+kill -TERM $HPID; wait $HPID; check $? 143 "hub handoff exits 143 on SIGTERM"
+sleep 0.5; kill -0 "$(cat $R/probe.pid)" 2>/dev/null; check $? 1 "…and the probe that ignores SIGTERM is gone with it"
+mv $R/facts-ok.sh $R/stage-a/handoff-facts.sh
 # 7. a third-party main-merge holder is left alone and reported; --take-main-merge takes it
 setup local_$PREV steward
 $B/hub takeover --stage stage-a --n 17 --session local_$NEW > $R/t7.out 2>&1; rc=$?
