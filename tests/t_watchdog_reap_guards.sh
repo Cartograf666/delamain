@@ -298,6 +298,7 @@ rows "$X3" "$X4"; tick "closed stage, A B A"; stopped "A → B → A → close: 
 # …also when the close ran in ANOTHER home: a session `hub close` retired there is protected here
 X5=$(sid e000001e); quiet_for "$X5" 30; retire_hub a "$X5" hub-32
 RB set --stage xz hub "$X5" --kind cli --tag hub-1 > /dev/null
+"$B/roles" set --stage xz worker "$(sid e000001f)" --kind headless --tag worker > /dev/null   # an open stage of the same name here
 python3 - "$H2/xz/roles.json" <<'PY'
 import json, sys
 p = sys.argv[1]; d = json.load(open(p)); rec = d["roles"].pop("hub")
