@@ -239,6 +239,7 @@ import json
 import os
 import re
 import shlex
+import signal
 import subprocess
 import sys
 import time
@@ -748,11 +749,55 @@ def nightq_coordinator(stage: str) -> str:
     return (q.get("coordinator") or "").split()[0] if (q.get("coordinator") or "").strip() else ""
 
 
+def run_hook(argv: list, timeout: int, env: dict) -> subprocess.CompletedProcess:
+    """subprocess.run(argv, capture_output=True, text=True, timeout=…) for a project script (takeover.sh,
+    handoff-facts.sh), in a process group of its own. A timeout, or SIGTERM/SIGHUP/SIGINT to this command (the host's Bash
+    call ran out), takes the whole group down, TERM then KILL after 5 s: killing only the script left its probes behind,
+    one blocked for days on a prod query whose own SIGTERM handler deadlocked (dbt-elt, 01.11). Raises TimeoutExpired."""
+    proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                            env=env, start_new_session=True)
+
+    def down() -> None:
+        for sig in (signal.SIGTERM, signal.SIGKILL):
+            try:
+                os.killpg(proc.pid, sig)
+            except (ProcessLookupError, PermissionError):
+                return
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                continue
+            if sig == signal.SIGTERM:  # the script is gone; what it left in its group may not be
+                with contextlib.suppress(ProcessLookupError, PermissionError):
+                    os.killpg(proc.pid, signal.SIGKILL)
+            return
+
+    def on_signal(signum, _frame):
+        down()
+        raise SystemExit(128 + signum)
+
+    before = {}
+    for s in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
+        with contextlib.suppress(ValueError):  # not the main thread: no handler, the timeout still holds
+            before[s] = signal.signal(s, on_signal)
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        down()
+        with contextlib.suppress(subprocess.TimeoutExpired):  # a process that left the group may still hold a pipe
+            proc.communicate(timeout=5)
+        raise
+    finally:
+        for s, h in before.items():
+            signal.signal(s, h)
+    return subprocess.CompletedProcess(argv, proc.returncode, out, err)
+
+
 def run_step(path: Path, mode: str, env: dict, must_pass: bool = False):
     """A config layer's takeover.sh: `check` exits 0 when its target state is there (or there is nothing to do),
     1 when `apply` is needed; anything else, or a failed `apply`, stops the takeover. Output is shown indented."""
     try:
-        res = subprocess.run([str(path), mode], capture_output=True, text=True, timeout=120, env=hc.child_env(env))
+        res = run_hook([str(path), mode], 120, hc.child_env(env))
     except subprocess.TimeoutExpired:
         raise hc.Failure(f"{path} {mode} did not finish in 120 s") from None
     for line in (res.stdout + res.stderr).strip().splitlines()[-8:]:
@@ -1733,7 +1778,7 @@ def cmd_handoff(a) -> int:
     hook = hc.config_file("handoff-facts.sh", stage) or hc.root() / stage / "handoff-facts.sh"
     if hook.is_file() and os.access(hook, os.X_OK):
         try:
-            res = subprocess.run([str(hook)], capture_output=True, text=True, timeout=180, env=hc.child_env())
+            res = run_hook([str(hook)], 180, hc.child_env())
             rows = [ln for ln in res.stdout.splitlines() if ln.startswith("| ")]
             if res.returncode == 0 and rows:
                 facts_rows = "\n".join(rows)

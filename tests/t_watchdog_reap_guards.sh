@@ -10,7 +10,7 @@
 #             there, a transcript dated in the future, a transcript that is not found (kept under another CLAUDE_CONFIG_DIR),
 #             a running sub-agent (a file appended to in a directory whose own time is old), a scan that is cut short or fails,
 #             a session that wrote between the first look and the stop
-#   busy:     a status other than idle/done or idle/blocked (busy, working without an own waiter, waiting, none), a live
+#   busy:     a status other than idle/done or idle/blocked (busy, working without an own waiter for under 2 h, waiting, none), a live
 #             shell child of the process (a Bash call, a background task; also next to an MCP server): reported once a day
 #             in the job output and log.md, never stopped; a shell child that appears between the first look and the last one; a process table that
 #             cannot be read completely (a row that cannot be parsed, `ps` failing): nothing is stopped. A child that is no
@@ -22,7 +22,9 @@
 #             tick stops nothing; only a MISSING file means "nothing there"
 #   homes:    …also a registered home that exists but cannot be reached (a parent that cannot be searched)
 #   kinds:    a Desktop, terminal, headless or kind-less row; a grill session (live, or retired as a grill)
-#   registry: a retired hub that is the hub of another stage now; a live role in a stage closed with `hub close`
+#   registry: a retired hub that is the hub of another stage now; a live role in a stage closed with `hub close`; in a closed
+#             stage the hub replaced before the close is stopped, the one the close retired is not
+#   touched:  a transcript whose mtime is fresh over an old last entry is as quiet as the entry says
 # Stand-in CLI only. Run against a copy of bin/ (BIN=<dir>) with one guard removed, a test here must fail.
 . "$(dirname "$0")/lib.sh"
 new_home; R=$AGENT_HUB_HOME
@@ -268,6 +270,42 @@ echo '{"closed": {"at": "2026-10-06T10:00", "why": "test"}}' > "$R/cl/stage.json
 rows "$X"; tick "live role in a closed stage"; stopped "a live role recorded in a closed stage still protects the session: not stopped" ""
 "$B/roles" retire --stage cl hub --note t > /dev/null
 rows "$X"; tick "control, role retired in the closed stage"; stopped "control: retired there too: stopped" "stop e0000019 "
+# a closed stage: a hub replaced by its successor before the close is still a candidate (it would run on unseen); the hub
+# the close retired itself ("stage closed: …") is not, and no line goes to the closed stage's journal
+X1=$(sid e000001a); X2=$(sid e000001b); quiet_for "$X1" 30; quiet_for "$X2" 30
+"$B/roles" set --stage cz hub "$X1" --kind cli --tag hub-1 > /dev/null; "$B/roles" set --stage cz hub "$X2" --kind cli --tag hub-2 > /dev/null
+python3 - "$R/cz/roles.json" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); rec = d["roles"].pop("hub")
+d["retired"].append(dict(rec, role="hub", retired_at="2026-10-06T10:00:00", retired_why="stage closed: test"))
+json.dump(d, open(p, "w"))
+PY
+echo '{"closed": {"at": "2026-10-06T10:00", "why": "test", "hub": "hub-2"}}' > "$R/cz/stage.json"
+rows "$X1" "$X2"; tick "closed stage"; stopped "closed stage: the hub replaced before the close is stopped, the one the close retired is not" "stop e000001a "
+check "$(cat "$R"/cz/coordinator/work/journal-*.md 2>/dev/null | grep -c 'stopped the background')" 0 "…and the closed stage's journal is not written"
+grep -q "cz: stopped the background session of retired hub-1 (e000001a)" "$R/tick.out"; check $? 0 "…the job output has the line"
+# A → B → A, then the close: the old "replaced" record of A does not make the session the close left running a candidate
+X3=$(sid e000001c); X4=$(sid e000001d); quiet_for "$X3" 30; quiet_for "$X4" 30
+for k in "$X3" "$X4" "$X3"; do "$B/roles" set --stage cy hub "$k" --kind cli --tag hub-x > /dev/null; done
+python3 - "$R/cy/roles.json" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); rec = d["roles"].pop("hub")
+d["retired"].append(dict(rec, role="hub", retired_at="2026-10-06T10:00:00", retired_why="stage closed: test"))
+json.dump(d, open(p, "w"))
+PY
+echo '{"closed": {"at": "2026-10-06T10:00", "why": "test", "hub": "hub-x"}}' > "$R/cy/stage.json"
+rows "$X3" "$X4"; tick "closed stage, A B A"; stopped "A → B → A → close: B (replaced) is stopped, A (left by the close) is not" "stop e000001d "
+# …also when the close ran in ANOTHER home: a session `hub close` retired there is protected here
+X5=$(sid e000001e); quiet_for "$X5" 30; retire_hub a "$X5" hub-32
+RB set --stage xz hub "$X5" --kind cli --tag hub-1 > /dev/null
+"$B/roles" set --stage xz worker "$(sid e000001f)" --kind headless --tag worker > /dev/null   # an open stage of the same name here
+python3 - "$H2/xz/roles.json" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); rec = d["roles"].pop("hub")
+d["retired"].append(dict(rec, role="hub", retired_at="2026-10-06T10:00:00", retired_why="stage closed: test"))
+json.dump(d, open(p, "w"))
+PY
+rows "$X5"; tick "closed in another home"; stopped "retired here, retired by hub close in home B: not stopped" ""
 
 # ================================================================== busy
 # only an idle session is stopped (done, or blocked: a pending prompt of a retired hub is no work); the others are reported
@@ -289,8 +327,63 @@ check "$(grep -c 'stop it by hand' "$LOG")" 5 "…and the log keeps its five lin
 reset_log; FX_NOW=$(python3 -c 'import datetime as d,sys; print((d.datetime.fromisoformat(sys.argv[1]) + d.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S"))' "$NOW") \
   AGENT_HUB_WATCHDOG_NOW=$(python3 -c 'import datetime as d,sys; print((d.datetime.fromisoformat(sys.argv[1]) + d.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S"))' "$NOW") WD run > "$R/tick.out" 2>&1
 check "$(grep -c 'stop it by hand' "$R/tick.out")" 5 "the next day: reported again, once"
+check "$(stops)" "" "…and the idle/working one, quiet a day but with no finished turn at the end of its transcript, is not stopped"
 grep -q "remote:\|local:" "$R/notify.log" "$R/remote.log"; check $? 1 "…and nothing was notified"
 for k in "$B1" "$B2" "$B3" "$B4" "$B5" "$B6"; do "$B/roles" set --stage a hub "$k" --kind cli --tag live > /dev/null; done   # out of the way of the later scenarios
+# tail SID LINE…: append JSON lines to the session's transcript (`{T}` in a line: the time of its newest entry), keeping its mtime
+tail_add(){ python3 - "$CLAUDE_CONFIG_DIR/projects/p/$1.jsonl" "${@:2}" <<'PY'
+import json, os, sys
+path, *lines = sys.argv[1:]
+st = os.stat(path)
+last = max(json.loads(l)["timestamp"] for l in open(path) if '"timestamp"' in l)
+with open(path, "a") as fh:
+    for line in lines:
+        fh.write(line.replace("{T}", last) + "\n")
+os.utime(path, (st.st_atime, st.st_mtime))
+PY
+}
+END='{"type": "system", "subtype": "turn_duration", "durationMs": 9000, "timestamp": "{T}"}'
+# idle/working: the CLI keeps `working` on a session whose last turn ended "waiting for the successor". With a finished
+# turn at the end of its transcript, nothing but MCP servers below it and 2 h of silence it is let go (a clock 200 min
+# ahead: the process is that old); before that, or without the finished turn, it is only reported
+X=$(sid e00000f1); retire_hub a "$X" hub-70
+NOW=$(at_offset 200); export FX_NOW=$NOW AGENT_HUB_WATCHDOG_NOW=$NOW
+quiet_for "$X" 100; tail_add "$X" "$END"; rows "$X|||idle|working"; tick "idle/working, quiet 100 min (under 2 h)"; stopped "idle/working, turn ended, quiet 100 min: not stopped" ""
+grep -q "retired hub e00000f1 (a) is idle/working for 100 min" "$R/tick.out"; check $? 0 "…and reported"
+quiet_for "$X" 150; rows "$X|||idle|working"; tick "idle/working, no finished turn, quiet 150 min"; stopped "idle/working, quiet 2 h 30 min, the last entry is the assistant's: not stopped" ""
+quiet_for "$X" 150; tail_add "$X" "$END"; rows "$X|||idle|working"; tick "idle/working, turn ended, quiet 150 min"; stopped "idle/working, turn ended, quiet 2 h 30 min: stopped" "stop e00000f1 "
+X=$(sid e00000f5); retire_hub a "$X" hub-74; quiet_for "$X" 150; tail_add "$X" "$END" '{"type": "api-request-blob", "id": "r1"}'
+rows "$X|||idle|working"; tick "idle/working, a request after the end"; stopped "…not with anything but bookkeeping after the finished turn (an api-request-blob)" ""
+X=$(sid e00000f9); retire_hub a "$X" hub-78; quiet_for "$X" 150
+tail_add "$X" "$END" '{"type": "user", "timestamp": "2000-01-01T00:00:00.000Z", "message": {"role": "user", "content": "late"}}'
+rows "$X|||idle|working"; tick "idle/working, an older entry after the end"; stopped "…not with an entry dated before the finished turn written after it (a clock step)" ""
+X=$(sid e00000f2); retire_hub a "$X" hub-71; quiet_for "$X" 150; tail_add "$X" "$END"
+spawn python3 -c 'import subprocess, time; subprocess.Popen(["sh", "-c", "sleep 3001; true"]); time.sleep(3000)'; ROWPID=$SPAWNED; sleep 1
+rows "$X|||idle|working"; tick "idle/working with a shell child, quiet 150 min"; stopped "…not with a command in flight (a shell child), however quiet" ""
+unset ROWPID
+X=$(sid e00000f6); retire_hub a "$X" hub-75; quiet_for "$X" 150; tail_add "$X" "$END"
+spawn python3 -c 'import subprocess, time; subprocess.Popen(["sleep", "3001"]); time.sleep(3000)'; ROWPID=$SPAWNED; sleep 1
+rows "$X|||idle|working"; tick "idle/working with a non-shell child"; stopped "…not with a direct child that is no MCP or LSP server (a command that ran \`exec\`)" ""
+unset ROWPID
+# a transcript that keeps growing by bookkeeping lines with no timestamp (cost-state, last-prompt: mtime a minute ago,
+# newest entry 5 h old) is as quiet as its entries say; controls: an entry written a minute ago, a line that is no
+# bookkeeping after the old entry (its time is unknown: the mtime stands)
+X=$(sid e00000f3); retire_hub a "$X" hub-72
+FX transcript "$X" 300 ok; tail_add "$X" '{"type": "cost-state", "x": 1}' '{"type": "last-prompt", "lastPrompt": "go"}'
+FX age "$CLAUDE_CONFIG_DIR/projects/p/$X.jsonl" 1
+rows "$X"; tick "bookkeeping after an old entry"; stopped "bookkeeping lines a minute ago over a 5 h old entry: stopped" "stop e00000f3 "
+X=$(sid e00000f4); retire_hub a "$X" hub-73; quiet_for "$X" 1
+rows "$X"; tick "control, written a minute ago"; stopped "control: an entry written a minute ago: not stopped" ""
+X=$(sid e00000f7); retire_hub a "$X" hub-76
+FX transcript "$X" 300 ok; tail_add "$X" '{"type": "api-request-blob", "id": "r2"}'; FX age "$CLAUDE_CONFIG_DIR/projects/p/$X.jsonl" 1
+rows "$X"; tick "control, a request after an old entry"; stopped "control: an api-request-blob a minute ago after a 5 h old entry: not stopped" ""
+X=$(sid e00000f8); retire_hub a "$X" hub-77
+FX transcript "$X" 300 ok; printf '{"type": "assistant", "timest' >> "$CLAUDE_CONFIG_DIR/projects/p/$X.jsonl"; FX age "$CLAUDE_CONFIG_DIR/projects/p/$X.jsonl" 1
+rows "$X"; tick "control, a line being written"; stopped "control: a half-written line a minute ago after a 5 h old entry: not stopped" ""
+X=$(sid e00000fa); retire_hub a "$X" hub-79; quiet_for "$X" 1
+tail_add "$X" '{"type": "user", "timestamp": "2000-01-01T00:00:00.000Z", "message": {"role": "user", "content": "late"}}'
+rows "$X"; tick "control, an older entry after a fresh one"; stopped "control: an entry dated 2000 after one written a minute ago (a clock step): not stopped" ""
+NOW=$(at_offset 40); export FX_NOW=$NOW AGENT_HUB_WATCHDOG_NOW=$NOW
 # a shell child of the process (Claude Code runs every Bash call in one) protects the session, whatever runs in it
 X=$(sid e0000037); retire_hub a "$X" hub-60; quiet_for "$X" 30
 spawn python3 -c 'import subprocess, time; subprocess.Popen(["sh", "-c", "sleep 3001; true"]); time.sleep(3000)'; ROWPID=$SPAWNED; sleep 1
