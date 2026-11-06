@@ -606,10 +606,11 @@ function focus(x, y) {   // the camera flies to where the city just spoke, then 
 }
 // A pinned object (picked in the roster or on the map) holds the camera until it is released or leaves the map.
 let pinned = null, pinZ = 2.6;   // pinZ: the pinned view's zoom; the wheel or a pinch changes it without releasing
+const demoCabs = () => LIVE && layerCity?.live?.aq?.demo?.list() || [];   // the test stand's virtual cabs, listed with the real ones
 function onMap(n) {
   if (n.kind === "owner") return true;
   if (n.kind === "hub") return towers.get(n.key) === n && !!n.lot;
-  return cabs.get(n.key) === n && !n.landed;
+  return (n.demo ? demoCabs().includes(n) : cabs.get(n.key) === n) && !n.landed;
 }
 function pin(n) {   // a pin outranks a manual view; its release goes back to the overview
   pinned = n && n !== pinned ? n : null;
@@ -810,6 +811,7 @@ function counts() {   // the HUD's and the roster button's numbers: open stages,
     workers += st.workers.size;
     for (const c of st.workers.values()) if (c.working) busy++;
   }
+  for (const c of demoCabs()) { workers++; if (c.working) busy++; }
   return { stages, workers, busy };
 }
 function hud() {
@@ -1397,6 +1399,7 @@ function renderRoster() {
         `<i style="background:${mc};color:${mc}"></i><span class="n">${esc(c.role)}</span><span class="m">${esc(shortModel(c))}</span>`);
     }
   }
+  for (const c of demoCabs()) { const mc = modelColor(c); row(c, `cab${c.working ? " busy" : ""}`, `<i style="background:${mc};color:${mc}"></i><span class="n">${esc(c.role)}</span><span class="m">${esc(shortModel(c))}</span>`); }
   rosterObjs = objs;
   const html = `<div class="rh">${esc(T.roster)}<small>${esc(coarse.matches ? T.rosterHintTouch : T.rosterHint)}</small></div>` + rows.join("");
   if (html !== rosterHTML) { rosterHTML = html; roster.innerHTML = html; }   // unchanged: the rows, their hover and the scroll stay

@@ -37,9 +37,9 @@
     { label: say('Работа: уровень 3', 'Work: level 3'), id: 'Stravel', view: id => box(land(id), 30), hold: 5, work: 3 },
     { label: say('Релиз', 'Release'), id: 'Stravel', view: sky, hold: 20, work: 3, act: firework('release') },
     { label: say('Работа окончена', 'Work ended'), id: 'Stravel', view: id => box(land(id), 30), hold: 4, work: 0 },
-    { label: say('Доставка в проекте', 'Delivery in project'), id: 'Delamain', view: id => trip(id, 'project'), hold: 9, act: taxi('project') },
-    { label: say('Доставка соседу', 'Delivery to neighbour'), id: 'Delamain', view: id => trip(id, 'neighbour'), hold: 12, act: taxi('neighbour') },
-    { label: say('Доставка владельцу', 'Delivery to owner'), id: 'Minas Tirith', view: id => trip(id, 'owner'), hold: 11, act: taxi('owner') },
+    { label: say('Доставка в проекте', 'Delivery in project'), id: 'Delamain', view: id => trip(id, 'project'), hold: 9, act: taxi('project'), follow: true },
+    { label: say('Доставка соседу', 'Delivery to neighbour'), id: 'Delamain', view: id => trip(id, 'neighbour'), hold: 12, act: taxi('neighbour'), follow: true },
+    { label: say('Доставка владельцу', 'Delivery to owner'), id: 'Minas Tirith', view: id => trip(id, 'owner'), hold: 11, act: taxi('owner'), follow: true },
     { label: say('Пять рейсов сразу', 'Five at once'), id: 'Stravel', view: id => box(land(id), 30), hold: 14, act: taxi('five') },
     { label: say('Патруль', 'Patrol'), id: 'Agent Harness', view: id => box(land(id), 30), hold: 9, act: taxi('patrol'), leave: taxi('patrol') },
     { label: say('Вопрос владельцу', 'Question for the owner'), id: hub, view: sky, hold: 7, act: Q('[data-district="question"]'), leave: Q('[data-district="question"]') },
@@ -56,10 +56,11 @@
 
   const css = document.createElement('style');
   css.textContent = `
-  #tour-bar{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:10px;width:min(620px,calc(100vw - 32px));box-sizing:border-box;z-index:9;font:11px ui-monospace,Menlo,monospace;color:#c8d0da;opacity:.42;transition:opacity .25s}
+  #tour-bar{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:6px;width:min(820px,calc(100vw - 32px));box-sizing:border-box;z-index:9;font:11px ui-monospace,Menlo,monospace;color:#c8d0da;opacity:.42;transition:opacity .25s}
   #tour-bar:hover,#tour-bar:focus-within,#tour-bar.scrub{opacity:1}
-  #tour-play{flex:none;width:24px;height:24px;padding:0;border:0;border-radius:4px;background:none;color:inherit;font:inherit;cursor:pointer}
-  #tour-play:focus-visible,#tour-range:focus-visible{outline:2px solid #ffe9ae;outline-offset:2px}
+  #tour-bar button{flex:none;width:28px;height:28px;padding:0;border:0;border-radius:4px;background:none;color:inherit;font:inherit;font-size:15px;cursor:pointer}
+  #tour-bar button:hover{background:rgba(200,208,218,.14)}
+  #tour-bar button:focus-visible,#tour-range:focus-visible,#tour-label:focus-visible{outline:2px solid #ffe9ae;outline-offset:2px}
   #tour-track{position:relative;flex:1;min-width:0;height:24px;display:flex;align-items:center}
   #tour-ticks{position:absolute;inset:0;pointer-events:none}
   #tour-ticks i{position:absolute;top:50%;width:1px;height:6px;margin-top:-3px;background:rgba(200,208,218,.5)}
@@ -68,22 +69,26 @@
   #tour-range::-moz-range-track{height:2px;background:rgba(200,208,218,.3)}
   #tour-range::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;margin-top:-4px;border:0;border-radius:50%;background:#dfe6ee}
   #tour-range::-moz-range-thumb{width:10px;height:10px;border:0;border-radius:50%;background:#dfe6ee}
-  #tour-label{flex:none;width:19ch;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:right}
-  @media (max-width:520px){#tour-label{width:13ch}}
+  #tour-label{flex:none;width:37ch;height:28px;padding:0 4px;border:1px solid rgba(200,208,218,.25);border-radius:4px;background:rgba(3,4,9,.6);color:inherit;font:inherit;cursor:pointer}
+  #tour-label option{background:#0b0d16;color:#dfe6ee}
+  @media (max-width:640px){#tour-label{width:15ch}}
   body.tour #ticker{display:none}
   @media (prefers-reduced-motion:reduce){#tour-bar{transition:none}}`;
   document.head.append(css); document.body.classList.add('tour');
 
   const bar = document.createElement('div'); bar.id = 'tour-bar';
-  bar.innerHTML = `<button id="tour-play" type="button"></button><div id="tour-track"><div id="tour-ticks"></div><input id="tour-range" type="range" min="0" step="0.1"></div><output id="tour-label" for="tour-range"></output>`;
+  bar.innerHTML = `<button id="tour-prev" type="button">‹</button><button id="tour-play" type="button"></button><button id="tour-next" type="button">›</button><div id="tour-track"><div id="tour-ticks"></div><input id="tour-range" type="range" min="0" step="0.1"></div><select id="tour-label"></select>`;
   document.body.append(bar);
   const play = bar.querySelector('#tour-play'), range = bar.querySelector('#tour-range'), label = bar.querySelector('#tour-label'), ticks = bar.querySelector('#tour-ticks');
   range.max = total; range.setAttribute('aria-label', say('Таймлайн демо', 'Demo timeline'));
+  const prev = bar.querySelector('#tour-prev'), next = bar.querySelector('#tour-next'), title = s => (s.id ? `${s.label} · ${s.id}` : s.label);
+  prev.setAttribute('aria-label', say('Предыдущая сцена', 'Previous scene')); next.setAttribute('aria-label', say('Следующая сцена', 'Next scene'));
+  label.setAttribute('aria-label', say('Сцена', 'Scene')); scenes.forEach((s, i) => label.append(new Option(title(s), i)));
   for (const s of scenes.slice(1)) { const i = document.createElement('i'); i.style.left = `${s.start / total * 100}%`; ticks.append(i); }
 
   let t = 0, cur = -1, token = 0, playing = true, scrubbing = false, last = 0, debounce = 0;
   const sceneAt = v => { let i = 0; while (i + 1 < scenes.length && scenes[i + 1].start <= v) i++; return i; };
-  const caption = s => { const text = s.id ? `${s.label} · ${s.id}` : s.label; if (label.textContent !== text) { label.textContent = text; range.setAttribute('aria-valuetext', text); } };
+  const caption = i => { if (+label.value !== i && document.activeElement !== label) label.value = i; const text = title(scenes[i]); if (range.getAttribute('aria-valuetext') !== text) range.setAttribute('aria-valuetext', text); };
   const syncPlay = () => { play.textContent = playing ? '❚❚' : '▶'; play.setAttribute('aria-label', playing ? say('Пауза', 'Pause') : say('Дальше', 'Play')); };
 
   function enter(i) {
@@ -91,9 +96,15 @@
     if (s.mode) mode(s.mode); if (s.id) pick(s.id);
     if (s.work != null) press(`[data-work="${s.work}"]`);   // events come out of work: the more of it, the more light at the tower
     const box = s.view?.(s.id), ms = box ? aq.glideTo(box) : 0;
-    setTimeout(() => { if (me === token) s.act?.(); }, Math.min(ms, FLY * 1000));
+    setTimeout(() => { if (me !== token) return; s.act?.(); if (s.follow) chase(me); }, Math.min(ms, FLY * 1000));
   }
-  function leave() { const s = scenes[cur]; token++; if (cur >= 0) s?.leave?.(); }
+  // A delivery is watched from close by: the camera pins the cab that took it, as a click on its row does.
+  function chase(me, tries = 12) {
+    if (me !== token) return;
+    const cab = aq.fl.find(f => f.demo && f.cargo === 1 && f.worker)?.worker;
+    if (cab) { aq.stopGlide(); if (pinned !== cab) pin(cab); } else if (tries) setTimeout(() => chase(me, tries - 1), 250);
+  }
+  function leave() { const s = scenes[cur]; token++; if (pinned) pin(null); if (cur >= 0) s?.leave?.(); }
   // A drag lands anywhere: nothing may stay on from the scene it left, and a scene's toggles start from off.
   function jump(i) {
     leave();
@@ -108,10 +119,18 @@
       else if (sceneAt(t) !== cur) { leave(); enter(sceneAt(t)); }
       range.value = t;
     }
-    caption(scenes[scrubbing ? sceneAt(+range.value) : cur]);
+    caption(scrubbing ? sceneAt(+range.value) : cur);
     requestAnimationFrame(tick);
   }
 
+  // Arrows, the list and the keys go straight to a scene; they wrap round, as the loop does.
+  function go(i) { jump((i + scenes.length) % scenes.length); range.value = t; label.value = cur; }
+  prev.addEventListener('click', () => go(cur - 1)); next.addEventListener('click', () => go(cur + 1));
+  label.addEventListener('change', () => { go(+label.value); label.blur(); });
+  addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey || !['ArrowLeft', 'ArrowRight'].includes(e.key) || e.target.closest?.('input,select,textarea')) return;
+    e.preventDefault(); go(cur + (e.key === 'ArrowLeft' ? -1 : 1));
+  });
   function settle() { clearTimeout(debounce); debounce = 0; const i = sceneAt(+range.value); if (i !== cur) jump(i); else t = +range.value; }
   range.addEventListener('input', () => { scrubbing = true; bar.classList.add('scrub'); clearTimeout(debounce); debounce = setTimeout(settle, 220); });
   const release = () => { if (!scrubbing) return; scrubbing = false; bar.classList.remove('scrub'); settle(); };

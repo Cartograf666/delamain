@@ -49,9 +49,9 @@
   depth-sorted buildings, fixed graph trajectories and bounded haze form the prototype. The default rendering
   and Swift saver remain unchanged. Per-district workers drive CORE load; missing data uses stable lot hashes.
 
-- **A self-playing tour of the city.** `/?map=1&live=1&follow=0&demo=celebration&tour=1` plays every event in turn, in a loop: fireworks, taxis, the owner's question, captures, growth, closure and work levels. The camera flies between scenes and a timeline bar picks a scene by dragging; nothing reaches the journal.
+- **A self-playing tour of the city.** `/?map=1&live=1&follow=0&demo=celebration&tour=1` plays every event in turn, in a loop: fireworks, taxis, the owner's question, captures, growth, closure and work levels. The camera flies between scenes and follows the cab on a delivery; a timeline bar, its arrows, `←`/`→` or its list picks a scene; virtual cabs show in the roster, where a click follows one. Nothing reaches the journal.
 
-- **A taxi flies one arc.** It climbs and comes down along its route instead of rising, cruising, stopping over the pad and sinking: a landing no longer hangs for 4-8 s. The arc keeps clear of the buildings under it; where a taller neighbour stands at the pad it falls back to a short vertical approach. A taxi leans into turns and swings round to a new side, and its cargo turns with it. The landing effect is half as strong and smaller.
+- **A taxi flies one arc.** It climbs and comes down along its route instead of rising, cruising, stopping over the pad and sinking: a landing no longer hangs for 4-8 s. The arc keeps clear of the buildings under it; where a taller neighbour stands at the pad it falls back to a short vertical approach. A taxi leans into turns and swings round to a new side, and its cargo turns with it. The landing effect is half as strong and smaller. Taxis are 1.65x larger: in flight each has a stronger trail, a halo and an outline in its sprite's own colour, and parked it sits in a slow ring on its pad.
 
 - **A question or blocker stands on its hub's sign,** in the tower's colour, with thick lines and a minimum size from afar; other signs keep off its place.
 

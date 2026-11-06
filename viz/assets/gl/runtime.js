@@ -52,7 +52,9 @@ function addressee(src,ev){const m=machines.get(src);if(!ev)return null;
 // sprite = engine kind x size; size follows model weight
 // engine flame tips on each sprite, as a share of the frame from its centre
 const THRUST=[[[-0.136,0.039],[0.042,0.109],[0.137,0.049]],[[-0.274,0.021],[0.142,0.193],[0.273,0.115]],[[-0.43,-0.062],[0.314,0.255],[0.428,0.19]],[[-0.092,0.062],[-0.001,0.099],[0.086,0.06]],[[-0.219,0.049],[-0.074,0.099],[0.084,0.172],[0.224,0.109]],[[-0.377,0.026],[-0.193,0.091],[-0.012,0.156],[0.179,0.227],[0.4,0.198]]];
-const CARGO_PX=[16,19,21],modelTier=m=>/haiku|mini|flash|lite|fast/i.test(m||'')?0:/astra|opus|fable|pro\b/i.test(m||'')?2:1;
+// The main colour of each sprite (kind = engine x size): its trail, halo and outline take it, so a drone reads as one thing.
+const DRONE=[[255,160,30],[20,205,230],[245,140,30],[255,30,170],[20,250,250],[140,50,255]];
+const CARGO_PX=[26,31,35],modelTier=m=>/haiku|mini|flash|lite|fast/i.test(m||'')?0:/astra|opus|fable|pro\b/i.test(m||'')?2:1;
 function mk(d,i,home){const p=home||anyPad(d),f=mkRaw(d,i,p);placeAt(f,slotFor(f,home?{d:p.d,g:p.g,pads:[p,...byNear(LP,p.g).slice(0,6)]}:p));return f}
 function mkRaw(d,i,p){return{d,at:p,state:'park',until:0,kind:i%6,size:32,cargo:0,x:p.g[0],y:p.g[1],z:roofZ(p),h:rnd(0,6.28),sp:0,ph:rnd(0,6.28),wp:[],trail:[],bank:0,dir:1,t:0}}
 function go(f,to,now,fast){if(!to)return false;if(f.state!=='park'){f.pendingFlight={to,fast};return true;}const was=f.slot,want=to;to=slotFor(f,want);for(let i=0;i<8&&to===was;i++)to=slotFor(f,want);if(!to||to===was){f.until=now+800;return false;}
@@ -127,19 +129,21 @@ function stepFlyers(now,frameDt){followHubRoofs();const dt=Math.max(0,Math.min(f
   const turn=f.state==='cruise'&&dt?Math.atan2(Math.sin(f.h-previousH),Math.cos(f.h-previousH))/dt:0;f.bank+=(Math.max(-1,Math.min(1,turn*1.4))-f.bank)*Math.min(1,dt*5);
   f.face??=f.dir;f.face+=Math.max(-dt*4.5,Math.min(dt*4.5,f.dir-f.face));
   f.sp=dt?Math.hypot(f.x-previousX,(f.y-previousY)*2)/dt:0;
-  const tl=f.cargo?56:34;if(now-(f.tt||0)>16){f.tt=now;f.trail.push([f.x,f.y-f.z,f.dir]);if(f.trail.length>tl)f.trail.shift()}}
+  const tl=f.cargo?90:60;if(now-(f.tt||0)>16){f.tt=now;f.trail.push([f.x,f.y-f.z,f.dir]);if(f.trail.length>tl)f.trail.shift()}}
   for(let i=fl.length-1;i>=0;i--)if(fl[i].gone)fl.splice(i,1)}
 function drawPads(now){for(const P of LP){g.depth=P.depth;const w=P.w,cx=P.p[0],cy=P.p[1],q=[0,2,4,6].map(i=>[cx+(w[i]-cx)*.8,cy+(w[i+1]-cy)*.8]),hot=P.use.size>0,b=hot?.68+.32*Math.sin(now/260):.42,pts=q.slice();
     if(P.type==='D'){const mid=(A,B)=>[(A[0]+B[0])/2,(A[1]+B[1])/2];if(P.e1>=P.e2)pts.push(mid(q[0],q[1]),mid(q[3],q[2]));else pts.push(mid(q[0],q[3]),mid(q[1],q[2]))}
     g.fillStyle=rgb(roofColour(cx,cy,tint[P.d]),b);for(const p of pts){g.beginPath();g.arc(p[0],p[1],.75,0,7);g.fill()}}}
 function drawFlyer(f,now){if(f.waiting||f.gone)return;g.depth=f.state==='park'?(f.slot?.depth??-.96)-.00002:-.97;const px=f.x,py=f.y-f.z,col=tint[f.cargo?f.home:f.d],air=f.state!=='park',r=f.cargo?4.2:2.9;
-  const z=CARGO_PX[f.kind%3]*(.9+.22*f.y/H),TH=THRUST[f.kind%6],T=f.trail,n=T.length,by=py-(air?0:z*.05);g.globalCompositeOperation='lighter';g.lineCap='round';g.lineJoin='round';
-  {const R=z*.62,cy=by+z*.2,q=g.createRadialGradient(0,0,0,0,0,1);for(const [o,a] of [[0,.24],[.2,.19],[.42,.11],[.65,.05],[.85,.015],[1,0]])q.addColorStop(o,rgb(col,a*(air?1:.55)));g.save();g.translate(px,cy);g.scale(R,R*.5);g.fillStyle=q;g.beginPath();g.arc(0,0,1,0,7);g.fill();g.restore()}
+  const z=CARGO_PX[f.kind%3]*(.9+.22*f.y/H),TH=THRUST[f.kind%6],T=f.trail,n=T.length,by=py-(air?0:z*.05),bright=lift(DRONE[f.kind%6],.12);g.globalCompositeOperation='lighter';g.lineCap='round';g.lineJoin='round';
+  // Flying it stands out from a busy city: a strong halo, a bright trail and an outline. Parked it sits calm in a slow ring on its pad.
+  if(!air){const beat=still()?.8:.65+.35*Math.sin(now/900+f.ph),R=z*.68;blob(px,py,z*1.05,bright,.34*beat);g.strokeStyle=rgb(bright,.9*beat);g.lineWidth=1.8;g.beginPath();g.ellipse(px,py,R,R/2,0,0,Math.PI*2);g.stroke(9);}
+  {const R=z*(air?.95:.62),cy=by+z*.2,q=g.createRadialGradient(0,0,0,0,0,1);for(const [o,a] of [[0,.24],[.2,.19],[.42,.11],[.65,.05],[.85,.015],[1,0]])q.addColorStop(o,rgb(air?bright:col,a*(air?2.4:.55)));g.save();g.translate(px,cy);g.scale(R,R*.5);g.fillStyle=q;g.beginPath();g.arc(0,0,1,0,7);g.fill();g.restore()}
   if((f.state==='descend'||f.state==='cruise'&&f.route?.approach)&&f.to)descentLight(f,px,by,z,col);
   for(const t of TH){const ox=t[0]*z,oy=t[1]*z;
-    if(air&&n>2)g.trail(T.map(t=>[t[0]+ox*t[2],t[1]+oy]),rgb(col,1),.8+z*.03);
+    if(air&&n>2){const pts=T.map(t=>[t[0]+ox*t[2],t[1]+oy]);g.trail(pts,rgb(bright,.4),3+z*.2);g.trail(pts,rgb(bright,1),1.6+z*.07);}
   }
-  g.globalCompositeOperation='source-over';const face=f.face??f.dir,side=Math.abs(face)<.08?Math.sign(face||1)*.08:face;g.save();g.translate(px,by);g.rotate(f.bank*.16);g.scale(side,1);if(f.cargo===1)drawCargo(f,0,z*.2,z);g.drawImage(spr[f.kind%spr.length],-z/2,-z/2,z,z);if(f.worker&&(hover===f.worker||pinned===f.worker))g.drawImageOutline(spr[f.kind%spr.length],-z/2,-z/2,z,z,'#ffe9ae');g.restore()}
+  g.globalCompositeOperation='source-over';const face=f.face??f.dir,side=Math.abs(face)<.08?Math.sign(face||1)*.08:face;g.save();g.translate(px,by);g.rotate(f.bank*.16);g.scale(side,1);if(f.cargo===1)drawCargo(f,0,z*.2,z);g.drawImage(spr[f.kind%spr.length],-z/2,-z/2,z,z);if(f.worker&&(hover===f.worker||pinned===f.worker))g.drawImageOutline(spr[f.kind%spr.length],-z/2,-z/2,z,z,'#ffe9ae');else if(air)g.drawImageOutline(spr[f.kind%spr.length],-z/2,-z/2,z,z,`#${bright.map(v=>v.toString(16).padStart(2,'0')).join('')}`);g.restore()}
 // The delivery container hangs under the taxi while loaded: the project's colour, lifted towards white to read at night.
 const crateColour=f=>{const h=f.T?.p.colour,c=/^#[\da-f]{6}$/i.test(h||'')?h.slice(1).match(/../g).map(x=>parseInt(x,16)):tint[f.home];return c.map(v=>Math.round(v+(255-v)*.35))};
 // Drawn inside the taxi's own transform and long along its axis, as the sprite's frame is: it turns and leans with the taxi.
@@ -231,7 +235,7 @@ function drawAlerts(now){g.save();g.globalCompositeOperation='lighter';g.lineCap
 
 // Test stand (panel=1, demo=celebration): virtual cabs made in the page, never in the journal or the hub home. They fly
 // through the same launch, caps and queue as real cabs; reset (and a reload) removes them and their queued trips.
-// Both are small (the smallest tier fits every pad type); the second differs by sprite.
+// Two types, so they read as different cabs; the page lists them with the real ones.
 const demoCabs=new Map(),DEMO_CABS=2;let demoPatrol=false;
 // Demo framing flies to its box: 1.2-3.2 s by distance, smootherstep, pulling back a little on a long hop. A hand gesture or
 // a second glide takes over from wherever the camera is. Reduced motion: at once.
@@ -245,7 +249,7 @@ function stepGlide(now){if(!glide)return;const t=Math.min(1,(now-glide.t)/glide.
   cam.x=mix(a.x,b.x);cam.y=mix(a.y,b.y);cam.z=Math.max(1,mix(a.z,b.z)*(1-glide.dip*Math.sin(Math.PI*e)));cam.tx=cam.x;cam.ty=cam.y;cam.tz=cam.z;if(t>=1)glide=null}
 function demoSource(project){for(const [src,m] of machines){const p=m.cityData?.projects?.find(q=>q===project||q.id===(project?.id??project));if(p)return{src,p,T:territory(src,p)}}return{}}
 function demoCabsFor(project){const {src,p,T}=demoSource(project);if(!T)return null;let fresh=false;
-  for(let i=0;i<DEMO_CABS;i++){const key=`demo|${T.id}|${i}`;if(!demoCabs.has(key)){fresh=true;demoCabs.set(key,{key,label:'demo '+(i+1),stage:p.stages?.[0]||'',machine:src,home:{district:p.zone},engine:i?'codex':'claude',model:'haiku',working:demoPatrol,demo:true,T})}}
+  for(let i=0;i<DEMO_CABS;i++){const key=`demo|${T.id}|${i}`;if(!demoCabs.has(key)){fresh=true;demoCabs.set(key,{key,kind:'cab',label:`${p.id} ${i+1}`,role:`${p.id} ${i+1}`,stage:p.stages?.[0]||'',machine:src,home:{district:p.zone},engine:i?'codex':'claude',model:i?'haiku':'sonnet',working:demoPatrol,demo:true,T})}}
   return{src,p,T,fresh}}
 // Target kinds: project, the territory's slot farthest from its main tower; owner, the owner tower; neighbour, the main tower
 // of the nearest other territory.
@@ -258,7 +262,7 @@ function demoDeliver(project,kind,now=performance.now()){const s=demoCabsFor(pro
   // Cabs made this click take off from the queue next frame, once they stand on their pads.
   if(s.fresh||!launch(job,now)){if(!s.fresh)live.overflow++;if(queue.length<24){queue.push(job);queue.sort((a,b)=>b.owner-a.owner||a.t-b.t)}}return job}
 const demo={
-  cabs:demoCabsFor,deliver:demoDeliver,target:demoTarget,
+  cabs:demoCabsFor,deliver:demoDeliver,target:demoTarget,list:()=>[...demoCabs.values()],
   event(project,kind='merge',now=performance.now()){if(!demoCabsFor(project))return false;dispatchEvent(project,kind,now,true);return true},
   patrol(project,on=!demoPatrol){demoPatrol=on;if(project)demoCabsFor(project);for(const c of demoCabs.values())c.working=on;return on},
   reset(){demoCabs.clear();demoPatrol=false;for(let i=queue.length-1;i>=0;i--)if(queue[i].demo)queue.splice(i,1);for(let i=fl.length-1;i>=0;i--)if(fl[i].demo){freeSlot(fl[i]);fl.splice(i,1)}},
