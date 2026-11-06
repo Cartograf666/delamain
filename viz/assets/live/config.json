@@ -1,0 +1,35 @@
+{
+  "halfLifeSeconds": 480,
+  "eventGain": 0.38,
+  "zeroThreshold": 0.001,
+  "systemTags": [
+    "pace",
+    "watchdog"
+  ],
+  "flightMs": 1100,
+  "arcFadeMs": 2000,
+  "maxFlights": 9,
+  "clusterIntervalMs": 400,
+  "ambientGroundCars": 180,
+  "appearance": {
+    "darkFilter": "grayscale(92%) brightness(30%)",
+    "notableFilter": "grayscale(85%) brightness(70%)",
+    "plazaColor": "#18232d",
+    "ownerTint": "#ffe9ae",
+    "groundAlpha": 0.55,
+    "heatGlow": 0.24,
+    "clusterGlow": 0.4,
+    "clusterBlur": 5,
+    "districtTints": {},
+    "vector": {
+      "left": "#131226",
+      "right": "#0b0b1a",
+      "roof": "#1b1a32",
+      "edge": "#29233d",
+      "warm": "#ffa854",
+      "cool": "#96e1ff"
+    },
+    "idleWindowGain": 0.81
+  },
+  "rareWindowsPerSecond": 13
+}

@@ -1,0 +1,17 @@
+{
+  "rgbaCanvas": true,
+  "identicalAlpha": true,
+  "clearMargins": true,
+  "monotonicAverageLuminance": true,
+  "luminance": [
+    59.683834952823375,
+    69.80586317079764,
+    96.51348558048312,
+    141.25797029349457,
+    179.3332163574989
+  ],
+  "exactCamera": "FAIL 2.13924:1",
+  "internalGeometryIdentity": "FAIL small drift",
+  "heightTarget": "FAIL ~5.38 versus ~9 world units",
+  "visualReview": "performed on contact and light/dark matte sheets; owner acceptance pending"
+}

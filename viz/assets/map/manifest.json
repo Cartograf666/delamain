@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "selection": {
+    "kind": "b",
+    "minHeight": 6,
+    "maxFootprintRatio": 1.4,
+    "keyObjectsExcluded": true
+  },
+  "enabledByDefault": false,
+  "families": [
+    {
+      "id": "core-sky-a",
+      "anchor": [
+        216,
+        700
+      ],
+      "size": [
+        432,
+        724
+      ],
+      "baseWidth": 338,
+      "roofLiftRatio": 1.5207100591715974,
+      "states": {
+        "0": "assets/style/core-sky-a-0.png",
+        "25": "assets/style/core-sky-a-25.png",
+        "50": "assets/style/core-sky-a-50.png",
+        "75": "assets/style/core-sky-a-75.png",
+        "100": "assets/style/core-sky-a-100.png"
+      }
+    },
+    {
+      "id": "core-sky-b",
+      "anchor": [
+        216,
+        700
+      ],
+      "size": [
+        432,
+        724
+      ],
+      "baseWidth": 298,
+      "roofLiftRatio": 1.9227941176470589,
+      "states": {
+        "0": "assets/style/core-sky-b-0.png",
+        "25": "assets/style/core-sky-b-25.png",
+        "50": "assets/style/core-sky-b-50.png",
+        "75": "assets/style/core-sky-b-75.png",
+        "100": "assets/style/core-sky-b-100.png"
+      }
+    },
+    {
+      "id": "core-sky-c",
+      "anchor": [
+        216,
+        700
+      ],
+      "size": [
+        432,
+        724
+      ],
+      "baseWidth": 310,
+      "roofLiftRatio": 1.706447963800905,
+      "states": {
+        "0": "assets/style/core-sky-c-0.png",
+        "25": "assets/style/core-sky-c-25.png",
+        "50": "assets/style/core-sky-c-50.png",
+        "75": "assets/style/core-sky-c-75.png",
+        "100": "assets/style/core-sky-c-100.png"
+      }
+    },
+    {
+      "id": "core-sky-d",
+      "anchor": [
+        216,
+        700
+      ],
+      "size": [
+        432,
+        724
+      ],
+      "baseWidth": 302,
+      "roofLiftRatio": 1.7384049773755657,
+      "states": {
+        "0": "assets/style/core-sky-d-0.png",
+        "25": "assets/style/core-sky-d-25.png",
+        "50": "assets/style/core-sky-d-50.png",
+        "75": "assets/style/core-sky-d-75.png",
+        "100": "assets/style/core-sky-d-100.png"
+      }
+    },
+    {
+      "id": "core-sky-e",
+      "anchor": [
+        216,
+        700
+      ],
+      "size": [
+        432,
+        724
+      ],
+      "baseWidth": 347,
+      "roofLiftRatio": 1.449660633484163,
+      "states": {
+        "0": "assets/style/core-sky-e-0.png",
+        "25": "assets/style/core-sky-e-25.png",
+        "50": "assets/style/core-sky-e-50.png",
+        "75": "assets/style/core-sky-e-75.png",
+        "100": "assets/style/core-sky-e-100.png"
+      }
+    },
+    {
+      "id": "core-sky-f",
+      "anchor": [
+        216,
+        700
+      ],
+      "size": [
+        432,
+        724
+      ],
+      "baseWidth": 209,
+      "roofLiftRatio": 2.865950226244344,
+      "states": {
+        "0": "assets/style/core-sky-f-0.png",
+        "25": "assets/style/core-sky-f-25.png",
+        "50": "assets/style/core-sky-f-50.png",
+        "75": "assets/style/core-sky-f-75.png",
+        "100": "assets/style/core-sky-f-100.png"
+      }
+    }
+  ],
+  "traffic": {
+    "cabAltitude": 0.18
+  }
+}

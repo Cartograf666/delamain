@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "placements": [
+    {
+      "model": "station",
+      "position": [
+        267.85,
+        -139.04500000000002
+      ],
+      "district": "core",
+      "plaza": 3,
+      "sourceLot": 3045
+    },
+    {
+      "model": "dome",
+      "position": [
+        417.66,
+        -517.965
+      ],
+      "district": "heights",
+      "plaza": 3,
+      "sourceLot": 3718
+    },
+    {
+      "model": "spire",
+      "position": [
+        -278.08500000000004,
+        101.62
+      ],
+      "district": "core",
+      "plaza": 3,
+      "sourceLot": 1512
+    }
+  ]
+}

@@ -2,6 +2,53 @@
 
 ## Unreleased
 
+## 1.1.0 — 2026-11-06
+
+- **Work in a district glows from inside.** A project with working agents lights its own territory, more with each level (1, 2, 3 and more agents): 35/60/85 % of its dark windows warm-lit with a few slow flickers, soft light from below on its own walls and soft roof lines, large haze over its land, roof twinkles, rising light motes and short streaks along its own streets; the glow breathes slowly. The ground ring is gone. Reduced motion shows the same strength, steady. Empty, unseated or closed projects show nothing.
+
+- **Territory growth as a gradual recolouring.** Plots that changed owner since the previous day cross-fade from the old owner's tint to the new one over about 25 s, plot by plot from the border inward, instead of a wave; reduced motion switches at once. The test panel's «Район растёт» replays it on built border plots and «Сброс всего» undoes it.
+
+- **Celebrations in the city.** A merge (`@hub MERGED … <link>`), a release (`RELEASED <version>`) or an opened PR (`PR-OPENED <link>`) sets off fireworks in the project's colour over its district. Facade light goes only to the central buildings of the project (the main tower for a PR; its own plots within 70 units for a merge, 110 for a release, at most 30 buildings) as a fast wave, about 160 units/s: each building peaks in 0.15 s and fades in 0.8 s (a release makes three passes and leaves a short afterglow on the main tower). Large blurred light accompanies it: a bloom at each burst, a soft haze column, a wash on the roofs and streets below, halos on the rockets. `/state` lists them as `celebrations` for 2 minutes; nothing replays on page load. Reduced motion shows one soft bloom and steady light on the main tower. `?demo=celebration` has a click panel.
+
+- **Fires that glow from inside.** A capture lights the lower floors of the captured plots: several hot spots per plot at different heights, orange-red to white-yellow, pouring out of windows onto the street and nearby facades with neon-level brightness, never as flames on roofs. The glow flickers smoothly (no large change faster than 3 Hz), embers rise from the windows within a fixed budget, and the grey smoke from routed roads is tinted warm at its base. Buildings in front hide a fire behind them; large captures spread the plume light so they do not merge into one mass. Beacons and responder cars as before; reduced motion keeps the glow, smoke and lamps steady.
+
+- **Taxi landings are an event.** In the last second the thrusters throw a growing cone of light onto the pad; touchdown gives a flash, a large soft bloom, a rising light column, two thick rings and a burst of sparks, and the receiving building's walls light stronger with a pulse running up its windows (the total wall light is capped at 2.5). A patrol landing is about half as strong; the number of simultaneous effects is capped. Reduced motion shows one soft bloom and a gentle wall rise.
+
+- **A hub's house grows with the session's context.** An open hub's building is 1.5x at fresh context, rising in ten steps to 2.4x at 350k tokens, never above 0.9 of the owner's tower; a closed hub is an ordinary house. Landing slots, parked taxis, flight obstacles, arrival light walls, spire, light column and sign follow the height. Twelve stepped landmarks and ground pads keep their size.
+
+- **District hover and border response.** Hover a project to see its name, plot count and boundary. A direct takeover of an occupied plot can start a temporary street-smoke response and dispatch road vehicles with beacons. The local capture demo replays the 2 November event.
+
+- **Vacant houses release their land.** An emptied parcel becomes available to other projects and drops out of the original district’s area, outline and picking. Animated billboards and painted neon signs retain their authored colours in every district.
+
+- **Consistent Districts project identity.** Active houses, roof markers, facade lights and associated landmarks share the project hue, including live dynamic roof effects. Explicit project anchors and geographic containment resolve replacement landmarks while preserving reserved ownership, quiet homes, Activity/Attention and building heights.
+
+- **District material and geographic focus.** Districts softly tint inhabited facades, roofs and windows in the project hue; inactive homes retain Activity materials. Map, label and list hover/focus or selection outlines every owned land footprint, including replaced-building sites, without changing geometry.
+
+- **Courier flights and plaza hologram.** Couriers follow obstacle-aware routes, settle above a free pad and descend slowly. A translucent fish hologram lights the central plaza.
+- **Opt-in project districts in the live WebGL map.** Activity remains the default; Districts show project colours, hover boundaries, plot counts and daily ownership waves.
+
+- **Deterministic archival project territories.** Read-only `/city?date=YYYY-MM-DD` ports the accepted fight model
+  and product grouping, exposes plot owners, capped observed worker hours, area, silence, pressure and stable colour.
+  Completed tasks include STOP with a report. New projects receive three connected plots. Tests retain the original 29-day simulation as a historical baseline.
+  The current ownership calculation also accounts for landmark protection and immediate vacancy.
+- **Steady WebGL roads and arrival spill.** Roads keep a fixed width and base glow; only a three-minute traffic density average adds a capped brightness lift. Arrival uplight softly reaches nearby visible walls, with building occlusion and the existing two-second envelope.
+
+- **Three-tier city pilot behind `?map=1&kit=1`.** Four fixed facade styles and three
+  code-built notable landmarks, deterministic reserved plazas and district-load
+  emission. Key towers retain their original light/placement; boxes and optional
+  CORE sprites remain available. Overview framing and roster-aware label evidence
+  are corrected; hidden 0×0 map panes recover on resize without reloading.
+
+- **Accepted city map behind `?map=1`.** Fixed road/building data, routable streets and bridges,
+  per-district deterministic load windows, preserved owner/hub landmarks and live journal beams.
+  Boxes remain the default; `sprites=1` enables existing CORE A-F sprites in matching footprints.
+  Camera controls and tiered caches are reused. Default/layers modes and Swift saver remain separate.
+
+- **Optional layered sprite city (`?layers=1`).** The browser loads the style manifest, five CORE load images,
+  twelve ordinary building cutouts and static blue/green/owner keys. Cached ground/grid, amber lane guides,
+  depth-sorted buildings, fixed graph trajectories and bounded haze form the prototype. The default rendering
+  and Swift saver remain unchanged. Per-district workers drive CORE load; missing data uses stable lot hashes.
+
 ## 1.0.26 — 2026-11-04
 
 - **The watchdog stops retired hubs it used to report forever; a project hook no longer leaves its probes behind.**
@@ -16,7 +63,6 @@
   `hub handoff` (`handoff-facts.sh`) and `hub takeover` (`takeover.sh`) run the project script in a process group of
   its own and take the whole group down, TERM then KILL, on their timeout or on SIGTERM/SIGHUP/SIGINT (the host's Bash
   call running out): two prod probes of a handoff-facts.sh had been blocked for three days under a killed `hub handoff`.
-
 - **Russian parameter rules no longer disable context handoff; a Russian `не передавай` still stops it.** The
   context-budget hook treated `Не передавай идентификаторы другого провайдера` and `параметры Codex ему не передавай`
   in user-provided `AGENTS.md` instructions as a handoff prohibition. Now a sentence with `не передавай`
@@ -1685,3 +1731,7 @@ First public release.
 - `nightq`: a night queue with a permission matrix; optional night-nudge task template.
 - `agent-top`: curses console, `--once`, `--json` and the `--widget` HTML for the `/agent-top` chat skill.
 - Skills: `hub`, `handoff`, `agent-top`. Hooks: lock guard, owner-question summary at session start, handoff size cap.
+
+## Unreleased — opt-in live vector city
+
+- Add `?map=1&live=1` with geometry-based city rendering, zoom tiers, journal heat and steered work flights. `replay=N&start=<ISO time>` preserves real journal intervals. Hubs fade independently; idle workers stay parked. Road traffic, rare window pulses and water-only building reflections provide ambient motion. Existing page UI and the default renderer remain unchanged.

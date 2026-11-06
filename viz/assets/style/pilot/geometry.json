@@ -1,0 +1,37 @@
+{
+  "source": "viz/viz.html at 5624e76",
+  "viewportCSS": [
+    1600,
+    1000
+  ],
+  "zoom": 1,
+  "K": 7.549019607843137,
+  "lots": 616,
+  "coreLots": 113,
+  "measuredCoreSideRange": [
+    2.5999999999999943,
+    2.6000000000000085
+  ],
+  "lotDiamondWorld": [
+    5.2,
+    2.6
+  ],
+  "lotDiamondCSS": [
+    39.254901960784316,
+    19.627450980392158
+  ],
+  "insetBaseSideWorld": 1.7679999999999998,
+  "insetBaseDiamondWorld": [
+    3.5359999999999996,
+    1.7679999999999998
+  ],
+  "insetBaseDiamondCSS": [
+    26.693333333333328,
+    13.346666666666664
+  ],
+  "insetBaseDiamondAt2x": [
+    53.386666666666656,
+    26.693333333333328
+  ],
+  "streetGapWorld": 0.8320000000000003
+}

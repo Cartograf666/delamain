@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "three": "0.180.0",
+  "resolution": 4,
+  "projection": "x-z, (x+z)/2-height",
+  "cameraPitch": 30,
+  "models": {
+    "station": {
+      "footprint": [
+        52,
+        30
+      ],
+      "height": 29,
+      "size": [
+        360,
+        312
+      ],
+      "anchor": [
+        180,
+        214
+      ],
+      "resolution": 4,
+      "base": "station-base.png",
+      "states": {
+        "0": "station-emissive-0.png",
+        "25": "station-emissive-25.png",
+        "50": "station-emissive-50.png",
+        "75": "station-emissive-75.png",
+        "100": "station-emissive-100.png"
+      },
+      "windows": 48,
+      "bounds": {
+        "min": [
+          -26,
+          0,
+          -15
+        ],
+        "max": [
+          26,
+          22.333078644392305,
+          15
+        ]
+      },
+      "projectionControl": [
+        [
+          180.0000000000002,
+          214.00000000000006
+        ],
+        [
+          220.00000000000017,
+          234.00000000000006
+        ],
+        [
+          140.0000000000002,
+          234.00000000000006
+        ],
+        [
+          180.0000000000002,
+          174.00000000000009
+        ]
+      ]
+    },
+    "dome": {
+      "footprint": [
+        36,
+        36
+      ],
+      "height": 43,
+      "size": [
+        320,
+        348
+      ],
+      "anchor": [
+        160,
+        260
+      ],
+      "resolution": 4,
+      "base": "dome-base.png",
+      "states": {
+        "0": "dome-emissive-0.png",
+        "25": "dome-emissive-25.png",
+        "50": "dome-emissive-50.png",
+        "75": "dome-emissive-75.png",
+        "100": "dome-emissive-100.png"
+      },
+      "windows": 40,
+      "bounds": {
+        "min": [
+          -18,
+          0,
+          -18
+        ],
+        "max": [
+          18,
+          34.90522883466029,
+          18
+        ]
+      },
+      "projectionControl": [
+        [
+          160.00000000000023,
+          260.00000000000006
+        ],
+        [
+          200.00000000000023,
+          280.00000000000006
+        ],
+        [
+          120.0000000000002,
+          280.00000000000006
+        ],
+        [
+          160.00000000000023,
+          220.00000000000009
+        ]
+      ]
+    },
+    "spire": {
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 106,
+      "size": [
+        224,
+        552
+      ],
+      "anchor": [
+        112,
+        488
+      ],
+      "resolution": 4,
+      "base": "spire-base.png",
+      "states": {
+        "0": "spire-emissive-0.png",
+        "25": "spire-emissive-25.png",
+        "50": "spire-emissive-50.png",
+        "75": "spire-emissive-75.png",
+        "100": "spire-emissive-100.png"
+      },
+      "windows": 276,
+      "bounds": {
+        "min": [
+          -12,
+          -0.0238763090375088,
+          -12
+        ],
+        "max": [
+          12,
+          86.59143961086731,
+          12
+        ]
+      },
+      "projectionControl": [
+        [
+          112.0000000000002,
+          488.00000000000017
+        ],
+        [
+          152.0000000000002,
+          508.00000000000017
+        ],
+        [
+          72.0000000000002,
+          508.00000000000017
+        ],
+        [
+          112.0000000000002,
+          448.00000000000017
+        ]
+      ]
+    }
+  }
+}

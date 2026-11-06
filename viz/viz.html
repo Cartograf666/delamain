@@ -85,13 +85,31 @@
     #roster.open { display: block; }
     #roster .r { padding-top: 6px; padding-bottom: 6px; }
   }
+
+  /* District presentation is opt-in and isolated from the activity view. */
+  #growth-controls { display:flex; gap:2px; pointer-events:auto; background:#10131f; border:1px solid #424957; border-radius:5px; padding:3px; }
+  #growth-controls button, #growth-controls select { font:inherit; font-size:12px; color:var(--ink); background:transparent; border:1px solid transparent; border-radius:3px; padding:7px 10px; cursor:pointer; }
+  #growth-controls button[aria-pressed="true"] { background:#28374a; color:#b1eeff; }
+  #growth-controls button:hover { background:#253043; }
+  #growth-controls button:focus-visible, #growth-controls select:focus-visible { outline:2px solid #9ceaff; outline-offset:2px; }
+  #growth-labels { position:fixed; inset:0; pointer-events:none; z-index:3; }
+  #growth-labels button { -webkit-tap-highlight-color:transparent; position:absolute; pointer-events:auto; background:transparent; border:0; padding:0; cursor:pointer; border-radius:2px; }
+  #growth-labels button:focus-visible { outline:2px solid #9ceaff; outline-offset:2px; }
+  /* Collided/offscreen labels stay in keyboard order; focus promotes their one canvas label. */
+  #growth-labels button.growth-label-hidden { left:0!important; top:0!important; width:1px!important; height:1px!important; clip-path:inset(50%); overflow:hidden; pointer-events:none; }
+
+  @media (max-width:700px), (max-height:500px) {
+    #growth-controls button { padding:7px 6px; font-size:11px; }
+    body.growth-active #ticker { max-height:42px; overflow:hidden; }
+  }
 </style>
+<link rel="stylesheet" href="/assets/city-style.css">
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="hud"><div class="brand">DELAMAIN</div><div class="sub" id="sub"></div>
   <button id="rtoggle" type="button" aria-expanded="false" aria-controls="roster"></button><div id="roster" role="list"></div></div>
-<div id="tr"><div id="mode"></div>
+<div id="tr"><div id="city-style-row"><select id="city-style"></select><div id="mode"></div></div>
   <div id="ctl"><button id="bview" type="button" hidden></button><button id="bfollow" type="button" aria-pressed="true"></button></div>
 <div id="legend"><i style="background:var(--violet)"></i><span id="lg-hub"></span><i style="background:var(--amber)"></i>claude<i style="background:var(--cyan)"></i>codex<i style="background:var(--gold)"></i>owner</div></div>
 <div id="ticker"></div>
@@ -102,6 +120,10 @@
 // the owner the megatower in the core; ground traffic is ambient.
 // A worker is a flying cab roaming the sky; every journal line is a beam between a spire and a cab.
 const qs = new URLSearchParams(location.search);
+const LAYERS = qs.get("layers") === "1";
+const MAP = qs.get("map") === "1";
+const LIVE = MAP && qs.get("live") === "1";
+let layerCity = null, districtGrowth = null;
 // ui=N scales the text over the map (labels, ticker, HUD, tooltips) for a big screen; the map keeps its scale
 const UI = Math.max(0.5, Math.min(4, +qs.get("ui") || 1));
 for (const id of ["hud", "tr", "ticker"]) document.getElementById(id).style.zoom = UI;
@@ -143,10 +165,11 @@ document.getElementById("lg-hub").textContent = T.hub;
 
 const C = { amber: "#ffb547", cyan: "#4fe3ff", violet: "#c08bff", magenta: "#ff4fd8", gold: "#ffd76a", ink: "#dfe6ee",
   dim: "#8a96a6", tool: "#9fb4c8", red: "#ff3b5c" };
-const cv = document.getElementById("c"), ctx = cv.getContext("2d");
+const cv = document.getElementById("c");
+let ctx = cv.getContext("2d");
 let W = 0, H = 0, DPR = 1;
 
-// ---- sprites (black background keyed to alpha) ------------------------------------------------------
+// ---- sprites (native alpha, legacy black matte) ------------------------------------------------------
 const sprites = {};
 function loadSprite(name, file, key, solid = false) {
   return new Promise(res => {
@@ -154,27 +177,38 @@ function loadSprite(name, file, key, solid = false) {
     img.crossOrigin = "anonymous";
     img.onload = () => {
       if (!key) { sprites[name] = img; return res(); }
-      const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
-      const g = c.getContext("2d"); g.drawImage(img, 0, 0);
-      try {
-        const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
-        const soft = i => Math.max(0, Math.min(255, (Math.max(p[i], p[i + 1], p[i + 2]) - 5) * 12));
-        if (!solid) for (let i = 0; i < p.length; i += 4) p[i + 3] = soft(i);
-        else {   // a hull as black as the background: the silhouette is each row's span between its outer lit pixels
-          const w = c.width, h = c.height, lit = k => Math.max(p[k], p[k + 1], p[k + 2]) > 14;
-          for (let y = 0; y < h; y++) {
-            let x0 = -1, x1 = -1;
-            for (let x = 0; x < w; x++) if (lit((y * w + x) * 4)) { if (x0 < 0) x0 = x; x1 = x; }
-            for (let x = 0; x < w; x++) { const k = (y * w + x) * 4; p[k + 3] = x0 >= 0 && x > x0 && x < x1 && x1 - x0 > 2 ? 255 : soft(k); }
-          }
-        }
-        g.putImageData(d, 0, 0);
-      } catch (e) {}
+      const c = matteSprite(img, solid);
       sprites[name] = c; if (name === "owner-tower") ownerLights(c); res();
     };
     img.onerror = () => res();
     img.src = `${ASSET}/assets/${file}`;
   });
+}
+// Decode once; native alpha survives unchanged, legacy RGB edges are unmatted.
+function matteSprite(img, solid) {
+      const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+      const g = c.getContext("2d"); g.drawImage(img, 0, 0);
+      try {
+        const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+        // Real alpha is authoritative. Canvas handles premultiplication at draw time.
+        if (!p.some((v, i) => i % 4 === 3 && v < 255)) {
+          const w = c.width, h = c.height;
+          const lum = k => .2126 * p[k] + .7152 * p[k + 1] + .0722 * p[k + 2];
+          for (let y = 0; y < h; y++) {
+            let x0 = -1, x1 = -1;
+            if (solid) for (let x = 0; x < w; x++) if (lum((y * w + x) * 4) > 14) { if (x0 < 0) x0 = x; x1 = x; }
+            for (let x = 0; x < w; x++) {
+              const k = (y * w + x) * 4, v = lum(k);
+              const a = solid && x > x0 + 1 && x < x1 - 1 ? 1 : Math.min(1, Math.max(0, v - 3) / 45);
+              // Remove the black already mixed into antialiased edges before applying alpha.
+              for (let j = 0; j < 3; j++) p[k + j] = a ? Math.min(255, Math.max(0, p[k + j] - 3) / a) : 0;
+              p[k + 3] = Math.round(a * 255);
+            }
+          }
+        }
+        g.putImageData(d, 0, 0);
+      } catch (e) {}
+  return c;
 }
 // The owner tower is the plan-limits gauge: its left face lit amber for what Claude has left, its right face cyan for
 // Codex, each from the crown down by that share; the spent part below it is dark. Three copies of the sprite: dark, amber,
@@ -195,7 +229,7 @@ function ownerLights(src) {
     g.globalCompositeOperation = "source-atop"; g.fillStyle = rgba(hex, wash); g.fillRect(0, 0, c.width, c.height);   // the hull too
     return c;
   };
-  sprites["owner-dark"] = tint("#8a96a6", 0.5, 0); sprites["owner-claude"] = tint(C.amber, 1.8, 0.22); sprites["owner-codex"] = tint(C.cyan, 1.8, 0.22);
+  sprites["owner-dark"] = tint("#8a96a6", 0.65, 0.055); sprites["owner-claude"] = tint(C.amber, 1.8, 0.22); sprites["owner-codex"] = tint(C.cyan, 1.8, 0.22);
 }
 const OWNER_SPAN = [0.06, 0.96];   // the owner tower's crown and foot in its sprite, as shares of the height
 const TOWERS = ["hub-tower", "hub-tower-cyan", "hub-tower-red", "hub-tower-green", "hub-tower-gold", "hub-tower-blue",
@@ -223,7 +257,21 @@ const SPRITES = [...TOWERS, ...CABS, "owner-tower", "holo", "block", "corpo-bloc
   "market-block", "port-block", "luxury-block", "badlands-block", "megamall", "data-center", "landing-pad", "power-plant",
   "container-ship", "oil-rig", "billboard-tower", "park", "slum-block", "temple", "stadium", "water-tower", "monorail-station"];
 const SOLID = new Set([...TOWERS, ...CABS, "owner-tower"]);
-const ready = Promise.all([...SPRITES.map(n => loadSprite(n, n + ".png", true, SOLID.has(n))), loadSprite("sky", "skyline.jpg", false)]);
+const layerReady = (LAYERS || MAP) ? new Promise((resolve, reject) => {
+  const script = document.createElement("script"); script.src = `${ASSET}/assets/style/layers.js`;
+  script.onload = () => {
+    if (!MAP) return prepareLayerCity().then(city => { layerCity = city; resolve(); }, reject);
+    const map = document.createElement("script"); map.src = `${ASSET}/assets/map/mapcity.js`;
+    map.onload = () => prepareMapCity().then(city => { layerCity = city; resolve(); }, reject);
+    map.onerror = () => reject(new Error("Map renderer could not be loaded")); document.head.appendChild(map);
+  };
+  script.onerror = () => reject(new Error("Layer renderer could not be loaded")); document.head.appendChild(script);
+}).catch(error => {
+  console.error(error);
+  document.getElementById("mode").textContent = LANG === "ru" ? "Ошибка загрузки слоёв" : "Layer loading failed";
+  document.getElementById("mode").title = error.message;
+}) : Promise.resolve();
+const ready = Promise.all([...SPRITES.map(n => loadSprite(n, n + ".png", true, SOLID.has(n))), loadSprite("sky", "skyline.jpg", false), layerReady]);
 
 // ---- deterministic randomness -------------------------------------------------------------------------
 function hash(s) { let h = 2166136261; for (const ch of String(s)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; }
@@ -313,6 +361,12 @@ function buildCity() {
           tall: d.sparse ? 0.3 : (d.id === "core" ? 1.2 : 0.4) + rand() * (d.id === "core" ? 2.6 : 1.1),
           flip: rand() < .5, scale: 0.85 + rand() * 0.25, sprite: pick(d.mix, rand()), h: hash(k + d.id) });
     }
+  }
+  // Extra variation consumes no PRNG draws: roads, lots and landmark placement stay unchanged.
+  for (const l of G.lots) {
+    const v = hash(`${l.h}:height`) / 4294967295;
+    l.tall *= .55 + v * (l.d === "core" ? 1.9 : 1.25);
+    l.brightness = .55 + (hash(`${l.h}:light`) % 1000) / 1000 * .8;
   }
   G.nodes.forEach(index);
   // stitch district borders: a dangling node joins the nearest node of another district
@@ -410,6 +464,7 @@ function ensureStage(src, name, repo) {
 
 // Each district's hubs take its lots nearest the district's seed, a lot apart; a full district spills over.
 function placeHubs() {
+  if (MAP && layerCity) return layerCity.placeHubs();
   const taken = new Set([G.owner]);
   for (const tw of towers.values()) if (tw.lot) taken.add(tw.lot);
   for (const tw of towers.values()) {
@@ -458,6 +513,8 @@ function sweepLanded(m) {
 function applyState(src, s) {
   const m = machines.get(src);
   m.name = s.machine;
+  m.celebrations = s.celebrations || [];   // fresh merges, releases, opened PRs: fireworks over the district
+  m.celebratedAtLoad ??= new Set(m.celebrations.map(c => c.id));   // what the page found on load never replays
   for (const [e, l] of Object.entries(s.limits || {})) owner.limits[e] = l;   // the plan is the account's: any machine
   const seen = new Set();
   for (const sv of s.stages) {
@@ -475,6 +532,7 @@ function applyState(src, s) {
     for (const c of st.workers.values()) land(c);
   }
   hud();
+  if (layerCity) layerCity.applyState(src, s);
 }
 
 // ---- ambient traffic on the street graph -------------------------------------------------------------------
@@ -487,6 +545,7 @@ function nextHop(car) {   // a random turn, never straight back; a highway lover
 }
 
 function drive(car, dt) {
+  if (layerCity) return layerCity.drive(car, dt);
   const seg = Math.hypot(car.b.x - car.a.x, car.b.y - car.a.y) || 1;
   car.t += car.speed * (car.a.hw && car.b.hw ? 2 : 1) * dt / seg;
   while (car.t >= 1) {
@@ -516,11 +575,12 @@ let followPref = followOn;   // the chosen setting; a hand gesture turns followO
 // A hand pan or zoom makes the view manual and switches follow off (not in the saved setting), so the control says what
 // the camera does; follow on again, the overview control, c or Esc give the camera back.
 let manual = false;
-const ZMIN = 0.7, ZMAX = 6;   // zoom against the overview
+const ZMIN = MAP && LIVE ? 1 : 0.7, ZMAX = 6;   // zoom against the overview
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const isoRaw = (x, y) => [(x - y), (x + y) * 0.5];
 function fit() {
   if (!W || !G.nodes.length) return;
+  if (MAP && layerCity) return layerCity.fit();
   // The iso map is twice as wide as it is tall. On a portrait screen it fits the city, not the desert roads, and lets
   // the sides go past the screen's edges, or it would fill a quarter of the height.
   const portrait = H > W * 1.1;
@@ -562,7 +622,8 @@ function manualView() {   // a hand gesture: release a pin, stop the automatic c
   if (!manual) { manual = true; followOn = false; syncCtl(); }
   cam.tx = cam.x; cam.ty = cam.y; cam.tz = cam.z;
 }
-function clampCam() {   // the view's centre stays over the map's ground (a diamond on screen), so the city cannot be lost
+function clampCam() {
+  if (LIVE && layerCity?.live?.gpu) { layerCity.live.clampCamera(true); return; }   // the view's centre stays over the map's ground (a diamond on screen), so the city cannot be lost
   if (MAPB) {   // iso back to world: x = b + a/2, y = b - a/2; clamp there, then forward again
     const x = clamp(cam.y + cam.x / 2, MAPB.x0, MAPB.x1), y = clamp(cam.y - cam.x / 2, MAPB.y0, MAPB.y1);
     [cam.x, cam.y] = isoRaw(x, y);
@@ -618,6 +679,7 @@ function resolve(src, [stage, role]) {
 }
 
 function onLine(src, ev, replayed) {
+  if (LIVE && layerCity?.live) { layerCity.live.event(src, ev, replayed); tick(ev, replayed); return; }
   if (!machines.get(src)) return;
   const from = resolve(src, ev.from);
   if (!from) return tick(ev, replayed);
@@ -639,7 +701,7 @@ const TOWER_STEP = 4.2;   // hub towers keep one size in every district
 const CTX_FULL = 350000;
 const ctxScale = n => 0.75 + 0.75 * Math.min(1, (n.ctx || 0) / CTX_FULL);
 const towerScale = n => n.kind === "owner" ? 1 : n.sc ?? ctxScale(n);
-const towerLift = n => n.kind === "owner" ? 7.5 : 6.4 * TOWER_STEP / 5.5 * towerScale(n);
+const towerLift = n => layerCity ? layerCity.towerLift(n) : n.kind === "owner" ? 7.5 : 6.4 * TOWER_STEP / 5.5 * towerScale(n);
 // A hub with owner questions open blinks: its spire beacon and its sign flash gold on and off once a second.
 const blink = (tw, now) => tw.questions > 0 ? Math.max(0, Math.min(1, 0.5 + 1.4 * Math.sin(now * 2 * Math.PI / 1000))) : -1;
 const fmtK = n => Math.round(n / 1000) + "k";
@@ -661,6 +723,7 @@ function waypoint(c) {
   return [CX, CY];
 }
 function fly(c, now, dt) {
+  if (layerCity) return layerCity.fly(c, now, dt);
   if (c.leaving) {   // home to the hub's lot, descending as it closes in; landed within a unit of it
     c.wp = [c.home.lot.x, c.home.lot.y];
     const left = Math.hypot(c.wp[0] - c.x, c.wp[1] - c.y);
@@ -697,12 +760,46 @@ function tick(ev, replayed) {
 }
 
 // ---- sources ---------------------------------------------------------------------------------------------
+// Only the accepted WebGL view uses archival places. Other renderers retain their existing behaviour.
+function cityProject(src, stage, tag = "") {
+  const projects = machines.get(src)?.cityStages?.get(stage) || [];
+  if (stage === "codex-backlog-20261023" && tag) {
+    const project = projects.find(p => p.tagPrefixes?.some(prefix => tag.startsWith(prefix)));
+    if (project) return project;
+  }
+  return projects[0];
+}
+async function loadCity(src) {
+  const m = machines.get(src);
+  if (m.cityLoading) return m.cityLoading;
+  m.cityLoading = (async () => {
+    try {
+      const r = await fetch(src + "/city");
+      if (!r.ok) throw Error(`City HTTP ${r.status}`);
+      const city = await r.json();
+      m.cityData = city;
+      m.cityStages = new Map();
+      for (const p of city.projects) for (const s of p.stages) {
+        if (!m.cityStages.has(s)) m.cityStages.set(s, []);
+        m.cityStages.get(s).push(p);
+      }
+      for (const projects of m.cityStages.values()) projects.sort((a, b) => b.area - a.area || a.id.localeCompare(b.id));
+      m.cityError = null; placeHubs();
+      dispatchEvent(new CustomEvent("city-growth-state", {detail: src}));
+    } catch (e) { m.cityError = String(e); console.error("City places unavailable", src, e); }
+    finally { m.cityLoading = null; }
+  })();
+  return m.cityLoading;
+}
 async function connect(src, idx) {
   machines.set(src, { name: src, stages: new Map(), online: false, idx });
+  if (LIVE) await loadCity(src);
   try { applyState(src, await (await fetch(src + "/state")).json()); } catch (e) {}
   const es = new EventSource(src + "/events");
-  es.addEventListener("state", e => { machines.get(src).online = true; applyState(src, JSON.parse(e.data)); });
-  es.addEventListener("line", e => { lastLive = performance.now(); stopReplay(); onLine(src, JSON.parse(e.data), false); });
+  es.addEventListener("state", e => { machines.get(src).online = true; const st = JSON.parse(e.data);
+    if (LIVE && st.stages.some(s => !cityProject(src, s.name))) loadCity(src);
+    applyState(src, st); });
+  es.addEventListener("line", e => { lastLive = performance.now(); if (LIVE && layerCity.live.replaying) return; stopReplay(); onLine(src, JSON.parse(e.data), false); });
   es.onerror = () => { machines.get(src).online = false; hud(); };
 }
 
@@ -722,6 +819,7 @@ function hud() {
 }
 
 async function startReplay() {
+  if (LIVE && layerCity?.live) return layerCity.live.startReplay();
   const all = [];
   for (const src of SOURCES) {
     try { const h = await (await fetch(`${src}/history?hours=${REPLAY_HOURS}`)).json(); for (const ev of h.lines) all.push([src, ev]); } catch (e) {}
@@ -732,11 +830,13 @@ async function startReplay() {
   document.getElementById("mode").className = "replay";
 }
 function stopReplay() {
+  if (LIVE && layerCity?.live) { layerCity.live.stopReplay(); return; }
   if (!replay) return;
   replay = null;
   const mode = document.getElementById("mode"); mode.className = ""; mode.innerHTML = `<b>${T.live}</b>`;
 }
 function stepReplay(now) {
+  if (LIVE) return;
   if (!replay || now < replay.next) return;
   const [src, ev] = replay.all[replay.i];
   onLine(src, ev, true);
@@ -774,6 +874,7 @@ function shapes() {   // outlines of the world, the city and the water, in world
 }
 
 function drawBackdrop() {
+  if (layerCity) return layerCity.drawBackdrop();
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, "#030409"); g.addColorStop(.5, "#0a0716"); g.addColorStop(1, "#05040b");
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -786,40 +887,53 @@ function drawBackdrop() {
 
 function drawGround(now) {
   const map = pts => pts.map(([x, y]) => P(x, y));
-  const wg = ctx.createLinearGradient(0, 0, W * .6, H);   // the bay, with drifting neon reflections
-  wg.addColorStop(0, "rgba(6,18,38,.95)"); wg.addColorStop(1, "rgba(10,8,30,.95)");
+  const wg = ctx.createLinearGradient(0, 0, W * .6, H);   // the bay, with static neon reflections
+  wg.addColorStop(0, "#10263b"); wg.addColorStop(.55, "#081828"); wg.addColorStop(1, "#060c1b");
   poly(map(outline.water), wg);
+  ctx.save(); ctx.clip();   // reflections belong to the bay, not the sky outside its polygon
   ctx.globalCompositeOperation = "lighter";
   for (let k = 0; k < 70; k++) {
-    const y = (k * 37) % 160 - 20, x = coast(y) - 3 - ((k * 13) % 23) - Math.sin(now / 1400 + k) * 1.5;
+    const y = (k * 37) % 160 - 20, x = coast(y) - 3 - ((k * 13) % 23) - Math.sin(k) * 1.5;
     const [sx, sy] = P(x, y), w = unit() * (1 + (k % 4));
-    ctx.fillStyle = rgba(k % 3 ? C.magenta : C.cyan, 0.08 + 0.06 * Math.sin(now / 700 + k));
+    ctx.fillStyle = rgba(k % 3 ? C.magenta : C.cyan, 0.08 + 0.06 * Math.sin(k));
     ctx.fillRect(sx, sy, w, Math.max(1, unit() * 0.12));
   }
-  ctx.globalCompositeOperation = "source-over";
-  poly(map(outline.world), "rgba(22,14,10,.92)");   // desert
-  poly(map(outline.city), "rgba(9,9,20,.96)");
-  ctx.lineCap = "round";   // streets first, then highways over them with moving traffic light
+  ctx.restore();
+  const [gx, gy] = P(CX, CY), radius = unit() * 90;
+  const ground = ctx.createRadialGradient(gx, gy, 0, gx, gy, radius);
+  ground.addColorStop(0, "#101827"); ground.addColorStop(.7, "#0c1220"); ground.addColorStop(1, "#050914");
+  poly(map(outline.world), ground);
+  const city = ctx.createRadialGradient(gx, gy, 0, gx, gy, unit() * 65);
+  city.addColorStop(0, "#111628"); city.addColorStop(1, "#080d19"); poly(map(outline.city), city);
+  ctx.save(); ctx.strokeStyle = rgba(C.cyan, .25); ctx.lineWidth = Math.max(1, unit() * .2);
+  ctx.shadowColor = C.cyan; ctx.shadowBlur = 9; ctx.beginPath();
+  for (let y = 2; y <= 128; y += 2) { const p = P(coast(y) + 1, y); y === 2 ? ctx.moveTo(...p) : ctx.lineTo(...p); }
+  ctx.stroke(); ctx.restore();
+  ctx.lineCap = "round";   // streets first, then highways; traffic remains in the live layer
   ctx.strokeStyle = "rgba(150,120,230,.15)"; ctx.lineWidth = Math.max(1, unit() * 0.32); ctx.beginPath();
   for (const n of G.nodes) for (const e of n.adj) if (!e.hw && e.to.id > n.id) { ctx.moveTo(...P(n.x, n.y)); ctx.lineTo(...P(e.to.x, e.to.y)); }
   ctx.stroke();
   ctx.strokeStyle = "rgba(150,120,230,.2)"; ctx.lineWidth = Math.max(1, unit() * 0.6); ctx.beginPath();   // highways: plain, wider
   for (const n of G.nodes) for (const e of n.adj) if (e.hw && e.to.id > n.id) { ctx.moveTo(...P(n.x, n.y)); ctx.lineTo(...P(e.to.x, e.to.y)); }
-  ctx.stroke();
+  ctx.shadowColor = C.violet; ctx.shadowBlur = 6; ctx.stroke(); ctx.shadowBlur = 0;
   ctx.lineCap = "butt";
 }
 
 function drawDistrictNames() {
+  if (MAP && layerCity) return layerCity.drawDistrictNames();
   ctx.textAlign = "center";
   const repos = new Map([...repoDistrict].map(([r, d]) => [d, r]));
   for (const d of DISTRICTS) {
     if (d.id === "wastes") continue;
     const repo = repos.get(d.id), [x, y] = P(d.x, d.y);
     ctx.font = `${Math.max(11 * UI, unit() * 2.1)}px ui-monospace, Menlo, monospace`;
-    ctx.fillStyle = repo ? "rgba(79,227,255,.6)" : "rgba(138,150,166,.35)";
-    ctx.fillText(d.name, x, y + unit() * 9);
-    if (repo) { ctx.font = `${Math.max(10 * UI, unit() * 1.3)}px ui-monospace, Menlo, monospace`; ctx.fillStyle = "rgba(223,230,238,.65)";
-      ctx.fillText(repo, x, y + unit() * 11.2); }
+    const width = ctx.measureText(d.name).width, fs = Math.max(11 * UI, unit() * 2.1), baseline = y + unit() * 9;
+    ctx.fillStyle = "rgba(3,7,16,.86)"; ctx.fillRect(x - width / 2 - 6, baseline - fs - 3, width + 12, fs + 8);
+    ctx.shadowColor = TINT[d.id]; ctx.shadowBlur = 5;
+    ctx.fillStyle = rgba(TINT[d.id], .9);
+    ctx.fillText(d.name, x, y + unit() * 9); ctx.shadowBlur = 0;
+    if (repo) { ctx.font = `${Math.max(10 * UI, unit() * 1.3)}px ui-monospace, Menlo, monospace`; ctx.strokeStyle = "#030710"; ctx.lineWidth = 4; ctx.strokeText(repo, x, y + unit() * 9 + Math.max(14 * UI, unit() * 2.2)); ctx.fillStyle = "rgba(223,230,238,.8)";
+      ctx.fillText(repo, x, y + unit() * 9 + Math.max(14 * UI, unit() * 2.2)); }
   }
   if ([...towers.values()].some(t => t.district === "wastes")) {
     const [x, y] = P(CX + 34, CY + 38); ctx.font = `${Math.max(11 * UI, unit() * 2)}px ui-monospace, Menlo, monospace`;
@@ -831,10 +945,10 @@ function drawDistrictNames() {
 
 function drawLot(l, now) {
   if (l.landmark) return drawLandmark(l);
-  const col = TINT[l.d], dim = DIST[l.d].dim || 1, k = 0.16;   // inset from the streets
+  const col = TINT[l.d], dim = (DIST[l.d].dim || 1) * l.brightness, k = 0.16;   // inset from the streets
   const q = l.quad.map(n => [n.x + (l.x - n.x) * k * 2, n.y + (l.y - n.y) * k * 2]);
   const [cx, cy] = P(l.x, l.y);
-  if (cx < -80 || cx > W + 80 || cy < -80 || cy > H + 80) return;
+  if (cx < -80 - staticPad || cx > W + 80 + staticPad || cy < -80 - staticPad || cy > H + 80 + staticPad) return;
   const h = l.tall, base = q.map(([x, y]) => P(x, y)), top = q.map(([x, y]) => P(x, y, h));
   // the two faces turned to the viewer, then the roof with a neon rim
   for (let i = 0; i < 4; i++) {
@@ -847,11 +961,12 @@ function drawLot(l, now) {
   }
   ctx.beginPath(); top.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
   ctx.fillStyle = rgba(col, 0.07 * dim); ctx.fill();
-  const flick = l.h % 9 === 0 ? 0.5 + 0.5 * Math.sin(now / 600 + l.h) : 1;
-  ctx.strokeStyle = rgba(col, (0.35 + (l.h % 4) * 0.08) * dim * flick); ctx.lineWidth = Math.max(1, unit() * 0.12); ctx.stroke();
+  const flick = 1;   // static windows: no shimmer or page/saver disagreement
+  ctx.shadowColor = rgba(col, .45); ctx.shadowBlur = 3;
+  ctx.strokeStyle = rgba(col, (0.28 + (l.h % 4) * 0.07) * dim * flick); ctx.lineWidth = Math.max(1, unit() * 0.12); ctx.stroke(); ctx.shadowBlur = 0;
   if (l.h % 3 === 0) {   // a lit window strip on the front edge
     const [x1, y1] = top[2], [x2, y2] = top[3];
-    ctx.strokeStyle = rgba(col, 0.5 * dim); ctx.lineWidth = Math.max(1, unit() * 0.1);
+    ctx.strokeStyle = rgba(C.amber, 0.42 * dim); ctx.lineWidth = Math.max(1, unit() * 0.1);
     ctx.beginPath(); ctx.moveTo(x1 + (x2 - x1) * .2, y1 + (y2 - y1) * .2 + unit() * h * .45); ctx.lineTo(x1 + (x2 - x1) * .8, y1 + (y2 - y1) * .8 + unit() * h * .45); ctx.stroke();
   }
 }
@@ -861,14 +976,27 @@ const LANDMARK_SCALE = { "corpo-block": 2.4, "port-block": 2.2, "industrial-bloc
   "badlands-block": 1.3, "residential-block": 1.9, "luxury-block": 2.1, megamall: 2.6, "data-center": 2.2, "landing-pad": 1.9,
   "power-plant": 2.5, "container-ship": 2.7, "oil-rig": 2.3, "billboard-tower": 1.7, park: 2.1, "slum-block": 2.1, temple: 2,
   stadium: 2.7, "water-tower": 1.5, "monorail-station": 2.1 };
+const landmarkImages = new Map();
 function drawLandmark(l) {
   const s = sprites[l.sprite] || sprites.block;
   if (!s) return;
   const [x, y] = P(AFLOAT.has(l.sprite) ? coast(l.y) - 4 : l.x, l.y), w = l.size * 2 * unit() * 1.1 * (LANDMARK_SCALE[l.sprite] || 1.8), h = w * s.height / s.width;
-  if (x < -w || x > W + w || y < -h || y > H + h) return;
+  if (x < -w - staticPad || x > W + w + staticPad || y < -h - staticPad || y > H + h + staticPad) return;
+  const tint = TINT[l.d], key = `${l.sprite}:${l.d}`;
+  if (!landmarkImages.has(key)) {
+    const c = document.createElement("canvas"); c.width = s.width; c.height = s.height;
+    const g = c.getContext("2d"); g.drawImage(s, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height), p = d.data, n = parseInt(tint.slice(1), 16), rgb = [n >> 16, n >> 8 & 255, n & 255];
+    for (let i = 0; i < p.length; i += 4) {
+      const v = Math.max(p[i], p[i+1], p[i+2]);
+      for (let j = 0; j < 3; j++) p[i+j] = p[i+j] * .35 + rgb[j] * v / 255 * .65;
+    }
+    g.putImageData(d, 0, 0); landmarkImages.set(key, c);
+  }
+  ctx.globalCompositeOperation = "lighter"; glow(x, y, w * .65, tint, .09 * (DIST[l.d].dim || 1)); ctx.globalCompositeOperation = "source-over";
   ctx.save(); ctx.translate(x, y); if (l.flip) ctx.scale(-1, 1);
-  ctx.globalAlpha = 0.6 * (DIST[l.d].dim || 1);   // scenery: fainter than the towers and cabs, which are live
-  ctx.drawImage(s, -w / 2, -h * 0.6, w, h); ctx.restore(); ctx.globalAlpha = 1;
+  ctx.globalAlpha = 0.52 * (DIST[l.d].dim || 1);   // scenery: fainter than the towers and cabs, which are live
+  ctx.drawImage(landmarkImages.get(key), -w / 2, -h * 0.6, w, h); ctx.restore(); ctx.globalAlpha = 1;
 }
 
 function drawTower(tw, now) {
@@ -891,7 +1019,9 @@ function drawTower(tw, now) {
 // The dark tower, then each face lit from the crown down by its engine's remaining share: spending darkens it from the
 // foot up (eased; unknown stays dark).
 function drawOwnerGauge(x0, y0, w, h) {
-  ctx.drawImage(sprites["owner-dark"], x0, y0, w, h);
+  ctx.save();
+  if (!owner.limits.claude && !owner.limits.codex) { ctx.shadowColor = C.cyan; ctx.shadowBlur = 6; }
+  ctx.drawImage(sprites["owner-dark"], x0, y0, w, h); ctx.restore();
   [["claude", 0], ["codex", 1]].forEach(([e, half]) => {
     const l = owner.limits[e], f = owner.fill[e] = l ? (owner.fill[e] ?? 0) + (l.left / 100 - (owner.fill[e] ?? 0)) * 0.05 : 0;
     if (f < 0.005) return;
@@ -910,13 +1040,14 @@ function selRing(n, x, y, r, now) {
   ctx.globalCompositeOperation = "source-over";
 }
 
-function drawSign(tw, now) {   // the stage's name as a neon sign over the street, above every building
-  const [x, y] = P(tw.lot.x, tw.lot.y), dim = tw.open === false ? 0.45 : 1, sel = tw === pinned || tw === hover;
+function drawSign(tw, now) {
+  if (MAP && layerCity) return layerCity.drawSign(tw, now);   // the stage's name as a neon sign over the street, above every building
+  const [x, y] = P(tw.lot.x, tw.lot.y, MAP ? towerLift(tw) + .6 : 0), dim = tw.open === false ? 0.45 : 1, sel = tw === pinned || tw === hover;
   ctx.font = `${Math.max(10 * UI, unit() * 1.15)}px ui-monospace, Menlo, monospace`; ctx.textAlign = "center";
   const bl = blink(tw, now);
   ctx.shadowColor = bl >= 0 ? C.gold : sel ? C.cyan : C.magenta; ctx.shadowBlur = bl >= 0 ? 4 + bl * 16 : 8 + tw.pulse * 14 + (sel ? 10 : 0);
   ctx.fillStyle = bl >= 0 ? rgba(C.gold, 0.3 + 0.7 * bl) : sel ? C.ink : rgba(tw.open === false ? C.dim : "#ffd6f6", 0.92 * dim);
-  ctx.fillText(tw.label, x, y + unit() * 2.4);
+  ctx.fillText(tw.label, x, y + unit() * (MAP ? 0 : 2.4));
   ctx.shadowBlur = 0; ctx.textAlign = "left";
 }
 
@@ -930,12 +1061,13 @@ function drawHolo(l, now) {
 
 function drawNpc(car) {   // a grey ground car: red tail trail, headlight cone
   const [x, y] = P(car.x, car.y), a = 0.55;
+  const tail = layerCity ? C.amber : C.red;
   car.trail.push([car.x, car.y]); if (car.trail.length > 12) car.trail.shift();
   if (x < -40 || x > W + 40 || y < -40 || y > H + 40) return;
   ctx.globalCompositeOperation = "lighter";
   for (let k = 1; k < car.trail.length; k++) {
     const [ax, ay] = P(...car.trail[k - 1]), [bx, by] = P(...car.trail[k]);
-    ctx.strokeStyle = rgba(C.red, a * 0.55 * k / car.trail.length);
+    ctx.strokeStyle = rgba(tail, a * 0.55 * k / car.trail.length);
     ctx.lineWidth = Math.max(1, unit() * 0.2); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
   }
   const [dx, dy] = car.dir || [1, 0], [sx, sy] = isoRaw(dx, dy), ang = Math.atan2(sy, sx);
@@ -945,16 +1077,17 @@ function drawNpc(car) {   // a grey ground car: red tail trail, headlight cone
   const beam = ctx.createLinearGradient(L / 2, 0, L / 2 + L * 1.8, 0);
   beam.addColorStop(0, rgba("#fff6d8", a * 0.4)); beam.addColorStop(1, rgba("#fff6d8", 0));
   ctx.fillStyle = beam; ctx.beginPath(); ctx.moveTo(L / 2, -Wd / 2); ctx.lineTo(L / 2 + L * 1.8, -Wd); ctx.lineTo(L / 2 + L * 1.8, Wd); ctx.lineTo(L / 2, Wd / 2); ctx.fill();
-  ctx.fillStyle = rgba(C.red, a); ctx.fillRect(-L / 2, -Wd / 2, Math.max(1, L * 0.1), Wd);
+  ctx.fillStyle = rgba(tail, a); ctx.fillRect(-L / 2, -Wd / 2, Math.max(1, L * 0.1), Wd);
   ctx.restore();
   ctx.globalCompositeOperation = "source-over";
 }
 
 const TRAIL_MS = 1330, TRAIL_SEG = 5;   // a cab's trail: the last 1.3 s of flight at any frame rate (the saver: the same 1.3 s)
-function drawCab(c, now) {   // a worker: its flyer over its ground shadow, with a trail and a glow in the engine's colour
+function drawCab(c, now) {
+  if (MAP && layerCity) return layerCity.drawCab(c, now);   // a worker: its flyer over its ground shadow, with a trail and a glow in the engine's colour
   const s = sprites[cabSprite(c)] || sprites.flyer; if (!s) return;
   const [gx, gy] = P(c.x, c.y), [x, y] = P(c.x, c.y, c.z), w = unit() * 3.4;
-  ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(gx, gy, w * 0.35, w * 0.16, 0, 0, Math.PI * 2); ctx.fill();
+  if (!layerCity) { ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(gx, gy, w * 0.35, w * 0.16, 0, 0, Math.PI * 2); ctx.fill(); }
   selRing(c, x, y + w * 0.2, w * 0.6, now);   // round the flyer itself: a ring on the ground would mark the building under it
   c.trail.push([c.x, c.y, c.z, now]); while (now - c.trail[0][3] > TRAIL_MS) c.trail.shift();
   // A neon trail: a wide haze under a bright core, both fading to the tail in TRAIL_SEG steps of age, one path per step.
@@ -1048,34 +1181,69 @@ function drawRain(t) {
   ctx.stroke();
 }
 
+let staticCity = null, staticPad = 0;
+function drawStaticCity() {
+  if (layerCity) return layerCity.drawStatic();
+  const excluded = new Set([...towers.values()].map(t => t.lot));
+  // Rasterise at the next 1.25x zoom tier and only downsample between tiers: no soft upscaling.
+  const renderZ = Math.pow(1.25, Math.ceil(Math.log(cam.z) / Math.log(1.25)));
+  const key = [W, H, DPR, renderZ, ...[...excluded].map(l => G.lots.indexOf(l))].join(":");
+  let dx = staticCity ? (staticCity.x - cam.x) * unit() : 0;
+  let dy = staticCity ? (staticCity.y - cam.y) * unit() : 0;
+  // Overscan permits sharp, integer-independent panning without rebuilding glows every frame.
+  const ratio = staticCity ? cam.z / staticCity.z : 1;
+  const marginX = staticCity ? staticCity.pad * ratio - W / 2 * (1 - ratio) : 0;
+  const marginY = staticCity ? staticCity.pad * ratio - (H / 2 + 30) * (1 - ratio) : 0;
+  if (!staticCity || staticCity.key !== key || Math.abs(dx) > marginX * .75 || Math.abs(dy) > marginY * .75) {
+    const pad = Math.ceil(Math.max(W, H) * .2), actualZ = cam.z; cam.z = renderZ;
+    const canvas = document.createElement("canvas"); canvas.width = (W + 2 * pad) * DPR; canvas.height = (H + 2 * pad) * DPR;
+    const main = ctx; ctx = canvas.getContext("2d"); ctx.setTransform(DPR, 0, 0, DPR, pad * DPR, pad * DPR); staticPad = pad;
+    drawGround(0);
+    for (const l of [...G.lots].sort((a,b) => a.x+a.y-b.x-b.y)) if (!excluded.has(l) && !l.owner) drawLot(l, 0);
+    // Low cool haze at the distant city edge; cached, never laid over live data.
+    const [x,y] = P(54, 20); glow(x, y, unit() * 34, "#708bad", .045);
+    ctx = main; staticPad = 0; cam.z = actualZ; staticCity = {key, canvas, pad, z: renderZ, x: cam.x, y: cam.y}; dx = dy = 0;
+  }
+  const scale = cam.z / staticCity.z, ox = W / 2, oy = H / 2 + 30;
+  ctx.drawImage(staticCity.canvas, ox + (-staticCity.pad - ox) * scale + dx, oy + (-staticCity.pad - oy) * scale + dy,
+    (W + 2 * staticCity.pad) * scale, (H + 2 * staticCity.pad) * scale);
+}
+
 let last = performance.now();
 function frame(now) {
+  // Hidden panes may initialize at 0x0. Keep the map loop alive until resize.
+  if (MAP) { requestAnimationFrame(frame); if (!W || !H) { last = now; return; } }
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   moveCamera(now, dt);
+  if (LIVE && layerCity?.live) layerCity.live.step(now, dt);
   drawBackdrop();
-  drawGround(now);
-  for (const c of cabs.values()) fly(c, now, dt);
+  if (layerCity) for (const c of cabs.values()) fly(c, now, dt);
+  if (districtGrowth) districtGrowth.beforeFrame(now);
+  try { drawStaticCity(); } catch (error) {
+    if (!MAP) throw error;
+    console.error('Map static frame failed; retrying next frame', error);
+    return;
+  }
+  if (!layerCity) for (const c of cabs.values()) fly(c, now, dt);
   for (const m of machines.values()) sweepLanded(m);
   for (const c of npcs) drive(c, dt);
-  const hubLots = new Set([...towers.values()].map(t => t.lot));
-  const items = [];   // painter's order by depth on the map
-  for (const l of G.lots) if (!hubLots.has(l) && !l.owner) items.push([l.x + l.y, () => drawLot(l, now)]);
-  items.sort((a, b) => a[0] - b[0]);
-  for (const [, draw] of items) draw();
-  for (const c of npcs) drawNpc(c);
+  if (!layerCity) for (const c of npcs) drawNpc(c);
   // towers stand above the schematic blocks, so no block in front hides a hub
   const tall = [...towers.values()].filter(t => t.lot).concat([owner]);
   tall.sort((a, b) => { const [ax, ay] = worldOf(a), [bx, by] = worldOf(b); return ax + ay - bx - by; });
-  for (const tw of tall) drawTower(tw, now);
-  drawDistrictNames();
-  for (const l of G.holos) drawHolo(l, now);
+  if (layerCity) layerCity.drawKeys(tall, now);
+  else for (const tw of tall) drawTower(tw, now);
+  if (layerCity && !LIVE) for (const c of npcs) drawNpc(c);
+  if (!districtGrowth?.afterFrame(now)) drawDistrictNames();
+  if (!layerCity) for (const l of G.holos) drawHolo(l, now);
   for (const tw of towers.values()) if (tw.lot) drawSign(tw, now);
   for (const c of [...cabs.values()].sort((a, b) => a.x + a.y - b.x - b.y)) drawCab(c, now);
-  for (const f of flyers) drawFlyer(f, now);
-  drawBeams(now); drawRipples(now); drawLabels(now); drawRain(now);
+  if (!MAP) for (const f of flyers) drawFlyer(f, now);
+  if (!LIVE) { drawBeams(now); drawRipples(now); drawLabels(now); } if (!MAP) drawRain(now);
+  if (layerCity) layerCity.drawHaze();
   if (!replay && now - lastLive > QUIET_MS && !frame.asked) { frame.asked = true; startReplay().finally(() => frame.asked = false); }
   stepReplay(now);
-  requestAnimationFrame(frame);
+  if (!MAP) requestAnimationFrame(frame);
 }
 
 // ---- interaction ---------------------------------------------------------------------------------------
@@ -1087,9 +1255,11 @@ const escA = s => esc(s).replace(/"/g, "&quot;");
 
 // The object under a screen point: the nearest cab within two units, else a tower whose body covers the point.
 function hitTest(px, py) {
+  if (LIVE && layerCity?.live) { const alert = layerCity.live.alertHit(px, py); if (alert) return alert; }
   let hit = null, best = (unit() * 2) ** 2;
   for (const c of cabs.values()) { const [x, y] = P(c.x, c.y, c.z), d = (x - px) ** 2 + (y - py) ** 2; if (d < best) { best = d; hit = c; } }
   if (hit) return hit;
+  if (layerCity) return layerCity.hitKey(px, py);
   for (const tw of [...towers.values(), owner]) {
     if (tw.kind === "hub" && !tw.lot) continue;
     const [wx, wy] = worldOf(tw), [x, y] = P(wx, wy), top = P(wx, wy, towerLift(tw))[1];
@@ -1103,6 +1273,7 @@ function tipLines(n) {
   const lines = n.kind === "owner" ? [T.owner, lim("claude"), lim("codex")] : n.kind === "hub"
     ? [`${T.hub} · ${n.stage}`, n.title, `${DIST[n.district]?.name || ""} · ${m ? m.name : ""}`, n.ctx ? `ctx ${fmtK(n.ctx)}` : "", n.questions ? T.questions(n.questions) : "", n.open === false ? T.closed : ""]
     : [`${n.role} · ${n.stage}`, n.title, [n.engine, n.model].filter(Boolean).join(" · "), n.working ? T.busy : T.idle];
+  if (LIVE && layerCity?.live) lines.push(...layerCity.live.alertLines(n));
   return lines.filter(Boolean);
 }
 function showTip(n, x, y) {   // by the point, kept on the screen
@@ -1118,9 +1289,11 @@ addEventListener("pointermove", e => {
   if (e.pointerType !== "mouse") return;
   document.body.classList.remove("idle"); clearTimeout(idleTimer);
   idleTimer = setTimeout(() => document.body.classList.add("idle"), 3000);
-  if (down && down.drag) return;   // a drag shows no hover
+  if (down && down.drag) { districtGrowth?.hoverMap(null); return; }   // a drag shows no hover
+  if (e.target === cv) districtGrowth?.hoverMap(e.clientX,e.clientY);
+  else if (!e.target.closest?.("#growth-labels")) districtGrowth?.hoverMap(null);
   if (e.target !== cv) { if (!roster.contains(e.target)) hover = null; cv.classList.remove("hot"); showTip(null); return; }   // the roster's rows set hover
-  hover = hitTest(e.clientX, e.clientY);
+  hover = districtGrowth?.highlighted ? null : hitTest(e.clientX, e.clientY);
   cv.classList.toggle("hot", !!hover);
   showTip(hover, e.clientX, e.clientY);
 });
@@ -1166,6 +1339,7 @@ function lift(e) {
   if (ptrs.size === 1) { const [[x, y]] = ptrs.values(); down = { x, y, tap: false, drag: false }; return; }   // the finger left on drags on
   const d = down; down = null; cv.classList.remove("drag");
   if (e.type !== "pointerup" || !d || !d.tap) return;
+  if (districtGrowth?.hit(e.clientX, e.clientY, e.pointerType)) { showTip(null); return; }
   const hit = hitTest(e.clientX, e.clientY);
   if (hit) pin(hit); else if (pinned) pin(null);
   if (e.pointerType !== "mouse") {   // a tap: the tooltip for a moment
@@ -1188,7 +1362,7 @@ cv.addEventListener("wheel", e => {
 }, { passive: false });
 addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
-  if (e.key === "r") { stopReplay(); startReplay(); }
+  if (e.key === "r") { if (!LIVE) stopReplay(); startReplay(); }
   if (e.key === "l") { stopReplay(); lastLive = performance.now(); }
   if (e.key === "f") setFollow(!followOn);
   if (e.key === "c" || e.key === "Escape") { overview(); openSheet(false); }
@@ -1251,7 +1425,40 @@ buildCity(); shapes();
     sprite: AMBIENT[k] }); }
 resize(); renderRoster(); syncCtl();
 lastLive = performance.now();
-ready.then(() => { SOURCES.forEach((s, i) => connect(s, i)); requestAnimationFrame(frame); });
+ready.then(() => {
+  if (!LIVE) { SOURCES.forEach((s, i) => connect(s, i)); requestAnimationFrame(frame); return; }
+  Promise.all(SOURCES.map((s, i) => connect(s, i))).then(async () => { if (layerCity?.live) {
+    await layerCity.live.initialize();
+    const {installGrowthUI} = await import(`${ASSET}/assets/gl/growth.js`);
+    districtGrowth = installGrowthUI({live:layerCity.live,machines,sources:SOURCES,loadCity,canvas:cv,lang:LANG,
+      drawLabels:(data,mode,growth,displayColour,highlighted,anchor)=>{
+        if(!data)return;const live=layerCity.live;live.transform();ctx.font=`600 ${13/Math.sqrt(cam.z)}px ui-monospace,Menlo,monospace`;ctx.textAlign='center';
+        const labelRects=[],v=live.cameraView(),scale=Math.max(cv.clientWidth/live.gpu.scene.w,cv.clientHeight/live.gpu.scene.h)*v.z;
+        if(highlighted){const project=data.projects.find(p=>p.id===highlighted);ctx.save();ctx.beginPath();for(const q of growth.boundary(highlighted)){q.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();}ctx.fillStyle=displayColour(project?.colour)+'18';ctx.fill();ctx.lineJoin='round';ctx.strokeStyle='#080c17';ctx.lineWidth=4/scale;ctx.stroke();ctx.strokeStyle=displayColour(project?.colour);ctx.lineWidth=1.8/scale;ctx.stroke();ctx.restore();}
+        // Keep keyboard targets available while drawing only the inspected district.
+        for(const p of data.projects){
+          if(p.closed||!p.mainPlot)continue;
+          if(p.id!==highlighted){
+            labelRects.push({id:p.id,x:0,y:0,w:1,h:1,visible:false});
+            continue;
+          }
+          const plot=growth.plots.get(p.mainPlot.id);if(!plot)continue;
+          const pad=p.tower>=0?live.data.pads[p.tower]:null,b=growth.buildings.get(plot.building);
+          const x=pad?.p[0]??plot.ground[0],y=(pad?.p[1]??(b?Math.min(...b.surfaces.flatMap(f=>f.points.map(q=>growth.point(b.id,q)[1]))):plot.ground[1]))-12;
+          const label=`${p.id} · ${p.plots?.length||0} ${LANG==='ru'?'участков':'plots'}`;
+          const w=Math.min(ctx.measureText(label).width,(W-32)/scale-10),rw=(w+10)*scale,rh=20*scale;
+          let sx=(x-w/2-5-v.x)*scale,sy=(y-14-v.y)*scale;
+          const offscreen=sx<8||sy<8||sx+rw>W-8||sy+rh>H-8;
+          if(offscreen){sx=Math.max(8,Math.min((anchor?.[0]??W/2)-rw/2,W-rw-8));sy=Math.max(8,Math.min((anchor?.[1]??H/2)-rh-16,H-rh-8));}
+          labelRects.push({id:p.id,x:sx,y:sy,w:rw,h:rh,visible:true});
+          const lx=sx/scale+v.x,ly=sy/scale+v.y;
+          ctx.fillStyle='rgba(3,4,9,.86)';ctx.fillRect(lx,ly,w+10,20);ctx.fillStyle=displayColour(p.colour);ctx.fillText(label,lx+(w+10)/2,ly+14,w);
+        }
+        ctx.restore();return labelRects;
+      }});
+  } requestAnimationFrame(frame); });
+});
 </script>
+<script src="/assets/city-style.js"></script>
 </body>
 </html>

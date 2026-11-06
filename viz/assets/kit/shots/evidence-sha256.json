@@ -1,0 +1,16 @@
+{
+  "assemble.js": "b5669c819eab80e863f33267422a46dabc40a3427e9139fb8da14dcf55ce729d",
+  "pack.py": "506312af4787441428bbc648c7006157f9f2529d99913ff06e9444db2665e045",
+  "kit.json": "b6bccf1a4effb5767b1223602c6514b9e719a655349439e4526e2d2b8af13310",
+  "atlas-base.png": "cb43ab432fce8d43e0cf6cf40b11bf9620411507f03cdd0223f137c5edab6989",
+  "atlas-emissive.png": "99dc99dc64a3c38e760a0f0900e68f6e2b6f64e370a7c9f1694c468eedc16138",
+  "review.js": "87109de6e5d98326b746bf88d391f9c0e9a9a7a672d578cf04e8c2b9b93d738a",
+  "render.cjs": "376a5beab55986cc50c95800bc33d2ac0bbcad882f375cdafe58acf4efbb4ad1",
+  "shots/kit-sheet.png": "35cc361ea9d6b9feada92f1792e88d5c54952470611b5b0f7f616450ec7729e0",
+  "shots/kit-buildings.png": "951f5ac16fbc671bb589c991ed52a2c9c2b41fd2e8eaf83515255fd7a2dd3023",
+  "shots/node-tests.json": "aea7e1b3651e912088154bb1f917fdbb82a626248b7bf11142a0da2dce21613e",
+  "shots/browser-tests.json": "c2965f32dbce3da21fecab82110c9680d95d51d158d672bcbdf7a53c41cfa3c0",
+  "../../tests/kit.test.cjs": "4a4ac31df6f646e5abe09313eb5bef5cc753b1fee81bcdd63ad450abe8770b96",
+  "../map/city.json": "3e9e009ed2d263b2a4952796357dd851d7697bb95184a33c9e3e43a976012699",
+  "../map/pack.json": "38df369bff5d86191b391f361dce1a4b3e64734be40f54930753c209c0697a5b"
+}

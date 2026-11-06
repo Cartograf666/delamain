@@ -61,9 +61,14 @@ final class Sprites {
             guard let url = bundle.url(forResource: name, withExtension: "png"), let img = Sprites.load(url) else { continue }
             images[name] = Sprites.key(img, solid: SOLID.contains(name))
         }
+        for (district, list) in LANDMARKS {
+            for name in list + ["monorail-station"] {
+                if let img = images[name] { images["\(name):\(district)"] = Sprites.scenery(img, RGB(TINT[district]!)) }
+            }
+        }
         if let url = bundle.url(forResource: "skyline", withExtension: "jpg") { sky = Sprites.load(url) }
         if let o = images["owner-tower"] {   // the owner tower's gauge: dark, amber (Claude) and cyan (Codex) copies
-            images["owner-dark"] = Sprites.tint(o, Pal.dim, gain: 0.5, wash: 0)
+            images["owner-dark"] = Sprites.tint(o, Pal.dim, gain: 0.65, wash: 0.055)
             images["owner-claude"] = Sprites.tint(o, Pal.amber, gain: 1.8, wash: 0.22)
             images["owner-codex"] = Sprites.tint(o, Pal.cyan, gain: 1.8, wash: 0.22)
         }
@@ -90,13 +95,29 @@ final class Sprites {
         return out ?? img
     }
 
+    static func scenery(_ img: CGImage, _ color: RGB) -> CGImage {
+        let w = img.width, h = img.height
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        return px.withUnsafeMutableBytes { buf -> CGImage in
+            guard let ctx = CGContext(data: buf.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                      space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return img }
+            ctx.draw(img, in: CGRect(x: 0, y: 0, width: w, height: h))
+            let p = buf.bindMemory(to: UInt8.self), rgb = [Double(color.r), Double(color.g), Double(color.b)]
+            for i in 0..<(w * h) {
+                let k = i * 4, v = Double(max(p[k], p[k+1], p[k+2]))
+                for j in 0..<3 { p[k+j] = UInt8(min(255, Double(p[k+j]) * 0.35 + rgb[j] * v * 0.65).rounded()) }
+            }
+            return ctx.makeImage() ?? img
+        }
+    }
+
     static func load(_ url: URL) -> CGImage? {
         guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
         return CGImageSourceCreateImageAtIndex(src, 0, nil)
     }
 
-    /// The black background keyed to alpha: soft key (max(r,g,b) - 5) * 12, or for a SOLID sprite each row's span
-    /// between its outer lit pixels made opaque.
+    /// Preserve native alpha; legacy black backgrounds use a soft luminance matte and edge unmatting.
+    /// Solid hull interiors stay opaque, without filling the edge pixels with black.
     static func key(_ img: CGImage, solid: Bool) -> CGImage {
         let w = img.width, h = img.height
         var px = [UInt8](repeating: 0, count: w * h * 4)
@@ -104,29 +125,21 @@ final class Sprites {
         let out: CGImage? = px.withUnsafeMutableBytes { buf -> CGImage? in
             guard let ctx = CGContext(data: buf.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: cs,
                                       bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
-            ctx.setFillColor(CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 1))
-            ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
             ctx.draw(img, in: CGRect(x: 0, y: 0, width: w, height: h))
             let p = buf.bindMemory(to: UInt8.self)
-            @inline(__always) func mx(_ k: Int) -> Int { Int(max(p[k], p[k + 1], p[k + 2])) }
-            @inline(__always) func soft(_ k: Int) -> Int { max(0, min(255, (mx(k) - 5) * 12)) }
-            var alpha = [UInt8](repeating: 0, count: w * h)
-            if !solid {
-                for i in 0..<(w * h) { alpha[i] = UInt8(soft(i * 4)) }
-            } else {
-                for y in 0..<h {
-                    var x0 = -1, x1 = -1
-                    for x in 0..<w where mx((y * w + x) * 4) > 14 { if x0 < 0 { x0 = x }; x1 = x }
-                    for x in 0..<w {
-                        let k = (y * w + x) * 4
-                        alpha[y * w + x] = x0 >= 0 && x > x0 && x < x1 && x1 - x0 > 2 ? 255 : UInt8(soft(k))
-                    }
+            // Actual alpha is authoritative; already premultiplied by Core Graphics.
+            if (0..<(w * h)).contains(where: { p[$0 * 4 + 3] < 255 }) { return ctx.makeImage() }
+            func lum(_ k: Int) -> Double { 0.2126 * Double(p[k]) + 0.7152 * Double(p[k + 1]) + 0.0722 * Double(p[k + 2]) }
+            for y in 0..<h {
+                var x0 = -1, x1 = -1
+                if solid { for x in 0..<w where lum((y * w + x) * 4) > 14 { if x0 < 0 { x0 = x }; x1 = x } }
+                for x in 0..<w {
+                    let k = (y * w + x) * 4, v = lum(k)
+                    let a = solid && x > x0 + 1 && x < x1 - 1 ? 1 : min(1, max(0, v - 3) / 45)
+                    // Unmatte, then premultiply once (Canvas stores the equivalent straight colour).
+                    for j in 0..<3 { p[k + j] = UInt8(max(0, min(255 * a, Double(p[k + j]) - 3)).rounded()) }
+                    p[k + 3] = UInt8((a * 255).rounded())
                 }
-            }
-            for i in 0..<(w * h) {   // premultiply the original colour by the key
-                let a = Int(alpha[i]), k = i * 4
-                p[k] = UInt8(Int(p[k]) * a / 255); p[k + 1] = UInt8(Int(p[k + 1]) * a / 255); p[k + 2] = UInt8(Int(p[k + 2]) * a / 255)
-                p[k + 3] = UInt8(a)
             }
             return ctx.makeImage()
         }
@@ -184,11 +197,10 @@ enum StaticRenderer {
         // the bay, with neon reflections (frozen at one moment)
         ctx.saveGState()
         ctx.addPath(polyPath(city.water)); ctx.clip()
-        if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [RGB(6, 18, 38).cg(0.95), RGB(10, 8, 30).cg(0.95)] as CFArray,
-                              locations: [0, 1]) {
+        if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [RGB(0x10263b).cg(), RGB(0x081828).cg(), RGB(0x060c1b).cg()] as CFArray,
+                              locations: [0, 0.55, 1]) {
             ctx.drawLinearGradient(g, start: .zero, end: CGPoint(x: v.W * 0.6, y: v.H), options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
         }
-        ctx.restoreGState()
         ctx.setBlendMode(.plusLighter)
         for k in 0..<70 {
             let y = Double((k * 37) % 160 - 20), x = coast(y) - 3 - Double((k * 13) % 23) - sin(Double(k)) * 1.5
@@ -196,9 +208,22 @@ enum StaticRenderer {
             ctx.setFillColor((k % 3 != 0 ? Pal.magenta : Pal.cyan).cg(0.08 + 0.06 * sin(Double(k))))
             ctx.fill(CGRect(x: p.x, y: p.y, width: w, height: max(1, u * 0.12)))
         }
-        ctx.setBlendMode(.normal)
-        ctx.addPath(polyPath(city.world)); ctx.setFillColor(RGB(22, 14, 10).cg(0.92)); ctx.fillPath()   // desert
-        ctx.addPath(polyPath(city.city)); ctx.setFillColor(RGB(9, 9, 20).cg(0.96)); ctx.fillPath()
+        ctx.restoreGState()   // keep reflections clipped to the bay as on the page
+        func radialFill(_ path: CGPath, _ colors: [CGColor], _ locations: [CGFloat], _ radius: Double) {
+            ctx.saveGState(); ctx.addPath(path); ctx.clip()
+            if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: colors as CFArray, locations: locations) {
+                let p = P(CX, CY)
+                ctx.drawRadialGradient(g, startCenter: p, startRadius: 0, endCenter: p, endRadius: radius,
+                                       options: [.drawsAfterEndLocation])
+            }
+            ctx.restoreGState()
+        }
+        radialFill(polyPath(city.world), [RGB(0x101827).cg(), RGB(0x0c1220).cg(), RGB(0x050914).cg()], [0, 0.7, 1], u * 90)
+        radialFill(polyPath(city.city), [RGB(0x111628).cg(), RGB(0x080d19).cg()], [0, 1], u * 65)
+        ctx.saveGState(); ctx.setStrokeColor(Pal.cyan.cg(0.25)); ctx.setLineWidth(max(1, u * 0.2))
+        ctx.setShadow(offset: .zero, blur: 9, color: Pal.cyan.cg())
+        for y in stride(from: 2.0, through: 128, by: 2) { let p = P(coast(y) + 1, y); if y == 2 { ctx.move(to: p) } else { ctx.addLine(to: p) } }
+        ctx.strokePath(); ctx.restoreGState()
         // streets first, then highways over them
         let nodes = city.nodes
         func segPath(_ segs: [(Int, Int)]) -> CGPath {
@@ -212,7 +237,8 @@ enum StaticRenderer {
         }
         ctx.setLineCap(.round)
         ctx.addPath(segPath(city.streets)); ctx.setStrokeColor(RGB(150, 120, 230).cg(0.15)); ctx.setLineWidth(max(1, u * 0.32)); ctx.strokePath()
-        ctx.addPath(segPath(city.highways)); ctx.setStrokeColor(RGB(150, 120, 230).cg(0.2)); ctx.setLineWidth(max(1, u * 0.6)); ctx.strokePath()   // highways: plain, wider
+        ctx.saveGState(); ctx.setShadow(offset: .zero, blur: 6, color: Pal.violet.cg()); ctx.addPath(segPath(city.highways)); ctx.setStrokeColor(RGB(150, 120, 230).cg(0.2)); ctx.setLineWidth(max(1, u * 0.6)); ctx.strokePath()   // highways: wider, with cached glow
+        ctx.restoreGState()
         ctx.setLineCap(.butt)
         // lots, in painter's order by depth on the map
         let excluded = Set(v.excluded)
@@ -221,13 +247,17 @@ enum StaticRenderer {
         for (_, l) in order {
             if l.landmark { drawLandmark(ctx, l, P, u, visible, sprites) } else { drawLot(ctx, l, city, P, u, visible) }
         }
+        let haze = P(54, 20)
+        if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [RGB(0x708bad).cg(0.045), RGB(0x708bad).cg(0)] as CFArray, locations: [0, 1]) {
+            ctx.drawRadialGradient(g, startCenter: haze, startRadius: 0, endCenter: haze, endRadius: u * 34, options: [])
+        }
         guard let image = ctx.makeImage() else { return nil }
         return StaticImage(view: v, image: image, unit: u, ms: Date().timeIntervalSince(t0) * 1000)
     }
 
     private static func drawLot(_ ctx: CGContext, _ l: Lot, _ city: CityModel, _ P: (Double, Double, Double) -> CGPoint, _ u: Double,
                                 _ visible: (CGPoint, Double) -> Bool) {
-        let col = RGB(TINT[l.d] ?? 0xffffff), dim = DIST[l.d]?.dim ?? 1, k = 0.16   // inset from the streets
+        let col = RGB(TINT[l.d] ?? 0xffffff), dim = (DIST[l.d]?.dim ?? 1) * l.brightness, k = 0.16   // inset from the streets
         let q = l.quad.map { id -> (Double, Double) in let n = city.nodes[id]; return (n.x + (l.x - n.x) * k * 2, n.y + (l.y - n.y) * k * 2) }
         let c = P(l.x, l.y, 0)
         if !visible(c, 0) { return }
@@ -247,11 +277,12 @@ enum StaticRenderer {
         let roof = CGMutablePath()
         roof.addLines(between: top); roof.closeSubpath()
         ctx.addPath(roof); ctx.setFillColor(col.cg(0.07 * dim)); ctx.fillPath()
-        let flick = l.h % 9 == 0 ? 0.75 : 1   // the page flickers these; the static layer holds the middle value
-        ctx.addPath(roof); ctx.setStrokeColor(col.cg((0.35 + Double(l.h % 4) * 0.08) * dim * flick)); ctx.setLineWidth(max(1, u * 0.12)); ctx.strokePath()
+        let flick = 1.0   // static windows agree with the page
+        ctx.saveGState(); ctx.setShadow(offset: .zero, blur: 3, color: col.cg(0.45))
+        ctx.addPath(roof); ctx.setStrokeColor(col.cg((0.28 + Double(l.h % 4) * 0.07) * dim * flick)); ctx.setLineWidth(max(1, u * 0.12)); ctx.strokePath(); ctx.restoreGState()
         if l.h % 3 == 0 {   // a lit window strip on the front edge
             let (x1, y1) = (Double(top[2].x), Double(top[2].y)), (x2, y2) = (Double(top[3].x), Double(top[3].y))
-            ctx.setStrokeColor(col.cg(0.5 * dim)); ctx.setLineWidth(max(1, u * 0.1))
+            ctx.setStrokeColor(Pal.amber.cg(0.42 * dim)); ctx.setLineWidth(max(1, u * 0.1))
             ctx.move(to: CGPoint(x: x1 + (x2 - x1) * 0.2, y: y1 + (y2 - y1) * 0.2 + u * h * 0.45))
             ctx.addLine(to: CGPoint(x: x1 + (x2 - x1) * 0.8, y: y1 + (y2 - y1) * 0.8 + u * h * 0.45))
             ctx.strokePath()
@@ -266,13 +297,18 @@ enum StaticRenderer {
         "slum-block": 2.1, "temple": 2, "stadium": 2.7, "water-tower": 1.5, "monorail-station": 2.1]
     private static func drawLandmark(_ ctx: CGContext, _ l: Lot, _ P: (Double, Double, Double) -> CGPoint, _ u: Double,
                                      _ visible: (CGPoint, Double) -> Bool, _ sprites: [String: CGImage]) {
-        guard let s = sprites[l.sprite] ?? sprites["block"] else { return }
+        guard let s = sprites["\(l.sprite):\(l.d)"] ?? sprites[l.sprite] ?? sprites["block"] else { return }
         let p = P(AFLOAT.contains(l.sprite) ? coast(l.y) - 4 : l.x, l.y, 0), w = l.size * 2 * u * 1.1 * (LANDMARK_SCALE[l.sprite] ?? 1.8), h = w * Double(s.height) / Double(s.width)
         if !visible(p, w) { return }
+        ctx.saveGState(); ctx.setBlendMode(.plusLighter)
+        if let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [RGB(TINT[l.d] ?? 0xffffff).cg(0.09 * (DIST[l.d]?.dim ?? 1)), RGB(TINT[l.d] ?? 0xffffff).cg(0)] as CFArray, locations: [0, 1]) {
+            ctx.drawRadialGradient(g, startCenter: p, startRadius: 0, endCenter: p, endRadius: w * 0.65, options: [])
+        }
+        ctx.restoreGState()
         ctx.saveGState()
         ctx.translateBy(x: p.x, y: p.y)
         ctx.scaleBy(x: l.flip ? -1 : 1, y: -1)   // the context is flipped; images draw upright
-        ctx.setAlpha(CGFloat(0.6 * (DIST[l.d]?.dim ?? 1)))   // scenery: fainter than the towers and cabs, which are live
+        ctx.setAlpha(CGFloat(0.52 * (DIST[l.d]?.dim ?? 1)))   // scenery: fainter than the towers and cabs, which are live
         // canvas rect (-w/2, -h*0.6, w, h) with y down; in the y-up local space its top is at +h*0.6
         ctx.draw(s, in: CGRect(x: -w / 2, y: -(h - h * 0.6), width: w, height: h))
         ctx.restoreGState()

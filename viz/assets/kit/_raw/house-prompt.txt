@@ -1,0 +1,28 @@
+Create a production game texture sheet of FLAT ORTHOGRAPHIC FRONT ELEVATION
+facade modules for a blue night city, house family. Output 1024×640, exact 4 columns by
+5 rows of 256×128 pixel rectangular tiles, no margins, no gaps, no labels.
+Each cell is ONE BAY wide and ONE FLOOR tall, NOT a whole building.
+Every tile completely fills its cell. Straight horizontal/vertical lines only.
+No perspective, no visible side or roof, no sky, no ground, no shadows, no glow
+beyond windows. Neutral frontal shading, no left/right light differentiation.
+Deep blue and steel blue glass, crisp fine blue mullions. NO brown/bronze.
+Each tile has exactly FOUR rectangular window panels at fixed positions:
+window x ranges 32–64, 80–112, 128–160, 176–208; y=32–96 within each tile.
+All four windows lit, alternating warm amber and cool white; keep their position
+and dimensions identical in every tile. Structural design varies only in blue
+frames and spandrels. The top/bottom 8 pixels remain a uniform steel-blue
+horizontal seam band; left/right 8 pixels a uniform dark-blue seam band.
+Order, left-to-right then top-to-bottom:
+1 ground left-edge A; 2 ground left-edge B; 3 ground middle A;
+4 ground middle B; 5 ground right-edge A; 6 ground right-edge B;
+7 mid left-edge A; 8 mid left-edge B; 9 mid middle A; 10 mid middle B;
+11 mid middle C; 12 mid right-edge A; 13 mid right-edge B;
+14 top left-edge A; 15 top left-edge B; 16 top middle A;
+17 top middle B; 18 top right-edge A; 19 top right-edge B;
+20 spare repeat of mid middle A.
+Ground tiles imply entrance level with glazed doors inside the same window grid.
+Top tiles have a thin blue cornice within their cell. Edge tiles have subtle
+vertical termination trim at their appropriate side, never protruding.
+Production sprite art, restrained detail, readable at 32×16 pixels per tile.
+This is a modular texture atlas, not a presentation board or a city illustration.
+Family-specific material: Low-rise and long residential slab facade: blue painted concrete, blue steel window trim, narrow blue horizontal sill bands, simple repeated residential bays. No brick, no brown, no roof eaves perspective.

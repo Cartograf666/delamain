@@ -104,7 +104,8 @@ final class GNode {
 }
 final class Lot {
     var idx = 0
-    let x: Double, y: Double, d: String, size: Double, quad: [Int], tall: Double
+    let x: Double, y: Double, d: String, size: Double, quad: [Int]
+    var tall: Double, brightness = 1.0
     let flip: Bool, scale: Double, h: UInt32
     var sprite: String
     var landmark = false, owner = false
@@ -220,6 +221,12 @@ final class CityModel {
                                     sprite: sprite, h: jsHash("\(i),\(j)" + d.id)))
                 }
             }
+        }
+        // Stable hash variation: preserve the PRNG draw order and the existing map.
+        for l in lots {
+            let v = Double(jsHash("\(l.h):height")) / 4294967295
+            l.tall *= 0.55 + v * (l.d == "core" ? 1.9 : 1.25)
+            l.brightness = 0.55 + Double(jsHash("\(l.h):light") % 1000) / 1000 * 0.8
         }
         nodes.forEach(index)
         // stitch district borders: a dangling node joins the nearest node of another district

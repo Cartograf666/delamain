@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+const html = fs.readFileSync(new URL('../../../viz.html', import.meta.url), 'utf8');
+const source = html.slice(html.indexOf('function hash(s)'), html.indexOf('// ---- model '));
+const c = {}; vm.createContext(c);
+vm.runInContext(source + ';buildCity();globalThis.city={nodes:G.nodes,lots:G.lots};', c);
+const {nodes,lots} = c.city;
+const core = lots.filter(l => l.d === 'core');
+const a = nodes.map(n=>n.x-n.y), b = nodes.map(n=>(n.x+n.y)/2);
+const K = Math.min(1540/(Math.max(...a)-Math.min(...a)),800/(Math.max(...b)-Math.min(...b)));
+const sides=core.flatMap(l=>l.quad.map((p,i)=>Math.hypot(p.x-l.quad[(i+1)%4].x,p.y-l.quad[(i+1)%4].y)));
+const side = 2.6*(1-2*.16);
+console.log(JSON.stringify({source:'viz/viz.html at 5624e76',viewportCSS:[1600,1000],zoom:1,K,lots:lots.length,coreLots:core.length,measuredCoreSideRange:[Math.min(...sides),Math.max(...sides)],lotDiamondWorld:[5.2,2.6],lotDiamondCSS:[5.2*K,2.6*K],insetBaseSideWorld:side,insetBaseDiamondWorld:[2*side,side],insetBaseDiamondCSS:[2*side*K,side*K],insetBaseDiamondAt2x:[4*side*K,2*side*K],streetGapWorld:2.6-side},null,2));

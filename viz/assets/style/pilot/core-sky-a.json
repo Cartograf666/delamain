@@ -1,0 +1,125 @@
+{
+  "status": "checkpoint candidate; not production accepted",
+  "source": "raw/core-sky-a-strip-03.png",
+  "generatorCalls": 3,
+  "canvas": [
+    432,
+    724
+  ],
+  "anchor": [
+    216,
+    700
+  ],
+  "baseVertices": {
+    "left": [
+      46,
+      621
+    ],
+    "front": [
+      216,
+      700
+    ],
+    "right": [
+      384,
+      621
+    ],
+    "backInferred": [
+      214,
+      542
+    ]
+  },
+  "measuredBaseWidthPx": 338,
+  "measuredBaseDepthPx": 158,
+  "measuredRatio": 2.1392405063291138,
+  "targetRatio": 2,
+  "baseWorld": [
+    3.536,
+    1.768
+  ],
+  "overviewBaseCSS": [
+    26.6933333333,
+    13.3466666667
+  ],
+  "scaleOverview": 0.07897435897435896,
+  "cameraDepthResidualCSS": 0.8687179487179487,
+  "measuredRoofLiftWorldApprox": 5.377230769230769,
+  "outline": "common manually cut matte; interior geometry remains generated, small drift",
+  "matte": "shared antialiased polygon; nearest inward RGB in 3px edge band; no whole-image recolouring",
+  "states": [
+    {
+      "state": 0,
+      "sourceCrop": [
+        12,
+        -1,
+        444,
+        723
+      ],
+      "meanRGBInside": [
+        43.981,
+        62.726,
+        74.726
+      ],
+      "sourceTransparentPixelsInsideMatte": 0
+    },
+    {
+      "state": 25,
+      "sourceCrop": [
+        441,
+        -1,
+        873,
+        723
+      ],
+      "meanRGBInside": [
+        58.435,
+        72.594,
+        79.561
+      ],
+      "sourceTransparentPixelsInsideMatte": 110
+    },
+    {
+      "state": 50,
+      "sourceCrop": [
+        870,
+        -1,
+        1302,
+        723
+      ],
+      "meanRGBInside": [
+        92.227,
+        99.165,
+        95.99
+      ],
+      "sourceTransparentPixelsInsideMatte": 0
+    },
+    {
+      "state": 75,
+      "sourceCrop": [
+        1299,
+        -1,
+        1731,
+        723
+      ],
+      "meanRGBInside": [
+        141.83,
+        144.714,
+        130.326
+      ],
+      "sourceTransparentPixelsInsideMatte": 16
+    },
+    {
+      "state": 100,
+      "sourceCrop": [
+        1728,
+        -1,
+        2160,
+        723
+      ],
+      "meanRGBInside": [
+        174.712,
+        184.529,
+        171.538
+      ],
+      "sourceTransparentPixelsInsideMatte": 0
+    }
+  ]
+}

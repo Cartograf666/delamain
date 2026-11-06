@@ -1,9 +1,12 @@
 // hub-viz: live view of Delamain — machines, stage hubs and their workers, journal lines as messages between them.
 //
-// Serves the embedded viz.html and three endpoints over the hub home (AGENT_HUB_HOME, default ~/agent-hub):
+// Serves the embedded viz.html and endpoints over the hub home (AGENT_HUB_HOME, default ~/agent-hub):
 //
 //	/state            machine, and the open stages that run now: their hubs and live workers, as agent-top shows them
 //	/history?hours=N  journal lines of the last N hours (default 24, at most a week), resolved to sender and recipients
+//	/city?date=YYYY-MM-DD  full-archive project territories (default latest journal day): stable id, stages, district,
+//	                  tower/mainPlot, finishedTasks, capped paired hours, activity, colour, area, silence, pressure, last lines;
+//	                  plotOwners carries fixed plot IDs, owners, darkness/levels and reservations. No writes or growth UI.
 //	/events           server-sent events: "line" for every new journal line, "state" every 5 s
 //	/assets/          the page's images
 //
@@ -37,6 +40,11 @@ import (
 
 //go:embed viz.html
 var page []byte
+
+// Original city renderer from repository revision bd5848a, with the shared style selector.
+//
+//go:embed original.html
+var originalPage []byte
 
 //go:embed assets
 var assets embed.FS
@@ -124,6 +132,8 @@ type State struct {
 	At      string            `json:"at"`
 	Stages  []StageView       `json:"stages"`
 	Limits  map[string]*Limit `json:"limits"` // what each engine's plan has left, for the owner tower
+	// Fresh merges, releases and opened PRs (city.go), younger than celebrationWindow.
+	Celebrations []Celebration `json:"celebrations"`
 }
 
 type Hub struct {
@@ -135,6 +145,8 @@ type Hub struct {
 	heard   map[Node]time.Time // the latest journal line of each writer
 	offsets map[string]int64
 	state   State
+
+	celebrations []Celebration // from live lines only: a restart or page load replays none
 
 	subMu sync.Mutex
 	subs  map[chan []byte]struct{}
@@ -424,6 +436,7 @@ func (h *Hub) poll() []*Event {
 		h.offsets[j.path] = start + int64(cut)
 		for _, line := range strings.Split(string(buf[:cut]), "\n") {
 			if ev := h.event(j.stage, j.day, line); ev != nil {
+				h.celebrate(ev, time.Now())
 				out = append(out, ev)
 			}
 		}
@@ -532,7 +545,7 @@ func (h *Hub) snapshot() State {
 		}
 		views = append(views, v)
 	}
-	return State{Machine: h.machine, At: now.Format(time.RFC3339), Stages: views, Limits: planLimits(h.root)}
+	return State{Machine: h.machine, At: now.Format(time.RFC3339), Stages: views, Limits: planLimits(h.root), Celebrations: h.recentCelebrations(now)}
 }
 
 func (h *Hub) publish(kind string, v any) {
@@ -594,7 +607,11 @@ func (h *Hub) routes() *http.ServeMux {
 	mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(page)
+		if r.URL.Query().Get("map") == "1" || r.URL.Query().Get("layers") == "1" {
+			w.Write(page)
+		} else {
+			w.Write(originalPage)
+		}
 	})
 	files := http.FileServerFS(assets)
 	mux.HandleFunc("/assets/", func(w http.ResponseWriter, r *http.Request) {
@@ -610,6 +627,24 @@ func (h *Hub) routes() *http.ServeMux {
 		st := h.state
 		h.mu.Unlock()
 		writeJSON(w, r, st)
+	})
+	mux.HandleFunc("GET /city", func(w http.ResponseWriter, r *http.Request) {
+		date := r.URL.Query().Get("date")
+		if date != "" && (cityDay(date).IsZero() || len(date) != 10) {
+			http.Error(w, "date must be YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
+		city, err := h.cityAt(date)
+		if err != nil {
+			if err.Error() == "date exceeds journal archive" {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			log.Printf("city: %v", err)
+			http.Error(w, "cannot read city archive", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, r, city)
 	})
 	mux.HandleFunc("/history", func(w http.ResponseWriter, r *http.Request) {
 		hours, err := strconv.ParseFloat(r.URL.Query().Get("hours"), 64)

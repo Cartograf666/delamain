@@ -1,0 +1,38 @@
+{
+  "workerCount": 30,
+  "panAmplitudeWorld": 45,
+  "panAmplitudePixels": 336.1170731707317,
+  "fps": [
+    {
+      "mode": "stationary",
+      "frames": 361,
+      "ms": 6007.899999928475,
+      "fps": 60.0875513913843,
+      "p95": 16.700000000000728,
+      "maxFrameMs": 16.80000000000109,
+      "over100ms": 0,
+      "sceneRebuilds": 0
+    },
+    {
+      "mode": "pan",
+      "frames": 194,
+      "ms": 6007.399999952315,
+      "fps": 32.29350467782068,
+      "p95": 16.799999999999272,
+      "maxFrameMs": 949.8999999999996,
+      "over100ms": 3,
+      "sceneRebuilds": 3
+    },
+    {
+      "mode": "zoom4",
+      "frames": 362,
+      "ms": 6011.099999928476,
+      "fps": 60.22192277691393,
+      "p95": 16.700000000000728,
+      "maxFrameMs": 33.400000000001455,
+      "over100ms": 0,
+      "sceneRebuilds": 0
+    }
+  ],
+  "errors": []
+}

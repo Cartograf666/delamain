@@ -1,0 +1,13 @@
+{
+  "pass": true,
+  "engine": "Node @napi-rs/canvas",
+  "cityBuildings": 4367,
+  "modules": 66,
+  "masksChecked": 1320,
+  "pixelRepeats": 35,
+  "maxStretch": 0.12,
+  "maxQuantizationResidual": 0.15999999999999992,
+  "setbackTiers": 44,
+  "atlasDecodedBytes": 665856,
+  "cacheBoundVerified": true
+}

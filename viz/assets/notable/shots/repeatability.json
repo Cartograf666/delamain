@@ -1,0 +1,24 @@
+{
+  "independentChromeBuilds": 2,
+  "identicalPixels": true,
+  "images": {
+    "station-emissive-25.png": "c084932dd86eaabe5e4d733004b47808b21a4c5a7038548a77694148272654f1",
+    "spire-emissive-75.png": "ff2e463d9e830393af9a68a5e3b3d9783bd2a11b45da7f0b34b25e3b09706b33",
+    "dome-emissive-25.png": "6946f2c40c4aa8d4fdd6ad464b36823cf7a276d916bd71a635e42f7bf14c3ecd",
+    "dome-base.png": "a835cec2e2a30f019bcbc35ab77593177c262f1d749679dfe365fce792ee7693",
+    "station-emissive-0.png": "cb132b47c2381260c38336c20cbdd6a5cce637c9d84882319b340cc614a84488",
+    "station-emissive-100.png": "39fa9cf7f48f00acb505c10673ea3b64d45a0743ed659c1986610b5c12f1368c",
+    "station-emissive-50.png": "889e349c08cdaf2b454e426b58157a688d39d59a2a80eea6b9a0a95d165cfea8",
+    "spire-emissive-100.png": "32cd36f953ccd6f583e9ddab17d7e37f2fd146d136cb68962dc60a661064e80b",
+    "spire-emissive-0.png": "7ac283948fb84ca431ebca019ca72ff1c0c8b656e80be154782b1ef3f6853215",
+    "station-base.png": "ed4df3bffa3b3863bf0088391055b30dc64571430b828ff0c5010abfa6b76cc3",
+    "dome-emissive-50.png": "a930904726552d3233b45b569d490b2a8b698ecbaa4056cfc84c9019f5a1c787",
+    "spire-emissive-25.png": "3cc79cdf72069854070a62aaebc99406c4f621bd1f56cbd8c04e60f2b27d60bb",
+    "dome-emissive-0.png": "54e9e9fa175da1ad7371708d7eabd1206a27305995d93d7b6339b17e4504bf31",
+    "dome-emissive-75.png": "2fde5c44e5624fa73ced71c080e30a2c47253acc879cda290b7f25f15ead198c",
+    "spire-base.png": "30b41c3d6980ef0f77c0b813e59e93ac8728c393304b96b33a6755af78414f6a",
+    "station-emissive-75.png": "a25bfb4b18f591cf57a77a52b14e07dff9263e05ace07aa8357c79f610835c47",
+    "spire-emissive-50.png": "dea58b7d9b9d9ce59c7dbe40c7b87bb5a6d27f4f097875a9694a1cdf7d42e956",
+    "dome-emissive-100.png": "cf8ffb0780af81fe3e56def5afbce821640b9ce04d979fa26ddad9ba9977ce9a"
+  }
+}

@@ -1,0 +1,1368 @@
+{
+  "schemaVersion": 1,
+  "status": "prototype-for-owner-review",
+  "pathBase": "viz/",
+  "load": {
+    "workersAtFull": 10,
+    "hysteresis": 0.025
+  },
+  "layers": {
+    "ground": {
+      "center": "#172232",
+      "edge": "#101a29",
+      "gridAlpha": 0.11,
+      "gridStep": 4,
+      "edgeStart": 0.62,
+      "edgeEnd": 1,
+      "minScale": 0.58,
+      "minDensity": 0.28,
+      "color": "#172232",
+      "tileColor": "#1b293a",
+      "tileOpacity": 0.7,
+      "gridColor": "#506078",
+      "gridOpacity": 0.11,
+      "gridWidthCSS": 0.5
+    },
+    "roads": {
+      "alpha": 0.64,
+      "width": 0.42,
+      "laneOffset": 0.14,
+      "highwayAlpha": 0.85,
+      "highwayColor": "#263447",
+      "highwayMarkOpacity": 0.55,
+      "highwayMarkWidthCSS": 0.85,
+      "highwayLaneOffset": 0.22,
+      "pathMode": "fixed-existing-street-graph",
+      "color": "#101a29",
+      "opacity": 0.64,
+      "minorWidthWorld": 0.42,
+      "highwayWidthWorld": 0.9,
+      "markColor": "#b48a51",
+      "markOpacity": 0.3,
+      "markWidthCSS": 0.55
+    },
+    "buildings": {
+      "sprites": {
+        "core-sky-a": {
+          "worldWidth": 3.536,
+          "opacity": 1,
+          "states": {
+            "0": {
+              "file": "assets/style/core-sky-a-0.png",
+              "anchor": [
+                216,
+                700
+              ],
+              "size": [
+                432,
+                724
+              ],
+              "baseWidth": 338
+            },
+            "25": {
+              "file": "assets/style/core-sky-a-25.png",
+              "anchor": [
+                216,
+                700
+              ],
+              "size": [
+                432,
+                724
+              ],
+              "baseWidth": 338
+            },
+            "50": {
+              "file": "assets/style/core-sky-a-50.png",
+              "anchor": [
+                216,
+                700
+              ],
+              "size": [
+                432,
+                724
+              ],
+              "baseWidth": 338
+            },
+            "75": {
+              "file": "assets/style/core-sky-a-75.png",
+              "anchor": [
+                216,
+                700
+              ],
+              "size": [
+                432,
+                724
+              ],
+              "baseWidth": 338
+            },
+            "100": {
+              "file": "assets/style/core-sky-a-100.png",
+              "anchor": [
+                216,
+                700
+              ],
+              "size": [
+                432,
+                724
+              ],
+              "baseWidth": 338
+            }
+          }
+        },
+        "ord-01": {
+          "label": "Low warehouse",
+          "states": {
+            "100": {
+              "file": "assets/style/ord-01.png",
+              "anchor": [
+                79,
+                187
+              ],
+              "size": [
+                273,
+                194
+              ],
+              "baseWidth": 260,
+              "sourceCrop": [
+                0,
+                0,
+                362,
+                362
+              ],
+              "trimBounds": [
+                59,
+                149,
+                316,
+                327
+              ]
+            }
+          },
+          "worldWidth": 3.536,
+          "widthFactor": 0.92,
+          "opacity": 0.9
+        },
+        "ord-02": {
+          "label": "Office block",
+          "states": {
+            "100": {
+              "file": "assets/style/ord-02.png",
+              "anchor": [
+                101,
+                231
+              ],
+              "size": [
+                205,
+                240
+              ],
+              "baseWidth": 192,
+              "sourceCrop": [
+                362,
+                0,
+                724,
+                362
+              ],
+              "trimBounds": [
+                93,
+                102,
+                282,
+                326
+              ]
+            }
+          },
+          "worldWidth": 3.536,
+          "widthFactor": 0.92,
+          "opacity": 0.9
+        },
+        "ord-03": {
+          "label": "Residential tower",
+          "states": {
+            "100": {
+              "file": "assets/style/ord-03.png",
+              "anchor": [
+                63,
+                300
+              ],
+              "size": [
+                161,
+                308
+              ],
+              "baseWidth": 146,
+              "sourceCrop": [
+                724,
+                0,
+                1086,
+                362
+              ],
+              "trimBounds": [
+                118,
+                47,
+                263,
+                339
+              ]
+            }
+          },
+          "worldWidth": 3.536,
+          "widthFactor": 0.92,
+          "opacity": 0.9
+        },
+        "ord-04": {
+          "label": "L-shaped low block",
+          "states": {
+            "100": {
+              "file": "assets/style/ord-04.png",
+              "anchor": [
+                68,
+                182
+              ],
+              "size": [
+                295,
+                189
+              ],
+              "baseWidth": 280,
+              "sourceCrop": [
+                1086,
+                0,
+                1448,
+                362
+              ],
+              "trimBounds": [
+                32,
+                116,
+                311,
+                289
+              ]
+            }
+          },
+          "worldWidth": 3.536,
+          "widthFactor": 0.92,
+          "opacity": 0.9
+        },
+        "ord-05": {
+          "label": "Courtyard block",
+          "states": {
+            "100": {
+              "file": "assets/style/ord-05.png",
+              "anchor": [
+                131,
+                243
+              ],
+              "size": [
+                294,
+                249
+              ],
+              "baseWidth": 281,
+              "sourceCrop": [
+                0,
+                362,
+                362,
+                724
+              ],
+              "trimBounds": [
+                46,
+                73,
+                324,
+                306
+              ]
+            }
+          },
+          "worldWidth": 3.536,
+          "widthFactor": 0.92,
+          "opacity": 0.9
+        },
+        "ord-06": {
+          "label": "Stepped terrace",
+          "states": {
+            "100": {
+              "file": "assets/style/ord-06.png",
+              "anchor": [
+                102,
+                273
+              ],
+              "size": [
+                237,
+                282
+              ],
+              "baseWidth": 224,
+              "sourceCrop": [
+                362,
+                362,
+                724,
+                724
+              ],
+              "trimBounds": [
+                76,
+                51,
+                297,
+                317
+              ]
+            }
+          },
+          "worldWidth": 3.536,
+          "widthFactor": 0.92,
+          "opacity": 0.9
+        },
+        "ord-07": {
+          "label": "Midrise office",
+          "states": {
+            "100": {
+              "file": "assets/style/ord-07.png",
+              "anchor": [
+                106,
+                268
+              ],
+              "size": [
+                226,
+                277
+              ],
+              "baseWidth": 211,
+              "sourceCrop": [
+                724,
+                362,
+                1086,
+                724
+              ],
+              "trimBounds": [
+                72,
+                51,
+                282,
+                312
+              ]
+            }
+          },
+          "worldWidth": 3.536,
+          "widthFactor": 0.92,
+          "opacity": 0.9
+        },
+        "ord-08": {
+          "label": "Sawtooth workshop",
+          "states": {
+            "100": {
+              "file": "assets/style/ord-08.png",
+              "anchor": [
+                90,
+                199
+              ],
+              "size": [
+                303,
+                206
+              ],
+              "baseWidth": 286,
+              "sourceCrop": [
+                1086,
+                362,
+                1448,
+                724
+              ],
+              "trimBounds": [
+                32,
+                106,
+                319,
+                296
+              ]
+            }
+          },
+          "worldWidth": 3.536,
+          "widthFactor": 0.92,
+          "opacity": 0.9
+        },
+        "ord-09": {
+          "label": "Tank utility",
+          "states": {
+            "100": {
+              "file": "assets/style/ord-09.png",
+              "anchor": [
+                82,
+                203
+              ],
+              "size": [
+                261,
+                212
+              ],
+              "baseWidth": 244,
+              "sourceCrop": [
+                0,
+                724,
+                362,
+                1086
+              ],
+              "trimBounds": [
+                72,
+                97,
+                317,
+                293
+              ]
+            }
+          },
+          "worldWidth": 3.536,
+          "widthFactor": 0.92,
+          "opacity": 0.9
+        },
+        "ord-10": {
+          "label": "Service workshop",
+          "states": {
+            "100": {
+              "file": "assets/style/ord-10.png",
+              "anchor": [
+                93,
+                207
+              ],
+              "size": [
+                256,
+                213
+              ],
+              "baseWidth": 241,
+              "sourceCrop": [
+                362,
+                724,
+                724,
+                1086
+              ],
+              "trimBounds": [
+                64,
+                94,
+                304,
+                291
+              ]
+            }
+          },
+          "worldWidth": 3.536,
+          "widthFactor": 0.92,
+          "opacity": 0.9
+        },
+        "ord-11": {
+          "label": "Residential slab",
+          "states": {
+            "100": {
+              "file": "assets/style/ord-11.png",
+              "anchor": [
+                57,
+                268
+              ],
+              "size": [
+                285,
+                276
+              ],
+              "baseWidth": 272,
+              "sourceCrop": [
+                724,
+                724,
+                1086,
+                1086
+              ],
+              "trimBounds": [
+                43,
+                56,
+                312,
+                316
+              ]
+            }
+          },
+          "worldWidth": 3.536,
+          "widthFactor": 0.92,
+          "opacity": 0.9
+        },
+        "ord-12": {
+          "label": "Stepped utility office",
+          "states": {
+            "100": {
+              "file": "assets/style/ord-12.png",
+              "anchor": [
+                116,
+                267
+              ],
+              "size": [
+                271,
+                278
+              ],
+              "baseWidth": 255,
+              "sourceCrop": [
+                1086,
+                724,
+                1448,
+                1086
+              ],
+              "trimBounds": [
+                46,
+                51,
+                301,
+                313
+              ]
+            }
+          },
+          "worldWidth": 3.536,
+          "widthFactor": 0.92,
+          "opacity": 0.9
+        }
+      },
+      "districts": {
+        "core": [
+          "core-sky-a"
+        ],
+        "foundry": [
+          "ord-08",
+          "ord-10",
+          "ord-09",
+          "ord-01"
+        ],
+        "docks": [
+          "ord-01",
+          "ord-08",
+          "ord-10"
+        ],
+        "bazaar": [
+          "ord-04",
+          "ord-05",
+          "ord-10"
+        ],
+        "heights": [
+          "ord-03",
+          "ord-06",
+          "ord-02"
+        ],
+        "sprawl": [
+          "ord-11",
+          "ord-05",
+          "ord-07",
+          "ord-12"
+        ],
+        "smelter": [
+          "ord-09",
+          "ord-08",
+          "ord-10",
+          "ord-12"
+        ],
+        "riviera": [
+          "ord-06",
+          "ord-04",
+          "ord-02"
+        ],
+        "wastes": [
+          "ord-10",
+          "ord-01",
+          "ord-09"
+        ]
+      },
+      "sort": "architectural-foot-depth",
+      "coreScaleRange": [
+        0.9,
+        1.1
+      ],
+      "coreScaleSeed": "stable-lot-id",
+      "allowRotation": false,
+      "allowMirror": false,
+      "uniformScaleOnly": true,
+      "edge": {
+        "startNormalizedRadius": 0.62,
+        "endNormalizedRadius": 1,
+        "outerKeepProbability": 0.28,
+        "outerWidthMultiplier": 0.58,
+        "exemptDistricts": [
+          "core"
+        ],
+        "exemptLiveKeys": true,
+        "seed": "stable-lot-id"
+      }
+    },
+    "keyBuildings": {
+      "sprites": {
+        "key-blue": {
+          "states": {
+            "100": {
+              "file": "assets/style/key-blue.png",
+              "anchor": [
+                128,
+                819
+              ],
+              "size": [
+                257,
+                828
+              ],
+              "baseWidth": 239,
+              "sourceCrop": [
+                183,
+                35,
+                439,
+                862
+              ],
+              "trimBounds": [
+                7,
+                7,
+                248,
+                819
+              ]
+            }
+          },
+          "worldWidth": 5.712,
+          "opacity": 1
+        },
+        "key-green": {
+          "states": {
+            "100": {
+              "file": "assets/style/key-green.png",
+              "anchor": [
+                129,
+                819
+              ],
+              "size": [
+                258,
+                828
+              ],
+              "baseWidth": 240,
+              "sourceCrop": [
+                763,
+                35,
+                1020,
+                862
+              ],
+              "trimBounds": [
+                7,
+                7,
+                249,
+                819
+              ]
+            }
+          },
+          "worldWidth": 5.712,
+          "opacity": 1
+        },
+        "key-owner": {
+          "states": {
+            "100": {
+              "file": "assets/style/key-owner.png",
+              "anchor": [
+                221,
+                859
+              ],
+              "size": [
+                440,
+                868
+              ],
+              "baseWidth": 420,
+              "sourceCrop": [
+                1237,
+                16,
+                1677,
+                884
+              ],
+              "trimBounds": [
+                8,
+                8,
+                432,
+                860
+              ]
+            }
+          },
+          "worldWidth": 9.0,
+          "opacity": 1
+        }
+      },
+      "hubs": [
+        "key-blue",
+        "key-green"
+      ],
+      "owner": "key-owner",
+      "staticState": "100"
+    },
+    "movers": {
+      "visuals": "inherited-cabs",
+      "pathMode": "fixed-existing-street-graph",
+      "preserveHeadingSprites": true
+    },
+    "lightHaze": {
+      "color": "#91a6bc",
+      "alpha": 0.035,
+      "hazeColor": "#91a6bc",
+      "maxHazeOpacity": 0.035,
+      "hazeRegion": "outer-city-only",
+      "spillPass": "below-architecture",
+      "spillBlue": "#559dff",
+      "spillGreen": "#5bd7af",
+      "spillOwner": "#80cfe2",
+      "spillOwnerWarm": "#edba72",
+      "hubSpillOpacity": 0.13,
+      "ownerSpillOpacity": 0.11,
+      "spillRadiusWidthFactor": 1.35,
+      "spillVerticalRadiusRatio": 0.5
+    }
+  },
+  "preparation": {
+    "script": "prepare-layers.py",
+    "method": "native ordinary alpha threshold, exterior flood and filled interiors; manual key polygons; pilot inward RGB repair; no generation or recolouring",
+    "sourceSHA256": {
+      "raw/ordinary-family.png": "ef3c590a46f20a84f030b8b2e1a51082da2bae127edcc947e83d6e1e644d2dd8",
+      "raw/key-towers.png": "5e0a4880c70a6049be4c68ed19dd6a64186c5d4ec2bdbee4abb62ff149f2539c"
+    },
+    "ordinaryAlphaThreshold": 160,
+    "ordinaryInsetPixels": 1,
+    "edgeRepairBandPixels": 3,
+    "paddingPixels": 8,
+    "keyOutlinesSourceSpace": {
+      "key-blue": [
+        [
+          [
+            307,
+            43
+          ],
+          [
+            314,
+            43
+          ],
+          [
+            318,
+            49
+          ],
+          [
+            318,
+            62
+          ],
+          [
+            314,
+            67
+          ],
+          [
+            315,
+            113
+          ],
+          [
+            316,
+            119
+          ],
+          [
+            316,
+            181
+          ],
+          [
+            326,
+            187
+          ],
+          [
+            328,
+            211
+          ],
+          [
+            342,
+            217
+          ],
+          [
+            359,
+            245
+          ],
+          [
+            368,
+            263
+          ],
+          [
+            369,
+            424
+          ],
+          [
+            383,
+            444
+          ],
+          [
+            384,
+            548
+          ],
+          [
+            395,
+            566
+          ],
+          [
+            396,
+            735
+          ],
+          [
+            410,
+            746
+          ],
+          [
+            423,
+            761
+          ],
+          [
+            430,
+            778
+          ],
+          [
+            429,
+            796
+          ],
+          [
+            420,
+            814
+          ],
+          [
+            404,
+            829
+          ],
+          [
+            381,
+            841
+          ],
+          [
+            348,
+            850
+          ],
+          [
+            310,
+            853
+          ],
+          [
+            273,
+            849
+          ],
+          [
+            241,
+            840
+          ],
+          [
+            216,
+            825
+          ],
+          [
+            199,
+            807
+          ],
+          [
+            191,
+            789
+          ],
+          [
+            192,
+            773
+          ],
+          [
+            199,
+            758
+          ],
+          [
+            212,
+            745
+          ],
+          [
+            222,
+            736
+          ],
+          [
+            223,
+            568
+          ],
+          [
+            233,
+            553
+          ],
+          [
+            234,
+            483
+          ],
+          [
+            249,
+            454
+          ],
+          [
+            250,
+            262
+          ],
+          [
+            257,
+            242
+          ],
+          [
+            263,
+            205
+          ],
+          [
+            282,
+            163
+          ],
+          [
+            292,
+            191
+          ],
+          [
+            300,
+            187
+          ],
+          [
+            301,
+            120
+          ],
+          [
+            303,
+            113
+          ],
+          [
+            303,
+            67
+          ],
+          [
+            300,
+            61
+          ],
+          [
+            300,
+            49
+          ]
+        ]
+      ],
+      "key-green": [
+        [
+          [
+            886,
+            43
+          ],
+          [
+            893,
+            43
+          ],
+          [
+            897,
+            49
+          ],
+          [
+            897,
+            62
+          ],
+          [
+            892,
+            68
+          ],
+          [
+            893,
+            113
+          ],
+          [
+            895,
+            120
+          ],
+          [
+            895,
+            179
+          ],
+          [
+            905,
+            185
+          ],
+          [
+            910,
+            193
+          ],
+          [
+            925,
+            201
+          ],
+          [
+            937,
+            218
+          ],
+          [
+            940,
+            234
+          ],
+          [
+            949,
+            250
+          ],
+          [
+            949,
+            424
+          ],
+          [
+            962,
+            442
+          ],
+          [
+            963,
+            549
+          ],
+          [
+            975,
+            565
+          ],
+          [
+            976,
+            737
+          ],
+          [
+            991,
+            750
+          ],
+          [
+            1004,
+            765
+          ],
+          [
+            1011,
+            784
+          ],
+          [
+            1008,
+            803
+          ],
+          [
+            997,
+            821
+          ],
+          [
+            975,
+            836
+          ],
+          [
+            946,
+            847
+          ],
+          [
+            912,
+            853
+          ],
+          [
+            876,
+            853
+          ],
+          [
+            842,
+            846
+          ],
+          [
+            814,
+            835
+          ],
+          [
+            791,
+            819
+          ],
+          [
+            775,
+            799
+          ],
+          [
+            771,
+            780
+          ],
+          [
+            777,
+            762
+          ],
+          [
+            791,
+            746
+          ],
+          [
+            801,
+            738
+          ],
+          [
+            802,
+            568
+          ],
+          [
+            813,
+            551
+          ],
+          [
+            813,
+            485
+          ],
+          [
+            828,
+            455
+          ],
+          [
+            829,
+            253
+          ],
+          [
+            840,
+            230
+          ],
+          [
+            843,
+            210
+          ],
+          [
+            857,
+            197
+          ],
+          [
+            871,
+            190
+          ],
+          [
+            872,
+            181
+          ],
+          [
+            882,
+            176
+          ],
+          [
+            882,
+            119
+          ],
+          [
+            884,
+            113
+          ],
+          [
+            884,
+            68
+          ],
+          [
+            880,
+            62
+          ],
+          [
+            880,
+            49
+          ]
+        ]
+      ],
+      "key-owner": [
+        [
+          [
+            1457,
+            103
+          ],
+          [
+            1533,
+            143
+          ],
+          [
+            1533,
+            159
+          ],
+          [
+            1585,
+            184
+          ],
+          [
+            1585,
+            202
+          ],
+          [
+            1603,
+            211
+          ],
+          [
+            1604,
+            302
+          ],
+          [
+            1628,
+            317
+          ],
+          [
+            1628,
+            340
+          ],
+          [
+            1624,
+            348
+          ],
+          [
+            1624,
+            458
+          ],
+          [
+            1648,
+            474
+          ],
+          [
+            1648,
+            495
+          ],
+          [
+            1644,
+            504
+          ],
+          [
+            1644,
+            596
+          ],
+          [
+            1665,
+            608
+          ],
+          [
+            1665,
+            630
+          ],
+          [
+            1662,
+            635
+          ],
+          [
+            1662,
+            716
+          ],
+          [
+            1668,
+            724
+          ],
+          [
+            1665,
+            733
+          ],
+          [
+            1665,
+            772
+          ],
+          [
+            1458,
+            875
+          ],
+          [
+            1248,
+            774
+          ],
+          [
+            1249,
+            736
+          ],
+          [
+            1245,
+            727
+          ],
+          [
+            1251,
+            718
+          ],
+          [
+            1251,
+            633
+          ],
+          [
+            1249,
+            627
+          ],
+          [
+            1249,
+            609
+          ],
+          [
+            1269,
+            598
+          ],
+          [
+            1270,
+            502
+          ],
+          [
+            1268,
+            494
+          ],
+          [
+            1268,
+            475
+          ],
+          [
+            1289,
+            461
+          ],
+          [
+            1290,
+            349
+          ],
+          [
+            1288,
+            341
+          ],
+          [
+            1289,
+            318
+          ],
+          [
+            1311,
+            304
+          ],
+          [
+            1311,
+            214
+          ],
+          [
+            1325,
+            202
+          ],
+          [
+            1326,
+            184
+          ],
+          [
+            1351,
+            170
+          ],
+          [
+            1351,
+            150
+          ]
+        ],
+        [
+          [
+            1390,
+            148
+          ],
+          [
+            1390,
+            84
+          ],
+          [
+            1393,
+            78
+          ],
+          [
+            1396,
+            82
+          ],
+          [
+            1396,
+            147
+          ]
+        ],
+        [
+          [
+            1455,
+            105
+          ],
+          [
+            1455,
+            27
+          ],
+          [
+            1458,
+            24
+          ],
+          [
+            1461,
+            27
+          ],
+          [
+            1461,
+            106
+          ]
+        ],
+        [
+          [
+            1513,
+            146
+          ],
+          [
+            1513,
+            73
+          ],
+          [
+            1516,
+            68
+          ],
+          [
+            1519,
+            73
+          ],
+          [
+            1519,
+            150
+          ]
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "pass": true,
+  "engine": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+  "pixelRepeatCases": 15,
+  "cityBuildings": 4367,
+  "distinctRenderedBuildings": 4367,
+  "state": 75,
+  "resolution": 0.25,
+  "assemblyMs": 1764.7000043392181,
+  "meanMs": 0.40409892473991715,
+  "p95Ms": 0.7999999523162842,
+  "wallMsIncludingSHA": 7700,
+  "moduleCacheEntries": 736,
+  "moduleCacheBytes": 4798464,
+  "atlasDecodedBytes": 665856,
+  "cachePeakBytes": 33554328,
+  "cacheLimitBytes": 33554432,
+  "maxStretch": 0.12,
+  "maxQuantizationResidual": 0.15999999999999992,
+  "clampedAxes": 1019
+}

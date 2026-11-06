@@ -1,0 +1,1873 @@
+{
+"days": [
+"2026-10-08",
+"2026-10-09",
+"2026-10-10",
+"2026-10-11",
+"2026-10-12",
+"2026-10-13",
+"2026-10-14",
+"2026-10-15",
+"2026-10-16",
+"2026-10-17",
+"2026-10-18",
+"2026-10-19",
+"2026-10-20",
+"2026-10-21",
+"2026-10-22",
+"2026-10-23",
+"2026-10-24",
+"2026-10-25",
+"2026-10-26",
+"2026-10-27",
+"2026-10-28",
+"2026-10-29",
+"2026-10-30",
+"2026-10-31",
+"2026-11-01",
+"2026-11-02",
+"2026-11-03",
+"2026-11-04",
+"2026-11-05"
+],
+"stat": {
+"done_all": 1368,
+"done_word": 995,
+"done_worker": 1259,
+"runs_closed": 1776,
+"done_hub": 109,
+"skipped_service": 223,
+"runs_capped": 3,
+"done_stop": 373,
+"runs_never_closed": 42
+},
+"capped": [
+15.2,
+23.8,
+25.1
+],
+"projects": {
+"Minas Tirith": {
+"stages": [
+"3d-workflows",
+"armor-whole-copy",
+"guard-reference",
+"minas-art-integration",
+"minas-asset-additions",
+"minas-asset-concepts",
+"minas-building-inventory-model",
+"minas-craft-storage",
+"minas-free-assets-research",
+"minas-map-episode",
+"minas-public-hospitality",
+"minas-urban-environment",
+"minas-vs01-delivery"
+],
+"daily": {
+"2026-10-08": {
+"done": 1,
+"hours": 0.13,
+"lines": 29
+},
+"2026-10-09": {
+"done": 29,
+"hours": 11.65,
+"lines": 248
+},
+"2026-10-10": {
+"done": 19,
+"hours": 5.92,
+"lines": 151
+},
+"2026-10-11": {
+"done": 24,
+"hours": 21.27,
+"lines": 474
+},
+"2026-10-12": {
+"done": 43,
+"hours": 28.47,
+"lines": 283
+},
+"2026-10-13": {
+"done": 12,
+"hours": 11.95,
+"lines": 172
+},
+"2026-10-14": {
+"done": 47,
+"hours": 21.35,
+"lines": 336
+},
+"2026-10-15": {
+"done": 27,
+"hours": 5.83,
+"lines": 211
+},
+"2026-10-16": {
+"done": 10,
+"hours": 2.8,
+"lines": 86
+},
+"2026-10-21": {
+"done": 18,
+"hours": 2.75,
+"lines": 92
+},
+"2026-10-22": {
+"done": 14,
+"hours": 5.05,
+"lines": 67
+},
+"2026-10-23": {
+"done": 1,
+"hours": 0.23,
+"lines": 14
+}
+}
+},
+"AI Design Stories": {
+"stages": [
+"ai-design-drafts",
+"concerts-carousels"
+],
+"daily": {
+"2026-10-16": {
+"done": 25,
+"hours": 2.35,
+"lines": 141
+},
+"2026-10-17": {
+"done": 4,
+"hours": 0.43,
+"lines": 30
+},
+"2026-10-18": {
+"done": 1,
+"hours": 6.0,
+"lines": 4
+},
+"2026-10-19": {
+"done": 25,
+"hours": 4.15,
+"lines": 229
+},
+"2026-10-20": {
+"done": 2,
+"hours": 0.0,
+"lines": 5
+},
+"2026-10-21": {
+"done": 65,
+"hours": 21.08,
+"lines": 458
+},
+"2026-10-24": {
+"done": 14,
+"hours": 6.43,
+"lines": 270
+},
+"2026-10-25": {
+"done": 17,
+"hours": 6.08,
+"lines": 320
+}
+}
+},
+"Dota2Helper": {
+"stages": [
+"android-vitals-fix",
+"audit-fixes",
+"branch-triage",
+"codex-backlog-20261023",
+"dota-captains-prototype",
+"dota-deps-20261016",
+"dota-encyclopedia-feedback",
+"dota-jest-haste-20261016",
+"dota-mobile-feedback",
+"dota-monetization-foundation",
+"dota-ota-u1",
+"dota-postrelease-165",
+"dota-reference-data",
+"dota-release-integration",
+"dota-skin-viewer",
+"dota-vitals",
+"dota-want-auto-ota",
+"dota-want-sheet",
+"dota-want-sheet-content",
+"dota1-w3x-verify-20261016",
+"monetization-foundation"
+],
+"daily": {
+"2026-10-09": {
+"done": 4,
+"hours": 0.57,
+"lines": 38
+},
+"2026-10-10": {
+"done": 8,
+"hours": 2.85,
+"lines": 73
+},
+"2026-10-12": {
+"done": 28,
+"hours": 4.48,
+"lines": 137
+},
+"2026-10-13": {
+"done": 12,
+"hours": 1.3,
+"lines": 51
+},
+"2026-10-14": {
+"done": 128,
+"hours": 23.68,
+"lines": 521
+},
+"2026-10-15": {
+"done": 200,
+"hours": 29.53,
+"lines": 677
+},
+"2026-10-16": {
+"done": 6,
+"hours": 1.08,
+"lines": 15
+},
+"2026-10-19": {
+"done": 6,
+"hours": 0.32,
+"lines": 15
+},
+"2026-10-20": {
+"done": 50,
+"hours": 4.65,
+"lines": 205
+},
+"2026-10-21": {
+"done": 13,
+"hours": 4.52,
+"lines": 73
+},
+"2026-10-23": {
+"done": 3,
+"hours": 2.32,
+"lines": 9
+},
+"2026-10-25": {
+"done": 2,
+"hours": 0.3,
+"lines": 5
+},
+"2026-10-26": {
+"done": 3,
+"hours": 0.52,
+"lines": 11
+}
+}
+},
+"Bobby Carrot": {
+"stages": [
+"bobby-carrot-1",
+"bobby-carrot-series",
+"bobby-yandex-release"
+],
+"daily": {
+"2026-10-13": {
+"done": 2,
+"hours": 0.12,
+"lines": 18
+},
+"2026-10-14": {
+"done": 12,
+"hours": 3.67,
+"lines": 88
+},
+"2026-10-15": {
+"done": 13,
+"hours": 1.07,
+"lines": 64
+},
+"2026-10-16": {
+"done": 4,
+"hours": 0.32,
+"lines": 43
+}
+}
+},
+"Куда за музыкой": {
+"stages": [
+"ci-failures-fix",
+"codex-backlog-20261023",
+"concert-coverage-recovery",
+"concert-data-quality",
+"concerts-data-contract",
+"concerts-fix-integration",
+"concerts-ig-concept",
+"concerts-ru-data",
+"concerts-ru-data-2",
+"music-design",
+"music-links",
+"music-region-timeout",
+"music-seo"
+],
+"daily": {
+"2026-10-10": {
+"done": 3,
+"hours": 0.27,
+"lines": 13
+},
+"2026-10-11": {
+"done": 16,
+"hours": 5.38,
+"lines": 114
+},
+"2026-10-16": {
+"done": 8,
+"hours": 1.85,
+"lines": 81
+},
+"2026-10-19": {
+"done": 16,
+"hours": 1.72,
+"lines": 74
+},
+"2026-10-20": {
+"done": 10,
+"hours": 2.97,
+"lines": 74
+},
+"2026-10-21": {
+"done": 2,
+"hours": 0.38,
+"lines": 6
+},
+"2026-10-23": {
+"done": 3,
+"hours": 0.62,
+"lines": 8
+},
+"2026-10-25": {
+"done": 25,
+"hours": 2.03,
+"lines": 109
+},
+"2026-10-27": {
+"done": 14,
+"hours": 3.25,
+"lines": 163
+},
+"2026-10-28": {
+"done": 16,
+"hours": 2.28,
+"lines": 80
+},
+"2026-11-02": {
+"done": 8,
+"hours": 1.25,
+"lines": 27
+},
+"2026-11-04": {
+"done": 2,
+"hours": 0.3,
+"lines": 4
+}
+}
+},
+"Clip Factory": {
+"stages": [
+"clip-calendar",
+"clip-editorial",
+"clip-factory-p1",
+"clip-factory-p2"
+],
+"daily": {
+"2026-10-16": {
+"done": 8,
+"hours": 2.1,
+"lines": 22
+},
+"2026-10-20": {
+"done": 3,
+"hours": 0.95,
+"lines": 18
+},
+"2026-10-21": {
+"done": 4,
+"hours": 0.77,
+"lines": 37
+},
+"2026-10-25": {
+"done": 47,
+"hours": 6.13,
+"lines": 223
+},
+"2026-10-26": {
+"done": 11,
+"hours": 3.22,
+"lines": 79
+}
+}
+},
+"Stravel": {
+"stages": [
+"codex-backlog-20261023",
+"stravel-activity-finish",
+"stravel-gps-source-selection",
+"stravel-landing",
+"stravel-play-preparation",
+"stravel-refs-salvage",
+"stravel-usage-measure"
+],
+"daily": {
+"2026-10-12": {
+"done": 13,
+"hours": 6.53,
+"lines": 98
+},
+"2026-10-14": {
+"done": 9,
+"hours": 1.03,
+"lines": 55
+},
+"2026-10-15": {
+"done": 6,
+"hours": 1.33,
+"lines": 83
+},
+"2026-10-20": {
+"done": 14,
+"hours": 1.35,
+"lines": 90
+},
+"2026-10-23": {
+"done": 1,
+"hours": 0.12,
+"lines": 2
+},
+"2026-10-24": {
+"done": 4,
+"hours": 0.27,
+"lines": 18
+},
+"2026-10-25": {
+"done": 35,
+"hours": 3.18,
+"lines": 140
+}
+}
+},
+"VibeSkills": {
+"stages": [
+"codex-backlog-20261023",
+"vibeskills-claude-plugin",
+"vibeskills-design-gate-coverage",
+"vibeskills-eval-automation",
+"vibeskills-gate-outcomes",
+"vibeskills-install-freshness",
+"vibeskills-project-contract"
+],
+"daily": {
+"2026-10-19": {
+"done": 1,
+"hours": 0.17,
+"lines": 6
+},
+"2026-10-20": {
+"done": 3,
+"hours": 0.33,
+"lines": 6
+},
+"2026-10-23": {
+"done": 1,
+"hours": 0.15,
+"lines": 2
+},
+"2026-10-25": {
+"done": 1,
+"hours": 0.13,
+"lines": 2
+}
+}
+},
+"Crate Trail": {
+"stages": [
+"crate-trail-assets",
+"crate-trail-game",
+"crate-trail-page"
+],
+"daily": {
+"2026-10-14": {
+"done": 33,
+"hours": 4.37,
+"lines": 194
+},
+"2026-10-15": {
+"done": 27,
+"hours": 9.75,
+"lines": 295
+},
+"2026-10-16": {
+"done": 7,
+"hours": 0.88,
+"lines": 71
+}
+}
+},
+"Dark Patterns": {
+"stages": [
+"dark-patterns-reel",
+"reel-stageshow"
+],
+"daily": {
+"2026-11-02": {
+"done": 2,
+"hours": 1.15,
+"lines": 6
+}
+}
+},
+"DASH": {
+"stages": [
+"dash-concept-screens"
+],
+"daily": {
+"2026-10-27": {
+"done": 0,
+"hours": 0.0,
+"lines": 11
+}
+}
+},
+"Agent Harness": {
+"stages": [
+"design-craft-adoption",
+"ready-solution-recovery",
+"skill-adoption"
+],
+"daily": {
+"2026-10-09": {
+"done": 2,
+"hours": 0.1,
+"lines": 17
+},
+"2026-10-14": {
+"done": 4,
+"hours": 1.1,
+"lines": 15
+},
+"2026-10-16": {
+"done": 0,
+"hours": 0.0,
+"lines": 2
+},
+"2026-10-19": {
+"done": 12,
+"hours": 1.37,
+"lines": 114
+},
+"2026-10-20": {
+"done": 11,
+"hours": 0.75,
+"lines": 36
+},
+"2026-10-23": {
+"done": 0,
+"hours": 0.0,
+"lines": 1
+}
+}
+},
+"Dota Creators": {
+"stages": [
+"dota-creators"
+],
+"daily": {
+"2026-10-19": {
+"done": 5,
+"hours": 0.35,
+"lines": 17
+},
+"2026-10-20": {
+"done": 2,
+"hours": 0.05,
+"lines": 5
+}
+}
+},
+"Dota Server": {
+"stages": [
+"dota-server-cleanup-20261025"
+],
+"daily": {
+"2026-10-26": {
+"done": 14,
+"hours": 1.95,
+"lines": 56
+}
+}
+},
+"Delamain": {
+"stages": [
+"hub-viz-polish",
+"pr76-live-check"
+],
+"daily": {
+"2026-10-14": {
+"done": 2,
+"hours": 0.0,
+"lines": 4
+},
+"2026-11-03": {
+"done": 14,
+"hours": 3.88,
+"lines": 42
+},
+"2026-11-04": {
+"done": 7,
+"hours": 5.25,
+"lines": 63
+},
+"2026-11-05": {
+"done": 1,
+"hours": 1.62,
+"lines": 25
+}
+}
+},
+"Alfa Inspector": {
+"stages": [
+"inspector-spacing"
+],
+"daily": {
+"2026-11-03": {
+"done": 1,
+"hours": 0.37,
+"lines": 8
+}
+}
+},
+"Telegram": {
+"stages": [
+"ios-native-summary",
+"selection-translate",
+"telegram-candidates",
+"voice-effects"
+],
+"daily": {
+"2026-10-13": {
+"done": 7,
+"hours": 0.58,
+"lines": 26
+},
+"2026-10-14": {
+"done": 3,
+"hours": 0.32,
+"lines": 17
+},
+"2026-10-15": {
+"done": 9,
+"hours": 2.58,
+"lines": 45
+},
+"2026-10-16": {
+"done": 0,
+"hours": 0.17,
+"lines": 3
+}
+}
+},
+"Laser Snake": {
+"stages": [
+"laser-snake"
+],
+"daily": {
+"2026-10-08": {
+"done": 0,
+"hours": 0.0,
+"lines": 4
+}
+}
+},
+"Mascot Shooter": {
+"stages": [
+"mascot-shooter"
+],
+"daily": {
+"2026-10-08": {
+"done": 2,
+"hours": 0.37,
+"lines": 10
+}
+}
+},
+"Meme Library": {
+"stages": [
+"meme-library-p1"
+],
+"daily": {
+"2026-10-16": {
+"done": 1,
+"hours": 0.25,
+"lines": 2
+}
+}
+},
+"Roblox Clicker": {
+"stages": [
+"roblox-clicker-p1",
+"roblox-clicker-p2"
+],
+"daily": {
+"2026-10-16": {
+"done": 2,
+"hours": 0.53,
+"lines": 4
+}
+}
+},
+"Sochen": {
+"stages": [
+"sochen-full-review",
+"sochen-play-release"
+],
+"daily": {
+"2026-10-14": {
+"done": 15,
+"hours": 4.0,
+"lines": 157
+},
+"2026-10-15": {
+"done": 4,
+"hours": 0.43,
+"lines": 22
+}
+}
+},
+"Twin Lab": {
+"stages": [
+"twin-lab"
+],
+"daily": {
+"2026-10-26": {
+"done": 3,
+"hours": 1.05,
+"lines": 8
+},
+"2026-10-27": {
+"done": 2,
+"hours": 0.15,
+"lines": 5
+}
+}
+}
+},
+"stages": {
+"3d-workflows": {
+"daily": {
+"2026-10-09": {
+"done": 7,
+"hours": 1.47,
+"lines": 43
+}
+}
+},
+"ai-design-drafts": {
+"daily": {
+"2026-10-16": {
+"done": 25,
+"hours": 2.35,
+"lines": 141
+},
+"2026-10-17": {
+"done": 4,
+"hours": 0.43,
+"lines": 30
+},
+"2026-10-18": {
+"done": 1,
+"hours": 6.0,
+"lines": 4
+},
+"2026-10-19": {
+"done": 25,
+"hours": 4.15,
+"lines": 229
+},
+"2026-10-20": {
+"done": 2,
+"hours": 0.0,
+"lines": 5
+},
+"2026-10-21": {
+"done": 65,
+"hours": 21.08,
+"lines": 458
+}
+}
+},
+"android-vitals-fix": {
+"daily": {
+"2026-10-20": {
+"done": 12,
+"hours": 1.78,
+"lines": 43
+},
+"2026-10-21": {
+"done": 13,
+"hours": 4.52,
+"lines": 73
+}
+}
+},
+"armor-whole-copy": {
+"daily": {
+"2026-10-15": {
+"done": 3,
+"hours": 0.75,
+"lines": 19
+}
+}
+},
+"audit-fixes": {
+"daily": {
+"2026-10-25": {
+"done": 2,
+"hours": 0.3,
+"lines": 5
+},
+"2026-10-26": {
+"done": 0,
+"hours": 0.0,
+"lines": 1
+}
+}
+},
+"bobby-carrot-1": {
+"daily": {
+"2026-10-13": {
+"done": 2,
+"hours": 0.12,
+"lines": 18
+},
+"2026-10-14": {
+"done": 0,
+"hours": 0.02,
+"lines": 3
+}
+}
+},
+"bobby-carrot-series": {
+"daily": {
+"2026-10-14": {
+"done": 12,
+"hours": 3.65,
+"lines": 85
+}
+}
+},
+"bobby-yandex-release": {
+"daily": {
+"2026-10-15": {
+"done": 13,
+"hours": 1.07,
+"lines": 64
+},
+"2026-10-16": {
+"done": 4,
+"hours": 0.32,
+"lines": 43
+}
+}
+},
+"branch-triage": {
+"daily": {
+"2026-10-26": {
+"done": 3,
+"hours": 0.52,
+"lines": 10
+}
+}
+},
+"ci-failures-fix": {
+"daily": {
+"2026-10-19": {
+"done": 2,
+"hours": 0.18,
+"lines": 8
+},
+"2026-10-20": {
+"done": 2,
+"hours": 0.85,
+"lines": 37
+}
+}
+},
+"clip-calendar": {
+"daily": {
+"2026-10-25": {
+"done": 26,
+"hours": 2.03,
+"lines": 84
+}
+}
+},
+"clip-editorial": {
+"daily": {
+"2026-10-25": {
+"done": 21,
+"hours": 4.1,
+"lines": 139
+},
+"2026-10-26": {
+"done": 11,
+"hours": 3.22,
+"lines": 79
+}
+}
+},
+"clip-factory-p1": {
+"daily": {
+"2026-10-16": {
+"done": 7,
+"hours": 1.92,
+"lines": 20
+}
+}
+},
+"clip-factory-p2": {
+"daily": {
+"2026-10-16": {
+"done": 1,
+"hours": 0.18,
+"lines": 2
+},
+"2026-10-20": {
+"done": 3,
+"hours": 0.95,
+"lines": 18
+},
+"2026-10-21": {
+"done": 4,
+"hours": 0.77,
+"lines": 37
+}
+}
+},
+"codex-backlog-20261023": {
+"daily": {
+"2026-10-23": {
+"done": 8,
+"hours": 3.2,
+"lines": 22
+}
+}
+},
+"concert-coverage-recovery": {
+"daily": {
+"2026-10-28": {
+"done": 16,
+"hours": 2.28,
+"lines": 80
+}
+}
+},
+"concert-data-quality": {
+"daily": {
+"2026-10-10": {
+"done": 3,
+"hours": 0.27,
+"lines": 13
+},
+"2026-10-11": {
+"done": 16,
+"hours": 5.38,
+"lines": 114
+},
+"2026-10-25": {
+"done": 17,
+"hours": 1.4,
+"lines": 74
+}
+}
+},
+"concerts-carousels": {
+"daily": {
+"2026-10-24": {
+"done": 14,
+"hours": 6.43,
+"lines": 270
+},
+"2026-10-25": {
+"done": 17,
+"hours": 6.08,
+"lines": 320
+}
+}
+},
+"concerts-data-contract": {
+"daily": {
+"2026-10-27": {
+"done": 14,
+"hours": 3.25,
+"lines": 163
+}
+}
+},
+"concerts-fix-integration": {
+"daily": {
+"2026-10-25": {
+"done": 8,
+"hours": 0.63,
+"lines": 35
+}
+}
+},
+"concerts-ig-concept": {
+"daily": {
+"2026-10-16": {
+"done": 1,
+"hours": 0.45,
+"lines": 28
+},
+"2026-10-19": {
+"done": 1,
+"hours": 0.0,
+"lines": 4
+}
+}
+},
+"concerts-ru-data-2": {
+"daily": {
+"2026-10-19": {
+"done": 13,
+"hours": 1.53,
+"lines": 62
+}
+}
+},
+"concerts-ru-data": {
+"daily": {
+"2026-10-16": {
+"done": 7,
+"hours": 1.4,
+"lines": 53
+}
+}
+},
+"crate-trail-assets": {
+"daily": {
+"2026-10-14": {
+"done": 3,
+"hours": 1.07,
+"lines": 39
+}
+}
+},
+"crate-trail-game": {
+"daily": {
+"2026-10-14": {
+"done": 23,
+"hours": 3.18,
+"lines": 134
+},
+"2026-10-15": {
+"done": 27,
+"hours": 9.75,
+"lines": 295
+},
+"2026-10-16": {
+"done": 7,
+"hours": 0.88,
+"lines": 71
+}
+}
+},
+"crate-trail-page": {
+"daily": {
+"2026-10-14": {
+"done": 7,
+"hours": 0.12,
+"lines": 21
+}
+}
+},
+"dark-patterns-reel": {
+"daily": {
+"2026-11-02": {
+"done": 1,
+"hours": 0.52,
+"lines": 3
+}
+}
+},
+"dash-concept-screens": {
+"daily": {
+"2026-10-27": {
+"done": 0,
+"hours": 0.0,
+"lines": 11
+}
+}
+},
+"default": {
+"daily": {
+"2026-10-25": {
+"done": 0,
+"hours": 0.0,
+"lines": 1
+},
+"2026-10-26": {
+"done": 0,
+"hours": 0.0,
+"lines": 6
+},
+"2026-10-27": {
+"done": 0,
+"hours": 0.0,
+"lines": 3
+}
+}
+},
+"design-craft-adoption": {
+"daily": {
+"2026-10-14": {
+"done": 4,
+"hours": 1.1,
+"lines": 15
+},
+"2026-10-16": {
+"done": 0,
+"hours": 0.0,
+"lines": 2
+},
+"2026-10-19": {
+"done": 0,
+"hours": 0.0,
+"lines": 1
+},
+"2026-10-23": {
+"done": 0,
+"hours": 0.0,
+"lines": 1
+}
+}
+},
+"dota-captains-prototype": {
+"daily": {
+"2026-10-20": {
+"done": 25,
+"hours": 1.6,
+"lines": 107
+}
+}
+},
+"dota-creators": {
+"daily": {
+"2026-10-19": {
+"done": 5,
+"hours": 0.35,
+"lines": 17
+},
+"2026-10-20": {
+"done": 2,
+"hours": 0.05,
+"lines": 5
+}
+}
+},
+"dota-deps-20261016": {
+"daily": {
+"2026-10-16": {
+"done": 1,
+"hours": 0.15,
+"lines": 2
+}
+}
+},
+"dota-encyclopedia-feedback": {
+"daily": {
+"2026-10-12": {
+"done": 10,
+"hours": 0.57,
+"lines": 38
+}
+}
+},
+"dota-jest-haste-20261016": {
+"daily": {
+"2026-10-16": {
+"done": 1,
+"hours": 0.1,
+"lines": 2
+}
+}
+},
+"dota-mobile-feedback": {
+"daily": {
+"2026-10-12": {
+"done": 14,
+"hours": 3.32,
+"lines": 90
+}
+}
+},
+"dota-monetization-foundation": {
+"daily": {
+"2026-10-14": {
+"done": 9,
+"hours": 0.73,
+"lines": 45
+},
+"2026-10-15": {
+"done": 6,
+"hours": 0.98,
+"lines": 41
+}
+}
+},
+"dota-ota-u1": {
+"daily": {
+"2026-10-15": {
+"done": 3,
+"hours": 0.25,
+"lines": 15
+}
+}
+},
+"dota-postrelease-165": {
+"daily": {
+"2026-10-20": {
+"done": 7,
+"hours": 0.27,
+"lines": 18
+}
+}
+},
+"dota-reference-data": {
+"daily": {
+"2026-10-14": {
+"done": 117,
+"hours": 22.95,
+"lines": 468
+},
+"2026-10-15": {
+"done": 171,
+"hours": 26.03,
+"lines": 517
+}
+}
+},
+"dota-release-integration": {
+"daily": {
+"2026-10-15": {
+"done": 12,
+"hours": 1.88,
+"lines": 71
+}
+}
+},
+"dota-server-cleanup-20261025": {
+"daily": {
+"2026-10-26": {
+"done": 14,
+"hours": 1.95,
+"lines": 56
+}
+}
+},
+"dota-skin-viewer": {
+"daily": {
+"2026-10-09": {
+"done": 4,
+"hours": 0.57,
+"lines": 38
+},
+"2026-10-10": {
+"done": 8,
+"hours": 2.85,
+"lines": 73
+},
+"2026-10-12": {
+"done": 4,
+"hours": 0.6,
+"lines": 9
+}
+}
+},
+"dota-vitals": {
+"daily": {
+"2026-10-13": {
+"done": 12,
+"hours": 1.3,
+"lines": 51
+},
+"2026-10-14": {
+"done": 2,
+"hours": 0.0,
+"lines": 7
+}
+}
+},
+"dota-want-auto-ota": {
+"daily": {
+"2026-10-20": {
+"done": 4,
+"hours": 0.68,
+"lines": 31
+}
+}
+},
+"dota-want-sheet-content": {
+"daily": {
+"2026-10-19": {
+"done": 6,
+"hours": 0.32,
+"lines": 15
+},
+"2026-10-20": {
+"done": 2,
+"hours": 0.32,
+"lines": 6
+}
+}
+},
+"dota-want-sheet": {
+"daily": {
+"2026-10-15": {
+"done": 8,
+"hours": 0.38,
+"lines": 33
+}
+}
+},
+"dota1-w3x-verify-20261016": {
+"daily": {
+"2026-10-16": {
+"done": 4,
+"hours": 0.83,
+"lines": 11
+}
+}
+},
+"guard-reference": {
+"daily": {
+"2026-10-08": {
+"done": 1,
+"hours": 0.13,
+"lines": 29
+},
+"2026-10-09": {
+"done": 22,
+"hours": 10.18,
+"lines": 205
+},
+"2026-10-10": {
+"done": 19,
+"hours": 5.92,
+"lines": 151
+},
+"2026-10-11": {
+"done": 24,
+"hours": 21.27,
+"lines": 474
+},
+"2026-10-12": {
+"done": 5,
+"hours": 2.78,
+"lines": 35
+},
+"2026-10-13": {
+"done": 0,
+"hours": 0.0,
+"lines": 4
+}
+}
+},
+"hub-viz-polish": {
+"daily": {
+"2026-11-03": {
+"done": 14,
+"hours": 3.88,
+"lines": 42
+},
+"2026-11-04": {
+"done": 7,
+"hours": 5.25,
+"lines": 63
+},
+"2026-11-05": {
+"done": 1,
+"hours": 1.62,
+"lines": 25
+}
+}
+},
+"inspector-spacing": {
+"daily": {
+"2026-11-03": {
+"done": 1,
+"hours": 0.37,
+"lines": 8
+}
+}
+},
+"ios-native-summary": {
+"daily": {
+"2026-10-15": {
+"done": 9,
+"hours": 2.22,
+"lines": 42
+}
+}
+},
+"laser-snake": {
+"daily": {
+"2026-10-08": {
+"done": 0,
+"hours": 0.0,
+"lines": 4
+}
+}
+},
+"mascot-shooter": {
+"daily": {
+"2026-10-08": {
+"done": 2,
+"hours": 0.37,
+"lines": 10
+}
+}
+},
+"meme-library-p1": {
+"daily": {
+"2026-10-16": {
+"done": 1,
+"hours": 0.25,
+"lines": 2
+}
+}
+},
+"minas-art-integration": {
+"daily": {
+"2026-10-15": {
+"done": 11,
+"hours": 1.47,
+"lines": 103
+}
+}
+},
+"minas-asset-additions": {
+"daily": {
+"2026-10-15": {
+"done": 6,
+"hours": 2.42,
+"lines": 46
+}
+}
+},
+"minas-asset-concepts": {
+"daily": {
+"2026-10-14": {
+"done": 42,
+"hours": 20.3,
+"lines": 304
+},
+"2026-10-15": {
+"done": 6,
+"hours": 1.2,
+"lines": 23
+}
+}
+},
+"minas-building-inventory-model": {
+"daily": {
+"2026-10-12": {
+"done": 27,
+"hours": 18.7,
+"lines": 143
+},
+"2026-10-13": {
+"done": 4,
+"hours": 9.53,
+"lines": 66
+}
+}
+},
+"minas-craft-storage": {
+"daily": {
+"2026-10-12": {
+"done": 2,
+"hours": 0.33,
+"lines": 21
+}
+}
+},
+"minas-free-assets-research": {
+"daily": {
+"2026-10-12": {
+"done": 6,
+"hours": 5.4,
+"lines": 36
+}
+}
+},
+"minas-map-episode": {
+"daily": {
+"2026-10-16": {
+"done": 10,
+"hours": 2.8,
+"lines": 76
+},
+"2026-10-21": {
+"done": 18,
+"hours": 2.75,
+"lines": 92
+},
+"2026-10-22": {
+"done": 14,
+"hours": 5.05,
+"lines": 67
+},
+"2026-10-23": {
+"done": 1,
+"hours": 0.23,
+"lines": 14
+}
+}
+},
+"minas-public-hospitality": {
+"daily": {
+"2026-10-12": {
+"done": 1,
+"hours": 0.53,
+"lines": 21
+}
+}
+},
+"minas-urban-environment": {
+"daily": {
+"2026-10-12": {
+"done": 2,
+"hours": 0.72,
+"lines": 27
+}
+}
+},
+"minas-vs01-delivery": {
+"daily": {
+"2026-10-13": {
+"done": 8,
+"hours": 2.42,
+"lines": 102
+},
+"2026-10-14": {
+"done": 5,
+"hours": 1.05,
+"lines": 32
+},
+"2026-10-15": {
+"done": 1,
+"hours": 0.0,
+"lines": 20
+},
+"2026-10-16": {
+"done": 0,
+"hours": 0.0,
+"lines": 10
+}
+}
+},
+"monetization-foundation": {
+"daily": {
+"2026-10-14": {
+"done": 0,
+"hours": 0.0,
+"lines": 1
+}
+}
+},
+"music-design": {
+"daily": {
+"2026-10-20": {
+"done": 8,
+"hours": 2.12,
+"lines": 37
+},
+"2026-10-21": {
+"done": 2,
+"hours": 0.38,
+"lines": 6
+}
+}
+},
+"music-links": {
+"daily": {
+"2026-11-04": {
+"done": 1,
+"hours": 0.13,
+"lines": 2
+}
+}
+},
+"music-region-timeout": {
+"daily": {
+"2026-11-02": {
+"done": 8,
+"hours": 1.25,
+"lines": 27
+}
+}
+},
+"music-seo": {
+"daily": {
+"2026-11-04": {
+"done": 1,
+"hours": 0.17,
+"lines": 2
+}
+}
+},
+"pr76-live-check": {
+"daily": {
+"2026-10-14": {
+"done": 2,
+"hours": 0.0,
+"lines": 4
+}
+}
+},
+"ready-solution-recovery": {
+"daily": {
+"2026-10-09": {
+"done": 2,
+"hours": 0.1,
+"lines": 17
+}
+}
+},
+"reel-stageshow": {
+"daily": {
+"2026-11-02": {
+"done": 1,
+"hours": 0.63,
+"lines": 3
+}
+}
+},
+"roblox-clicker-p1": {
+"daily": {
+"2026-10-16": {
+"done": 1,
+"hours": 0.25,
+"lines": 2
+}
+}
+},
+"roblox-clicker-p2": {
+"daily": {
+"2026-10-16": {
+"done": 1,
+"hours": 0.28,
+"lines": 2
+}
+}
+},
+"selection-translate": {
+"daily": {
+"2026-10-16": {
+"done": 0,
+"hours": 0.17,
+"lines": 3
+}
+}
+},
+"skill-adoption": {
+"daily": {
+"2026-10-19": {
+"done": 12,
+"hours": 1.37,
+"lines": 113
+},
+"2026-10-20": {
+"done": 11,
+"hours": 0.75,
+"lines": 36
+}
+}
+},
+"sochen-full-review": {
+"daily": {
+"2026-10-14": {
+"done": 15,
+"hours": 4.0,
+"lines": 157
+}
+}
+},
+"sochen-play-release": {
+"daily": {
+"2026-10-15": {
+"done": 4,
+"hours": 0.43,
+"lines": 22
+}
+}
+},
+"stravel-activity-finish": {
+"daily": {
+"2026-10-14": {
+"done": 9,
+"hours": 1.03,
+"lines": 49
+}
+}
+},
+"stravel-gps-source-selection": {
+"daily": {
+"2026-10-12": {
+"done": 13,
+"hours": 6.53,
+"lines": 98
+},
+"2026-10-14": {
+"done": 0,
+"hours": 0.0,
+"lines": 6
+}
+}
+},
+"stravel-landing": {
+"daily": {
+"2026-10-24": {
+"done": 4,
+"hours": 0.27,
+"lines": 18
+},
+"2026-10-25": {
+"done": 35,
+"hours": 3.18,
+"lines": 140
+}
+}
+},
+"stravel-play-preparation": {
+"daily": {
+"2026-10-15": {
+"done": 6,
+"hours": 1.33,
+"lines": 83
+}
+}
+},
+"stravel-refs-salvage": {
+"daily": {
+"2026-10-20": {
+"done": 5,
+"hours": 0.32,
+"lines": 21
+}
+}
+},
+"stravel-usage-measure": {
+"daily": {
+"2026-10-20": {
+"done": 9,
+"hours": 1.03,
+"lines": 69
+}
+}
+},
+"telegram-candidates": {
+"daily": {
+"2026-10-13": {
+"done": 7,
+"hours": 0.58,
+"lines": 26
+},
+"2026-10-14": {
+"done": 3,
+"hours": 0.32,
+"lines": 17
+}
+}
+},
+"twin-lab": {
+"daily": {
+"2026-10-26": {
+"done": 3,
+"hours": 1.05,
+"lines": 8
+},
+"2026-10-27": {
+"done": 2,
+"hours": 0.15,
+"lines": 5
+}
+}
+},
+"vibeskills-claude-plugin": {
+"daily": {
+"2026-10-20": {
+"done": 1,
+"hours": 0.05,
+"lines": 2
+}
+}
+},
+"vibeskills-design-gate-coverage": {
+"daily": {
+"2026-10-25": {
+"done": 1,
+"hours": 0.13,
+"lines": 2
+}
+}
+},
+"vibeskills-eval-automation": {
+"daily": {
+"2026-10-20": {
+"done": 1,
+"hours": 0.15,
+"lines": 2
+}
+}
+},
+"vibeskills-gate-outcomes": {
+"daily": {
+"2026-10-20": {
+"done": 1,
+"hours": 0.13,
+"lines": 2
+}
+}
+},
+"vibeskills-install-freshness": {
+"daily": {
+"2026-10-19": {
+"done": 1,
+"hours": 0.17,
+"lines": 4
+}
+}
+},
+"vibeskills-project-contract": {
+"daily": {
+"2026-10-19": {
+"done": 0,
+"hours": 0.0,
+"lines": 2
+}
+}
+},
+"voice-effects": {
+"daily": {
+"2026-10-15": {
+"done": 0,
+"hours": 0.37,
+"lines": 3
+}
+}
+}
+}
+}

@@ -1,0 +1,10 @@
+{
+  "slot": 12,
+  "httpPort": 8912,
+  "cdpPort": 9212,
+  "runnerPid": 86217,
+  "startedAt": "2026-11-04T17:06:42.782Z",
+  "closed": true,
+  "chromePid": 86365,
+  "closedAt": "2026-11-04T17:06:51.555Z"
+}

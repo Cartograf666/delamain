@@ -1,0 +1,4572 @@
+{
+  "version": 1,
+  "grid": {
+    "bay": 32,
+    "floor": 16,
+    "roof": 32,
+    "worldBay": 1,
+    "floorsPerHeight": 2
+  },
+  "states": [
+    0,
+    25,
+    50,
+    75,
+    100
+  ],
+  "atlas": {
+    "base": "atlas-base.png",
+    "emissive": "atlas-emissive.png",
+    "size": [
+      272,
+      306
+    ],
+    "decodedBytes": 665856
+  },
+  "families": [
+    "glass",
+    "office",
+    "house"
+  ],
+  "modules": [
+    {
+      "id": "glass-ground-edgeL-1",
+      "family": "glass",
+      "row": "ground",
+      "column": "edgeL",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        1,
+        1,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-ground-edgeL-2",
+      "family": "glass",
+      "row": "ground",
+      "column": "edgeL",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        }
+      ],
+      "rect": [
+        35,
+        1,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-ground-middle-1",
+      "family": "glass",
+      "row": "ground",
+      "column": "middle",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        }
+      ],
+      "rect": [
+        69,
+        1,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-ground-middle-2",
+      "family": "glass",
+      "row": "ground",
+      "column": "middle",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        103,
+        1,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-ground-edgeR-1",
+      "family": "glass",
+      "row": "ground",
+      "column": "edgeR",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        }
+      ],
+      "rect": [
+        137,
+        1,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-ground-edgeR-2",
+      "family": "glass",
+      "row": "ground",
+      "column": "edgeR",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        }
+      ],
+      "rect": [
+        171,
+        1,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-mid-edgeL-1",
+      "family": "glass",
+      "row": "mid",
+      "column": "edgeL",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        205,
+        1,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-mid-edgeL-2",
+      "family": "glass",
+      "row": "mid",
+      "column": "edgeL",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        }
+      ],
+      "rect": [
+        239,
+        1,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-mid-middle-1",
+      "family": "glass",
+      "row": "mid",
+      "column": "middle",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        1,
+        35,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-mid-middle-2",
+      "family": "glass",
+      "row": "mid",
+      "column": "middle",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        }
+      ],
+      "rect": [
+        35,
+        35,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-mid-middle-3",
+      "family": "glass",
+      "row": "mid",
+      "column": "middle",
+      "design": 3,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        69,
+        35,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-mid-edgeR-1",
+      "family": "glass",
+      "row": "mid",
+      "column": "edgeR",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        }
+      ],
+      "rect": [
+        103,
+        35,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-mid-edgeR-2",
+      "family": "glass",
+      "row": "mid",
+      "column": "edgeR",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        }
+      ],
+      "rect": [
+        137,
+        35,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-top-edgeL-1",
+      "family": "glass",
+      "row": "top",
+      "column": "edgeL",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        }
+      ],
+      "rect": [
+        171,
+        35,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-top-edgeL-2",
+      "family": "glass",
+      "row": "top",
+      "column": "edgeL",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        }
+      ],
+      "rect": [
+        205,
+        35,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-top-middle-1",
+      "family": "glass",
+      "row": "top",
+      "column": "middle",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        }
+      ],
+      "rect": [
+        239,
+        35,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-top-middle-2",
+      "family": "glass",
+      "row": "top",
+      "column": "middle",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        }
+      ],
+      "rect": [
+        1,
+        69,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-top-edgeR-1",
+      "family": "glass",
+      "row": "top",
+      "column": "edgeR",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        }
+      ],
+      "rect": [
+        35,
+        69,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-top-edgeR-2",
+      "family": "glass",
+      "row": "top",
+      "column": "edgeR",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        }
+      ],
+      "rect": [
+        69,
+        69,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-ground-edgeL-1",
+      "family": "office",
+      "row": "ground",
+      "column": "edgeL",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        }
+      ],
+      "rect": [
+        103,
+        69,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-ground-edgeL-2",
+      "family": "office",
+      "row": "ground",
+      "column": "edgeL",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        }
+      ],
+      "rect": [
+        137,
+        69,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-ground-middle-1",
+      "family": "office",
+      "row": "ground",
+      "column": "middle",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        }
+      ],
+      "rect": [
+        171,
+        69,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-ground-middle-2",
+      "family": "office",
+      "row": "ground",
+      "column": "middle",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        }
+      ],
+      "rect": [
+        205,
+        69,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-ground-edgeR-1",
+      "family": "office",
+      "row": "ground",
+      "column": "edgeR",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        }
+      ],
+      "rect": [
+        239,
+        69,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-ground-edgeR-2",
+      "family": "office",
+      "row": "ground",
+      "column": "edgeR",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        1,
+        103,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-mid-edgeL-1",
+      "family": "office",
+      "row": "mid",
+      "column": "edgeL",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        }
+      ],
+      "rect": [
+        35,
+        103,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-mid-edgeL-2",
+      "family": "office",
+      "row": "mid",
+      "column": "edgeL",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        }
+      ],
+      "rect": [
+        69,
+        103,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-mid-middle-1",
+      "family": "office",
+      "row": "mid",
+      "column": "middle",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        }
+      ],
+      "rect": [
+        103,
+        103,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-mid-middle-2",
+      "family": "office",
+      "row": "mid",
+      "column": "middle",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        }
+      ],
+      "rect": [
+        137,
+        103,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-mid-middle-3",
+      "family": "office",
+      "row": "mid",
+      "column": "middle",
+      "design": 3,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        }
+      ],
+      "rect": [
+        171,
+        103,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-mid-edgeR-1",
+      "family": "office",
+      "row": "mid",
+      "column": "edgeR",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        }
+      ],
+      "rect": [
+        205,
+        103,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-mid-edgeR-2",
+      "family": "office",
+      "row": "mid",
+      "column": "edgeR",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        }
+      ],
+      "rect": [
+        239,
+        103,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-top-edgeL-1",
+      "family": "office",
+      "row": "top",
+      "column": "edgeL",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        1,
+        137,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-top-edgeL-2",
+      "family": "office",
+      "row": "top",
+      "column": "edgeL",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        35,
+        137,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-top-middle-1",
+      "family": "office",
+      "row": "top",
+      "column": "middle",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        69,
+        137,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-top-middle-2",
+      "family": "office",
+      "row": "top",
+      "column": "middle",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        103,
+        137,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-top-edgeR-1",
+      "family": "office",
+      "row": "top",
+      "column": "edgeR",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        137,
+        137,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "office-top-edgeR-2",
+      "family": "office",
+      "row": "top",
+      "column": "edgeR",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        171,
+        137,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-ground-edgeL-1",
+      "family": "house",
+      "row": "ground",
+      "column": "edgeL",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        }
+      ],
+      "rect": [
+        205,
+        137,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-ground-edgeL-2",
+      "family": "house",
+      "row": "ground",
+      "column": "edgeL",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        }
+      ],
+      "rect": [
+        239,
+        137,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-ground-middle-1",
+      "family": "house",
+      "row": "ground",
+      "column": "middle",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        }
+      ],
+      "rect": [
+        1,
+        171,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-ground-middle-2",
+      "family": "house",
+      "row": "ground",
+      "column": "middle",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        }
+      ],
+      "rect": [
+        35,
+        171,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-ground-edgeR-1",
+      "family": "house",
+      "row": "ground",
+      "column": "edgeR",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        69,
+        171,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-ground-edgeR-2",
+      "family": "house",
+      "row": "ground",
+      "column": "edgeR",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        }
+      ],
+      "rect": [
+        103,
+        171,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-mid-edgeL-1",
+      "family": "house",
+      "row": "mid",
+      "column": "edgeL",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        137,
+        171,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-mid-edgeL-2",
+      "family": "house",
+      "row": "mid",
+      "column": "edgeL",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        }
+      ],
+      "rect": [
+        171,
+        171,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-mid-middle-1",
+      "family": "house",
+      "row": "mid",
+      "column": "middle",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        }
+      ],
+      "rect": [
+        205,
+        171,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-mid-middle-2",
+      "family": "house",
+      "row": "mid",
+      "column": "middle",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        }
+      ],
+      "rect": [
+        239,
+        171,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-mid-middle-3",
+      "family": "house",
+      "row": "mid",
+      "column": "middle",
+      "design": 3,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        }
+      ],
+      "rect": [
+        1,
+        205,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-mid-edgeR-1",
+      "family": "house",
+      "row": "mid",
+      "column": "edgeR",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        35,
+        205,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-mid-edgeR-2",
+      "family": "house",
+      "row": "mid",
+      "column": "edgeR",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        69,
+        205,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-top-edgeL-1",
+      "family": "house",
+      "row": "top",
+      "column": "edgeL",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        103,
+        205,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-top-edgeL-2",
+      "family": "house",
+      "row": "top",
+      "column": "edgeL",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        137,
+        205,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-top-middle-1",
+      "family": "house",
+      "row": "top",
+      "column": "middle",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        }
+      ],
+      "rect": [
+        171,
+        205,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-top-middle-2",
+      "family": "house",
+      "row": "top",
+      "column": "middle",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        }
+      ],
+      "rect": [
+        205,
+        205,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-top-edgeR-1",
+      "family": "house",
+      "row": "top",
+      "column": "edgeR",
+      "design": 1,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        }
+      ],
+      "rect": [
+        239,
+        205,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "house-top-edgeR-2",
+      "family": "house",
+      "row": "top",
+      "column": "edgeR",
+      "design": 2,
+      "size": [
+        32,
+        16
+      ],
+      "windows": [
+        {
+          "rect": [
+            2,
+            3,
+            7,
+            10
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            9,
+            3,
+            7,
+            10
+          ],
+          "threshold": 100
+        },
+        {
+          "rect": [
+            16,
+            3,
+            7,
+            10
+          ],
+          "threshold": 50
+        },
+        {
+          "rect": [
+            23,
+            3,
+            7,
+            10
+          ],
+          "threshold": 75
+        }
+      ],
+      "rect": [
+        1,
+        239,
+        32,
+        16
+      ]
+    },
+    {
+      "id": "glass-roof-flat",
+      "family": "glass",
+      "row": "roof",
+      "column": "flat",
+      "design": 1,
+      "size": [
+        32,
+        32
+      ],
+      "windows": [],
+      "rect": [
+        35,
+        239,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "glass-roof-machinery",
+      "family": "glass",
+      "row": "roof",
+      "column": "machinery",
+      "design": 1,
+      "size": [
+        32,
+        32
+      ],
+      "windows": [],
+      "rect": [
+        69,
+        239,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "glass-roof-helipad",
+      "family": "glass",
+      "row": "roof",
+      "column": "helipad",
+      "design": 1,
+      "size": [
+        32,
+        32
+      ],
+      "windows": [],
+      "rect": [
+        103,
+        239,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "office-roof-flat",
+      "family": "office",
+      "row": "roof",
+      "column": "flat",
+      "design": 1,
+      "size": [
+        32,
+        32
+      ],
+      "windows": [],
+      "rect": [
+        137,
+        239,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "office-roof-machinery",
+      "family": "office",
+      "row": "roof",
+      "column": "machinery",
+      "design": 1,
+      "size": [
+        32,
+        32
+      ],
+      "windows": [],
+      "rect": [
+        171,
+        239,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "office-roof-setback",
+      "family": "office",
+      "row": "roof",
+      "column": "setback",
+      "design": 1,
+      "size": [
+        32,
+        32
+      ],
+      "windows": [],
+      "rect": [
+        205,
+        239,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "house-roof-flat",
+      "family": "house",
+      "row": "roof",
+      "column": "flat",
+      "design": 1,
+      "size": [
+        32,
+        32
+      ],
+      "windows": [],
+      "rect": [
+        239,
+        239,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "house-roof-machinery",
+      "family": "house",
+      "row": "roof",
+      "column": "machinery",
+      "design": 1,
+      "size": [
+        32,
+        32
+      ],
+      "windows": [],
+      "rect": [
+        1,
+        273,
+        32,
+        32
+      ]
+    },
+    {
+      "id": "house-roof-setback",
+      "family": "house",
+      "row": "roof",
+      "column": "setback",
+      "design": 1,
+      "size": [
+        32,
+        32
+      ],
+      "windows": [],
+      "rect": [
+        35,
+        273,
+        32,
+        32
+      ]
+    }
+  ],
+  "generationCount": 4,
+  "sources": [
+    {
+      "id": "glass-ground-edgeL-1",
+      "source": "_raw/glass.png",
+      "crop": [
+        0,
+        0,
+        396,
+        198
+      ]
+    },
+    {
+      "id": "glass-ground-edgeL-2",
+      "source": "_raw/glass.png",
+      "crop": [
+        396,
+        0,
+        793,
+        198
+      ]
+    },
+    {
+      "id": "glass-ground-middle-1",
+      "source": "_raw/glass.png",
+      "crop": [
+        793,
+        0,
+        1190,
+        198
+      ]
+    },
+    {
+      "id": "glass-ground-middle-2",
+      "source": "_raw/glass.png",
+      "crop": [
+        1190,
+        0,
+        1586,
+        198
+      ]
+    },
+    {
+      "id": "glass-ground-edgeR-1",
+      "source": "_raw/glass.png",
+      "crop": [
+        0,
+        198,
+        396,
+        397
+      ]
+    },
+    {
+      "id": "glass-ground-edgeR-2",
+      "source": "_raw/glass.png",
+      "crop": [
+        396,
+        198,
+        793,
+        397
+      ]
+    },
+    {
+      "id": "glass-mid-edgeL-1",
+      "source": "_raw/glass.png",
+      "crop": [
+        793,
+        198,
+        1190,
+        397
+      ]
+    },
+    {
+      "id": "glass-mid-edgeL-2",
+      "source": "_raw/glass.png",
+      "crop": [
+        1190,
+        198,
+        1586,
+        397
+      ]
+    },
+    {
+      "id": "glass-mid-middle-1",
+      "source": "_raw/glass.png",
+      "crop": [
+        0,
+        397,
+        396,
+        595
+      ]
+    },
+    {
+      "id": "glass-mid-middle-2",
+      "source": "_raw/glass.png",
+      "crop": [
+        396,
+        397,
+        793,
+        595
+      ]
+    },
+    {
+      "id": "glass-mid-middle-3",
+      "source": "_raw/glass.png",
+      "crop": [
+        793,
+        397,
+        1190,
+        595
+      ]
+    },
+    {
+      "id": "glass-mid-edgeR-1",
+      "source": "_raw/glass.png",
+      "crop": [
+        1190,
+        397,
+        1586,
+        595
+      ]
+    },
+    {
+      "id": "glass-mid-edgeR-2",
+      "source": "_raw/glass.png",
+      "crop": [
+        0,
+        595,
+        396,
+        794
+      ]
+    },
+    {
+      "id": "glass-top-edgeL-1",
+      "source": "_raw/glass.png",
+      "crop": [
+        396,
+        595,
+        793,
+        794
+      ]
+    },
+    {
+      "id": "glass-top-edgeL-2",
+      "source": "_raw/glass.png",
+      "crop": [
+        793,
+        595,
+        1190,
+        794
+      ]
+    },
+    {
+      "id": "glass-top-middle-1",
+      "source": "_raw/glass.png",
+      "crop": [
+        1190,
+        595,
+        1586,
+        794
+      ]
+    },
+    {
+      "id": "glass-top-middle-2",
+      "source": "_raw/glass.png",
+      "crop": [
+        0,
+        794,
+        396,
+        992
+      ]
+    },
+    {
+      "id": "glass-top-edgeR-1",
+      "source": "_raw/glass.png",
+      "crop": [
+        396,
+        794,
+        793,
+        992
+      ]
+    },
+    {
+      "id": "glass-top-edgeR-2",
+      "source": "_raw/glass.png",
+      "crop": [
+        793,
+        794,
+        1190,
+        992
+      ]
+    },
+    {
+      "id": "office-ground-edgeL-1",
+      "source": "_raw/office.png",
+      "crop": [
+        0,
+        0,
+        396,
+        198
+      ]
+    },
+    {
+      "id": "office-ground-edgeL-2",
+      "source": "_raw/office.png",
+      "crop": [
+        396,
+        0,
+        793,
+        198
+      ]
+    },
+    {
+      "id": "office-ground-middle-1",
+      "source": "_raw/office.png",
+      "crop": [
+        793,
+        0,
+        1190,
+        198
+      ]
+    },
+    {
+      "id": "office-ground-middle-2",
+      "source": "_raw/office.png",
+      "crop": [
+        1190,
+        0,
+        1586,
+        198
+      ]
+    },
+    {
+      "id": "office-ground-edgeR-1",
+      "source": "_raw/office.png",
+      "crop": [
+        0,
+        198,
+        396,
+        397
+      ]
+    },
+    {
+      "id": "office-ground-edgeR-2",
+      "source": "_raw/office.png",
+      "crop": [
+        396,
+        198,
+        793,
+        397
+      ]
+    },
+    {
+      "id": "office-mid-edgeL-1",
+      "source": "_raw/office.png",
+      "crop": [
+        793,
+        198,
+        1190,
+        397
+      ]
+    },
+    {
+      "id": "office-mid-edgeL-2",
+      "source": "_raw/office.png",
+      "crop": [
+        1190,
+        198,
+        1586,
+        397
+      ]
+    },
+    {
+      "id": "office-mid-middle-1",
+      "source": "_raw/office.png",
+      "crop": [
+        0,
+        397,
+        396,
+        595
+      ]
+    },
+    {
+      "id": "office-mid-middle-2",
+      "source": "_raw/office.png",
+      "crop": [
+        396,
+        397,
+        793,
+        595
+      ]
+    },
+    {
+      "id": "office-mid-middle-3",
+      "source": "_raw/office.png",
+      "crop": [
+        793,
+        397,
+        1190,
+        595
+      ]
+    },
+    {
+      "id": "office-mid-edgeR-1",
+      "source": "_raw/office.png",
+      "crop": [
+        1190,
+        397,
+        1586,
+        595
+      ]
+    },
+    {
+      "id": "office-mid-edgeR-2",
+      "source": "_raw/office.png",
+      "crop": [
+        0,
+        595,
+        396,
+        794
+      ]
+    },
+    {
+      "id": "office-top-edgeL-1",
+      "source": "_raw/office.png",
+      "crop": [
+        396,
+        595,
+        793,
+        794
+      ]
+    },
+    {
+      "id": "office-top-edgeL-2",
+      "source": "_raw/office.png",
+      "crop": [
+        793,
+        595,
+        1190,
+        794
+      ]
+    },
+    {
+      "id": "office-top-middle-1",
+      "source": "_raw/office.png",
+      "crop": [
+        1190,
+        595,
+        1586,
+        794
+      ]
+    },
+    {
+      "id": "office-top-middle-2",
+      "source": "_raw/office.png",
+      "crop": [
+        0,
+        794,
+        396,
+        992
+      ]
+    },
+    {
+      "id": "office-top-edgeR-1",
+      "source": "_raw/office.png",
+      "crop": [
+        396,
+        794,
+        793,
+        992
+      ]
+    },
+    {
+      "id": "office-top-edgeR-2",
+      "source": "_raw/office.png",
+      "crop": [
+        793,
+        794,
+        1190,
+        992
+      ]
+    },
+    {
+      "id": "house-ground-edgeL-1",
+      "source": "_raw/house.png",
+      "crop": [
+        0,
+        0,
+        396,
+        198
+      ]
+    },
+    {
+      "id": "house-ground-edgeL-2",
+      "source": "_raw/house.png",
+      "crop": [
+        396,
+        0,
+        793,
+        198
+      ]
+    },
+    {
+      "id": "house-ground-middle-1",
+      "source": "_raw/house.png",
+      "crop": [
+        793,
+        0,
+        1190,
+        198
+      ]
+    },
+    {
+      "id": "house-ground-middle-2",
+      "source": "_raw/house.png",
+      "crop": [
+        1190,
+        0,
+        1586,
+        198
+      ]
+    },
+    {
+      "id": "house-ground-edgeR-1",
+      "source": "_raw/house.png",
+      "crop": [
+        0,
+        198,
+        396,
+        397
+      ]
+    },
+    {
+      "id": "house-ground-edgeR-2",
+      "source": "_raw/house.png",
+      "crop": [
+        396,
+        198,
+        793,
+        397
+      ]
+    },
+    {
+      "id": "house-mid-edgeL-1",
+      "source": "_raw/house.png",
+      "crop": [
+        793,
+        198,
+        1190,
+        397
+      ]
+    },
+    {
+      "id": "house-mid-edgeL-2",
+      "source": "_raw/house.png",
+      "crop": [
+        1190,
+        198,
+        1586,
+        397
+      ]
+    },
+    {
+      "id": "house-mid-middle-1",
+      "source": "_raw/house.png",
+      "crop": [
+        0,
+        397,
+        396,
+        595
+      ]
+    },
+    {
+      "id": "house-mid-middle-2",
+      "source": "_raw/house.png",
+      "crop": [
+        396,
+        397,
+        793,
+        595
+      ]
+    },
+    {
+      "id": "house-mid-middle-3",
+      "source": "_raw/house.png",
+      "crop": [
+        793,
+        397,
+        1190,
+        595
+      ]
+    },
+    {
+      "id": "house-mid-edgeR-1",
+      "source": "_raw/house.png",
+      "crop": [
+        1190,
+        397,
+        1586,
+        595
+      ]
+    },
+    {
+      "id": "house-mid-edgeR-2",
+      "source": "_raw/house.png",
+      "crop": [
+        0,
+        595,
+        396,
+        794
+      ]
+    },
+    {
+      "id": "house-top-edgeL-1",
+      "source": "_raw/house.png",
+      "crop": [
+        396,
+        595,
+        793,
+        794
+      ]
+    },
+    {
+      "id": "house-top-edgeL-2",
+      "source": "_raw/house.png",
+      "crop": [
+        793,
+        595,
+        1190,
+        794
+      ]
+    },
+    {
+      "id": "house-top-middle-1",
+      "source": "_raw/house.png",
+      "crop": [
+        1190,
+        595,
+        1586,
+        794
+      ]
+    },
+    {
+      "id": "house-top-middle-2",
+      "source": "_raw/house.png",
+      "crop": [
+        0,
+        794,
+        396,
+        992
+      ]
+    },
+    {
+      "id": "house-top-edgeR-1",
+      "source": "_raw/house.png",
+      "crop": [
+        396,
+        794,
+        793,
+        992
+      ]
+    },
+    {
+      "id": "house-top-edgeR-2",
+      "source": "_raw/house.png",
+      "crop": [
+        793,
+        794,
+        1190,
+        992
+      ]
+    },
+    {
+      "id": "glass-roof-flat",
+      "source": "_raw/roofs.png",
+      "crop": [
+        0,
+        0,
+        418,
+        418
+      ]
+    },
+    {
+      "id": "glass-roof-machinery",
+      "source": "_raw/roofs.png",
+      "crop": [
+        418,
+        0,
+        836,
+        418
+      ]
+    },
+    {
+      "id": "glass-roof-helipad",
+      "source": "_raw/roofs.png",
+      "crop": [
+        836,
+        0,
+        1254,
+        418
+      ]
+    },
+    {
+      "id": "office-roof-flat",
+      "source": "_raw/roofs.png",
+      "crop": [
+        0,
+        418,
+        418,
+        836
+      ]
+    },
+    {
+      "id": "office-roof-machinery",
+      "source": "_raw/roofs.png",
+      "crop": [
+        418,
+        418,
+        836,
+        836
+      ]
+    },
+    {
+      "id": "office-roof-setback",
+      "source": "_raw/roofs.png",
+      "crop": [
+        836,
+        418,
+        1254,
+        836
+      ]
+    },
+    {
+      "id": "house-roof-flat",
+      "source": "_raw/roofs.png",
+      "crop": [
+        0,
+        836,
+        418,
+        1254
+      ]
+    },
+    {
+      "id": "house-roof-machinery",
+      "source": "_raw/roofs.png",
+      "crop": [
+        418,
+        836,
+        836,
+        1254
+      ]
+    },
+    {
+      "id": "house-roof-setback",
+      "source": "_raw/roofs.png",
+      "crop": [
+        836,
+        836,
+        1254,
+        1254
+      ]
+    }
+  ],
+  "styles": {
+    "glass-tower": {
+      "family": "glass",
+      "facade": {
+        "ground": "glass-tower-ground",
+        "mid": "glass-tower-mid",
+        "top": "glass-tower-top"
+      },
+      "bay": 10,
+      "floor": 8.75,
+      "minLift": 30,
+      "maxLift": 10000,
+      "cap": 2,
+      "leftTint": "rgba(42,104,166,0.05)",
+      "rightTint": "rgba(1,13,36,0.40)",
+      "roofTint": "rgba(60,110,174,0.2)",
+      "trim": "#80acd3",
+      "emission": 0.42,
+      "offset": true,
+      "silhouette": {
+        "rule": "upper-setbacks",
+        "maxSteps": 2,
+        "minimumLift": 38
+      },
+      "corner": {
+        "type": "thin-light-line",
+        "width": 0.42,
+        "color": "#80acd3"
+      },
+      "roof": {
+        "tile": "glass-roof-flat",
+        "equipment": "glass-roof-machinery",
+        "spacing": 7
+      }
+    },
+    "glass-slab": {
+      "family": "glass",
+      "facade": {
+        "ground": "glass-slab-ground",
+        "mid": "glass-slab-mid",
+        "top": "glass-slab-top"
+      },
+      "bay": 14,
+      "floor": 12.25,
+      "minLift": 18,
+      "maxLift": 10000,
+      "cap": 1,
+      "leftTint": "rgba(42,104,166,0.05)",
+      "rightTint": "rgba(1,13,36,0.40)",
+      "roofTint": "rgba(60,110,174,0.2)",
+      "trim": "#80acd3",
+      "emission": 0.42,
+      "silhouette": {
+        "rule": "slab",
+        "maxSteps": 0,
+        "minimumLift": 38
+      },
+      "corner": {
+        "type": "thin-light-line",
+        "width": 0.42,
+        "color": "#80acd3"
+      },
+      "roof": {
+        "tile": "glass-roof-flat",
+        "equipment": "glass-roof-machinery",
+        "spacing": 7
+      }
+    },
+    "office-band": {
+      "family": "office",
+      "facade": {
+        "ground": "office-band-ground",
+        "mid": "office-band-mid",
+        "top": "office-band-top"
+      },
+      "bay": 11,
+      "floor": 9.625,
+      "minLift": 0,
+      "maxLift": 65,
+      "cap": 1,
+      "leftTint": "rgba(42,104,166,0.05)",
+      "rightTint": "rgba(1,13,36,0.40)",
+      "roofTint": "rgba(60,110,174,0.2)",
+      "trim": "#80acd3",
+      "emission": 0.42,
+      "silhouette": {
+        "rule": "slab",
+        "maxSteps": 0,
+        "minimumLift": 38
+      },
+      "corner": {
+        "type": "thin-light-line",
+        "width": 0.42,
+        "color": "#80acd3"
+      },
+      "roof": {
+        "tile": "office-roof-flat",
+        "equipment": "office-roof-machinery",
+        "spacing": 7
+      }
+    },
+    "house-row": {
+      "family": "house",
+      "facade": {
+        "ground": "house-row-ground",
+        "mid": "house-row-mid",
+        "top": "house-row-top"
+      },
+      "bay": 8,
+      "floor": 7.0,
+      "minLift": 0,
+      "maxLift": 25,
+      "cap": 1,
+      "leftTint": "rgba(42,104,166,0.05)",
+      "rightTint": "rgba(1,13,36,0.40)",
+      "roofTint": "rgba(60,110,174,0.2)",
+      "trim": "#80acd3",
+      "emission": 0.42,
+      "gable": true,
+      "silhouette": {
+        "rule": "pitched-row",
+        "maxSteps": 0,
+        "minimumLift": 38
+      },
+      "corner": {
+        "type": "thin-light-line",
+        "width": 0.42,
+        "color": "#80acd3"
+      },
+      "roof": {
+        "tile": "house-roof-flat",
+        "equipment": "house-roof-machinery",
+        "spacing": 7
+      }
+    }
+  },
+  "styleDistricts": {
+    "core": [
+      "glass-tower",
+      "glass-slab",
+      "office-band",
+      "house-row"
+    ],
+    "heights": [
+      "glass-tower",
+      "glass-slab",
+      "office-band",
+      "house-row"
+    ],
+    "bazaar": [
+      "glass-slab",
+      "office-band",
+      "house-row"
+    ],
+    "default": [
+      "office-band",
+      "house-row",
+      "glass-slab"
+    ]
+  },
+  "styleAtlas": {
+    "base": "styles-base.png",
+    "emissive": "styles-emissive.png",
+    "size": [
+      136,
+      90
+    ],
+    "source": "_raw/pilot2-styles.png"
+  },
+  "styleModules": {
+    "glass-tower-ground": {
+      "rect": [
+        1,
+        1,
+        32,
+        28
+      ],
+      "windows": [
+        {
+          "rect": [
+            1,
+            2,
+            14,
+            25
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            17,
+            2,
+            14,
+            25
+          ],
+          "threshold": 75
+        }
+      ],
+      "source": [
+        0,
+        0,
+        384,
+        341
+      ]
+    },
+    "glass-tower-mid": {
+      "rect": [
+        1,
+        31,
+        32,
+        28
+      ],
+      "windows": [
+        {
+          "rect": [
+            1,
+            2,
+            14,
+            25
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            17,
+            2,
+            14,
+            25
+          ],
+          "threshold": 75
+        }
+      ],
+      "source": [
+        0,
+        341,
+        384,
+        683
+      ]
+    },
+    "glass-tower-top": {
+      "rect": [
+        1,
+        61,
+        32,
+        28
+      ],
+      "windows": [
+        {
+          "rect": [
+            1,
+            2,
+            14,
+            25
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            17,
+            2,
+            14,
+            25
+          ],
+          "threshold": 75
+        }
+      ],
+      "source": [
+        0,
+        683,
+        384,
+        1024
+      ]
+    },
+    "glass-slab-ground": {
+      "rect": [
+        35,
+        1,
+        32,
+        28
+      ],
+      "windows": [
+        {
+          "rect": [
+            1,
+            10,
+            14,
+            13
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            17,
+            10,
+            14,
+            13
+          ],
+          "threshold": 75
+        }
+      ],
+      "source": [
+        384,
+        0,
+        768,
+        341
+      ]
+    },
+    "glass-slab-mid": {
+      "rect": [
+        35,
+        31,
+        32,
+        28
+      ],
+      "windows": [
+        {
+          "rect": [
+            1,
+            10,
+            14,
+            13
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            17,
+            10,
+            14,
+            13
+          ],
+          "threshold": 75
+        }
+      ],
+      "source": [
+        384,
+        341,
+        768,
+        683
+      ]
+    },
+    "glass-slab-top": {
+      "rect": [
+        35,
+        61,
+        32,
+        28
+      ],
+      "windows": [
+        {
+          "rect": [
+            1,
+            11,
+            14,
+            12
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            17,
+            11,
+            14,
+            12
+          ],
+          "threshold": 75
+        }
+      ],
+      "source": [
+        384,
+        683,
+        768,
+        1024
+      ]
+    },
+    "office-band-ground": {
+      "rect": [
+        69,
+        1,
+        32,
+        28
+      ],
+      "windows": [
+        {
+          "rect": [
+            4,
+            9,
+            10,
+            14
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            18,
+            9,
+            10,
+            14
+          ],
+          "threshold": 75
+        }
+      ],
+      "source": [
+        768,
+        0,
+        1152,
+        341
+      ]
+    },
+    "office-band-mid": {
+      "rect": [
+        69,
+        31,
+        32,
+        28
+      ],
+      "windows": [
+        {
+          "rect": [
+            4,
+            9,
+            10,
+            14
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            18,
+            9,
+            10,
+            14
+          ],
+          "threshold": 75
+        }
+      ],
+      "source": [
+        768,
+        341,
+        1152,
+        683
+      ]
+    },
+    "office-band-top": {
+      "rect": [
+        69,
+        61,
+        32,
+        28
+      ],
+      "windows": [
+        {
+          "rect": [
+            4,
+            10,
+            10,
+            13
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            18,
+            10,
+            10,
+            13
+          ],
+          "threshold": 75
+        }
+      ],
+      "source": [
+        768,
+        683,
+        1152,
+        1024
+      ]
+    },
+    "house-row-ground": {
+      "rect": [
+        103,
+        1,
+        32,
+        28
+      ],
+      "windows": [
+        {
+          "rect": [
+            4,
+            8,
+            10,
+            15
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            19,
+            8,
+            10,
+            15
+          ],
+          "threshold": 75
+        }
+      ],
+      "source": [
+        1152,
+        0,
+        1536,
+        341
+      ]
+    },
+    "house-row-mid": {
+      "rect": [
+        103,
+        31,
+        32,
+        28
+      ],
+      "windows": [
+        {
+          "rect": [
+            4,
+            8,
+            10,
+            15
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            19,
+            8,
+            10,
+            15
+          ],
+          "threshold": 75
+        }
+      ],
+      "source": [
+        1152,
+        341,
+        1536,
+        683
+      ]
+    },
+    "house-row-top": {
+      "rect": [
+        103,
+        61,
+        32,
+        28
+      ],
+      "windows": [
+        {
+          "rect": [
+            4,
+            8,
+            10,
+            15
+          ],
+          "threshold": 25
+        },
+        {
+          "rect": [
+            19,
+            8,
+            10,
+            15
+          ],
+          "threshold": 75
+        }
+      ],
+      "source": [
+        1152,
+        683,
+        1536,
+        1024
+      ]
+    }
+  }
+}

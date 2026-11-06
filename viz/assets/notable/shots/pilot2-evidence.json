@@ -1,0 +1,32 @@
+{
+  "parity": {
+    "baseline": "d4dc085183a06464b781111b4bcd7063b8d17ef6",
+    "changedPixels": 0,
+    "kitWithoutMapChangedPixels": 0
+  },
+  "source": {
+    "viz/viz.html": "991636d3100887e4a29e17e18ddae8a75f17c316ceb00a0111b1849868fefa65",
+    "viz/assets/map/mapcity.js": "34af32960f8e0e6ef057be5ac9d33f59ff1f3c7105d97579e26062bb11572950",
+    "viz/assets/map/landmarks.json": "72af787262bab52bf5372dfb9c3327e8532c20fd93de5301e755a4097500c739",
+    "viz/assets/kit/styles.js": "33016223deb5d98f8982c58c2630ef33a9b3308127bb36d321c01ff0cc08886e",
+    "viz/assets/kit/kit.json": "e5cef2663f8f6fcae425a66bb26dae526fd59a873d43878fae569f1e19399679",
+    "viz/assets/kit/styles-base.png": "8a6f5a069e4ec685bb7faa7e4f1cc3ee47c70b790693f6062ce07f3be23d7950",
+    "viz/assets/kit/styles-emissive.png": "33d2c2e4adb0a53fa5da078c0a1f4831f1666dc3a4f7d32da9d9028a8a813d06",
+    "viz/assets/kit/_raw/pilot2-styles.png": "d83981601986c854fc1368d9829a29e07cf4d89b15524e5bbb982f5771ef5b07",
+    "viz/assets/notable/_build/models.js": "9da8ee04652a2b2d74708e9e2bf316722fbaf4ffa5cec3b2890c4015543d3b63",
+    "viz/assets/notable/manifest.json": "f8b2b00c94edbb0d0c19c2663d35d804c7a89c1ed822920d3ab8c7d8bfe584a9"
+  },
+  "frames": {
+    "pilot2-boxes.png": "b7454d8979b13dd85faef1aaf13b6d1fa261f98fbb7bfb17effd5ea35135d110",
+    "pilot2-compare.png": "5920029052843a8ce54234d12b136babfa91f04975c75562b6040c24f670b0de",
+    "pilot2-core-zoom.png": "62fc08d5c8c499736813f7d0340505a394c8b68c6190806ba83d6ce83212ddce",
+    "pilot2-district-zoom.png": "b1cb48dd98064c2b687b4ac81673628e40fb9864626b08e14f9d015c0595601a",
+    "pilot2-hidden-recovered.png": "2dc9d096d6c060756551a0c527e72e8f03f1d327330636e73d317dcbaa34af33",
+    "pilot2-notable.png": "d723675c0c962c01327b103e544421f946a6cb6fdc5e367909f4bb8d8a5480af",
+    "pilot2-overview.png": "f5f64695297c4d4c9dadc0785694ae71c29d1b2b5224be8da21f6e519de08126",
+    "pilot2-parity-after.png": "e0fc415f5f1b5eb3464a6234b2bb6a27fc0755221b644a1ef3f5318f09fb5430",
+    "pilot2-parity-before.png": "e0fc415f5f1b5eb3464a6234b2bb6a27fc0755221b644a1ef3f5318f09fb5430",
+    "pilot2-parity-kit-without-map.png": "e0fc415f5f1b5eb3464a6234b2bb6a27fc0755221b644a1ef3f5318f09fb5430",
+    "pilot2-styles.png": "fa517dd4e9e0b21f27d81b21c55bc0e938133a528a9e8e755c7b9bbdbf885875"
+  }
+}

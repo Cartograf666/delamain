@@ -1,0 +1,174 @@
+{
+  "id": "core-sky-b",
+  "name": "Blade",
+  "status": "current-style owner review; strict camera and height correction deferred",
+  "source": "raw/core-sky-b-strip-01.png",
+  "generatorCalls": 1,
+  "canvas": [
+    432,
+    724
+  ],
+  "anchor": [
+    216,
+    700
+  ],
+  "measuredBaseWidthPx": 298,
+  "measuredBaseDepthPx": 106,
+  "measuredRatio": 2.811320754716981,
+  "scaleOverview": 0.08957494407147651,
+  "baseWorld": [
+    3.536,
+    1.768
+  ],
+  "measuredRoofLiftWorldApprox": 6.799,
+  "matte": "common manually inspected antialiased polygon; 5px inward RGB edge repair; native RGB lighting states",
+  "outline": [
+    [
+      247,
+      21
+    ],
+    [
+      301,
+      38
+    ],
+    [
+      301,
+      573
+    ],
+    [
+      364,
+      596
+    ],
+    [
+      364,
+      646
+    ],
+    [
+      216,
+      700
+    ],
+    [
+      67,
+      646
+    ],
+    [
+      67,
+      596
+    ],
+    [
+      131,
+      576
+    ],
+    [
+      131,
+      78
+    ],
+    [
+      144,
+      70
+    ],
+    [
+      144,
+      62
+    ],
+    [
+      169,
+      52
+    ],
+    [
+      185,
+      52
+    ],
+    [
+      185,
+      46
+    ]
+  ],
+  "states": [
+    {
+      "state": 0,
+      "sourceCrop": [
+        11,
+        -2,
+        443,
+        722
+      ],
+      "meanRGB": [
+        61.52,
+        74.61,
+        86.48
+      ],
+      "meanLuma": 72.682,
+      "sourceLowAlphaInside": 0,
+      "unrepairedEdgePixels": 0
+    },
+    {
+      "state": 25,
+      "sourceCrop": [
+        442,
+        -2,
+        874,
+        722
+      ],
+      "meanRGB": [
+        68.71,
+        77.89,
+        85.57
+      ],
+      "meanLuma": 76.495,
+      "sourceLowAlphaInside": 0,
+      "unrepairedEdgePixels": 0
+    },
+    {
+      "state": 50,
+      "sourceCrop": [
+        874,
+        -2,
+        1306,
+        722
+      ],
+      "meanRGB": [
+        101.25,
+        97.3,
+        91.15
+      ],
+      "meanLuma": 97.696,
+      "sourceLowAlphaInside": 0,
+      "unrepairedEdgePixels": 0
+    },
+    {
+      "state": 75,
+      "sourceCrop": [
+        1305,
+        -2,
+        1737,
+        722
+      ],
+      "meanRGB": [
+        137.68,
+        122.95,
+        102.39
+      ],
+      "meanLuma": 124.6,
+      "sourceLowAlphaInside": 0,
+      "unrepairedEdgePixels": 0
+    },
+    {
+      "state": 100,
+      "sourceCrop": [
+        1737,
+        -2,
+        2169,
+        722
+      ],
+      "meanRGB": [
+        191.34,
+        189.33,
+        166.59
+      ],
+      "meanLuma": 188.118,
+      "sourceLowAlphaInside": 0,
+      "unrepairedEdgePixels": 0
+    }
+  ]
+}

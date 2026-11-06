@@ -1,0 +1,1 @@
+{"name":"delamain-facade-kit-checkpoint","private":true,"type":"commonjs","scripts":{"check":"node ../../tests/kit.test.cjs","shots":"node render.cjs"},"optionalDependencies":{"@napi-rs/canvas":"0.1.80"}}

@@ -1073,6 +1073,10 @@ final class DelamainSaverView: ScreenSaverView {
             let w = stepW * 2 * u * (isOwner ? 1.35 : 1.05), h = w * 4 / 3, base = isOwner ? 0.9 : 0.86
             L.group.zPosition = CGFloat(lot.x + lot.y)
             placeGlow(L.glow, p, u * stepW * (0.9 + tw.pulse * 0.8), 0.25 + tw.pulse * 0.5)
+            if isOwner {
+                L.sprite.shadowColor = Pal.cyan.cg(); L.sprite.shadowOffset = .zero; L.sprite.shadowRadius = 3
+                L.sprite.shadowOpacity = ownerLimits.isEmpty ? 0.4 : 0
+            }
             L.sprite.frame = CGRect(x: Double(p.x) - w / 2, y: Double(p.y) - h * base, width: w, height: h)
             // the owner tower is the plan-limits gauge: each face lit from the crown down by its engine's remaining share,
             // so spending darkens it from the foot up
@@ -1121,12 +1125,16 @@ final class DelamainSaverView: ScreenSaverView {
         for n in names {
             let repo = byD[n.d.id], p = P(n.d.x, n.d.y)
             n.name.set(n.d.name, CGFloat(max(11, u * 2.1)))
-            n.name.foregroundColor = repo != nil ? RGB(79, 227, 255).cg(0.6) : RGB(138, 150, 166).cg(0.35)
+            n.name.foregroundColor = RGB(TINT[n.d.id] ?? 0xffffff).cg(0.9)
+            n.name.backgroundColor = RGB(0x030710).cg(0.86)
+            n.name.shadowColor = RGB(TINT[n.d.id] ?? 0xffffff).cg(); n.name.shadowOpacity = 1
+            n.name.shadowRadius = 2.5; n.name.shadowOffset = .zero
             n.name.place(p.x, baseline: p.y + CGFloat(u * 9), align: 0.5)
             n.repo.isHidden = repo == nil
             if let repo {
                 n.repo.set(repo, CGFloat(max(10, u * 1.3)))
-                n.repo.place(p.x, baseline: p.y + CGFloat(u * 11.2), align: 0.5)
+                n.repo.foregroundColor = Pal.ink.cg(0.8); n.repo.backgroundColor = RGB(0x030710).cg(0.86)
+                n.repo.place(p.x, baseline: p.y + CGFloat(u * 9 + max(14, u * 2.2)), align: 0.5)
             }
         }
         let w = shown.contains { $0.district == "wastes" }

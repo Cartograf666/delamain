@@ -1,0 +1,222 @@
+{
+  "id": "core-sky-f",
+  "name": "Crown",
+  "status": "current-style owner review; strict camera and height correction deferred",
+  "source": "raw/core-sky-f-strip-01.png",
+  "generatorCalls": 1,
+  "canvas": [
+    432,
+    724
+  ],
+  "anchor": [
+    216,
+    700
+  ],
+  "measuredBaseWidthPx": 209,
+  "measuredBaseDepthPx": 90,
+  "measuredRatio": 2.3222222222222224,
+  "scaleOverview": 0.12771929824545455,
+  "baseWorld": [
+    3.536,
+    1.768
+  ],
+  "measuredRoofLiftWorldApprox": 10.134,
+  "matte": "common manually inspected antialiased polygon; 5px inward RGB edge repair; native RGB lighting states",
+  "outline": [
+    [
+      220,
+      11
+    ],
+    [
+      223,
+      13
+    ],
+    [
+      223,
+      41
+    ],
+    [
+      246,
+      21
+    ],
+    [
+      268,
+      28
+    ],
+    [
+      268,
+      128
+    ],
+    [
+      280,
+      131
+    ],
+    [
+      280,
+      204
+    ],
+    [
+      296,
+      212
+    ],
+    [
+      296,
+      291
+    ],
+    [
+      303,
+      296
+    ],
+    [
+      303,
+      639
+    ],
+    [
+      318,
+      647
+    ],
+    [
+      318,
+      655
+    ],
+    [
+      216,
+      700
+    ],
+    [
+      109,
+      655
+    ],
+    [
+      109,
+      648
+    ],
+    [
+      123,
+      641
+    ],
+    [
+      123,
+      320
+    ],
+    [
+      133,
+      313
+    ],
+    [
+      133,
+      221
+    ],
+    [
+      152,
+      208
+    ],
+    [
+      152,
+      138
+    ],
+    [
+      166,
+      127
+    ],
+    [
+      166,
+      76
+    ],
+    [
+      173,
+      66
+    ],
+    [
+      173,
+      42
+    ]
+  ],
+  "states": [
+    {
+      "state": 0,
+      "sourceCrop": [
+        36,
+        6,
+        468,
+        730
+      ],
+      "meanRGB": [
+        70.27,
+        83.81,
+        95.05
+      ],
+      "meanLuma": 81.747,
+      "sourceLowAlphaInside": 0,
+      "unrepairedEdgePixels": 0
+    },
+    {
+      "state": 25,
+      "sourceCrop": [
+        463,
+        6,
+        895,
+        730
+      ],
+      "meanRGB": [
+        78.51,
+        86.45,
+        92.78
+      ],
+      "meanLuma": 85.218,
+      "sourceLowAlphaInside": 0,
+      "unrepairedEdgePixels": 0
+    },
+    {
+      "state": 50,
+      "sourceCrop": [
+        891,
+        6,
+        1323,
+        730
+      ],
+      "meanRGB": [
+        99.1,
+        95.77,
+        91.0
+      ],
+      "meanLuma": 96.134,
+      "sourceLowAlphaInside": 0,
+      "unrepairedEdgePixels": 0
+    },
+    {
+      "state": 75,
+      "sourceCrop": [
+        1319,
+        6,
+        1751,
+        730
+      ],
+      "meanRGB": [
+        132.17,
+        116.49,
+        98.55
+      ],
+      "meanLuma": 118.53,
+      "sourceLowAlphaInside": 0,
+      "unrepairedEdgePixels": 0
+    },
+    {
+      "state": 100,
+      "sourceCrop": [
+        1746,
+        6,
+        2178,
+        730
+      ],
+      "meanRGB": [
+        183.75,
+        190.92,
+        182.48
+      ],
+      "meanLuma": 188.789,
+      "sourceLowAlphaInside": 0,
+      "unrepairedEdgePixels": 0
+    }
+  ]
+}
