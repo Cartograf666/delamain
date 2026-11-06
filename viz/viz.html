@@ -1460,5 +1460,6 @@ ready.then(() => {
 });
 </script>
 <script src="/assets/city-style.js"></script>
+<script>if (new URLSearchParams(location.search).get("tour")) { const s = document.createElement("script"); s.src = "/assets/gl/tour.js"; document.body.append(s); }</script>
 </body>
 </html>

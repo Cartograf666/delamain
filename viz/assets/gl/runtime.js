@@ -196,8 +196,9 @@ function drawLandings(now){const L=live.gpu.landing;if(!L||!landings.length)retu
     // hidden pad. An air halo around its lower third stays at the pad's depth, so nearer buildings still cover it.
     if(dt<.9)blob(x,y-(full?70:40),full?75:50,c,.4*k*Math.min(1,dt/.1)*(1-sm(dt/.9)),1);
     if(dt<.65){const h=(full?300:170)*sm(dt/.18),a=k*(1-sm((dt-.15)/.5));for(const [w,cc,o] of [[11,c,.6],[3.5,WHITE,.95]]){const q=g.createLinearGradient(x,y,x,y-h);q.addColorStop(0,rgb(cc,o*a));q.addColorStop(1,rgb(cc,0));g.fillStyle=q;g.beginPath();g.moveTo(x-w,y);g.lineTo(x+w,y);g.lineTo(x+w*.35,y-h);g.lineTo(x-w*.35,y-h);g.closePath();g.fill()}}
-    // Two thick rings 0.15 s apart, each with a bright core and a white outline.
-    for(const o of [0,.15]){const age=dt-o;if(age<0||age>=1)continue;const r=10+(full?110:65)*(1-(1-age)**2),a=k*(1-age*age);for(const [w,cc,al,rr] of [[14,c,.45,1],[4,lift(c,.45),1,1],[1.2,WHITE,.7,1.07]]){g.strokeStyle=rgb(cc,al*a);g.lineWidth=w;g.beginPath();g.ellipse(x,y,r*rr,r*rr/2,0,0,Math.PI*2);g.stroke()}}
+    // Two thick rings 0.15 s apart, each with a bright core and a white outline. Each keeps its stroke profile while it
+    // fades: chosen by its fading alpha, the core would turn from a hard band to a soft one as it passes .5.
+    for(const o of [0,.15]){const age=dt-o;if(age<0||age>=1)continue;const r=10+(full?110:65)*(1-(1-age)**2),a=k*(1-age*age);for(const [w,cc,al,rr] of [[14,c,.45,1],[4,lift(c,.45),1,1],[1.2,WHITE,.7,1.07]]){g.strokeStyle=rgb(cc,al*a);g.lineWidth=w;g.beginPath();g.ellipse(x,y,r*rr,r*rr/2,0,0,Math.PI*2);g.stroke(w>2&&al<.5?8:9)}}
     // Sparks fly out low with drag and fall back to the roof within 0.8 s.
     if(dt<.8){const D=(1-Math.exp(-3.2*dt))/3.2,a=k*(1-dt/.8);for(const s of e.sp){const z=Math.max(0,s[2]*dt-70*dt*dt),sx=x+s[0]*D,sy=y+s[1]*D-z;blob(sx,sy,3.2,c,.5*a);g.fillStyle=rgb(lift(c,.6),Math.min(1,a*1.4));g.beginPath();g.arc(sx,sy,.75,0,Math.PI*2);g.fill()}}
     // Delivery: the container opens with a small light burst that rises out of it.
@@ -224,6 +225,16 @@ function drawAlerts(now){g.save();g.globalCompositeOperation='lighter';g.lineCap
 // through the same launch, caps and queue as real cabs; reset (and a reload) removes them and their queued trips.
 // Both are small (the smallest tier fits every pad type); the second differs by sprite.
 const demoCabs=new Map(),DEMO_CABS=2;let demoPatrol=false;
+// Demo framing flies to its box: 1.2-3.2 s by distance, smootherstep, pulling back a little on a long hop. A hand gesture or
+// a second glide takes over from wherever the camera is. Reduced motion: at once.
+let glide=null;
+function glideTo(pts,now=performance.now()){const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),base=Math.max(W/1800,H/780),from={x:cam.x,y:cam.y,z:cam.z};
+  const here=live.cameraView(),seen=base*cam.z,gone=Math.hypot(here.x+W/seen/2-(x0+x1)/2,here.y+H/seen/2-(y0+y1)/2);
+  cam.z=Math.min(4,Math.max(1,Math.min(W/(x1-x0+130),H/(y1-y0+110))/base));const v=live.cameraView(),k=base*cam.z,s=live.city.scale*live.factor;cam.x+=((x0+x1)/2-W/k/2-v.x)/s;cam.y+=((y0+y1)/2-H/k/2-v.y)/s;live.clampCamera(true);
+  const to={x:cam.x,y:cam.y,z:cam.z};Object.assign(cam,{x:from.x,y:from.y,z:from.z,tx:from.x,ty:from.y,tz:from.z});manual=true;
+  const ms=still()?1:Math.max(1200,Math.min(3200,900+gone*2.6));glide={t:now,ms,from,to,dip:Math.min(.4,gone/1500)};return ms}
+function stepGlide(now){if(!glide)return;const t=Math.min(1,(now-glide.t)/glide.ms),e=t*t*t*(t*(6*t-15)+10),{from:a,to:b}=glide,mix=(p,q)=>p+(q-p)*e;
+  cam.x=mix(a.x,b.x);cam.y=mix(a.y,b.y);cam.z=Math.max(1,mix(a.z,b.z)*(1-glide.dip*Math.sin(Math.PI*e)));cam.tx=cam.x;cam.ty=cam.y;cam.tz=cam.z;if(t>=1)glide=null}
 function demoSource(project){for(const [src,m] of machines){const p=m.cityData?.projects?.find(q=>q===project||q.id===(project?.id??project));if(p)return{src,p,T:territory(src,p)}}return{}}
 function demoCabsFor(project){const {src,p,T}=demoSource(project);if(!T)return null;let fresh=false;
   for(let i=0;i<DEMO_CABS;i++){const key=`demo|${T.id}|${i}`;if(!demoCabs.has(key)){fresh=true;demoCabs.set(key,{key,label:'demo '+(i+1),stage:p.stages?.[0]||'',machine:src,home:{district:p.zone},engine:i?'codex':'claude',model:'haiku',working:demoPatrol,demo:true,T})}}
@@ -250,19 +261,15 @@ function update(now,dt){
   const sites=response.smokeSites;
   if(sites.length){
    responseFramed=true;response.stats.frame=false;
-   const pts=[...response.events.flatMap(e=>e.route.points),...sites.flatMap(s=>[[s.p[0]-s.severity.width/2,s.p[1]-s.severity.height],[s.p[0]+s.severity.width/2,s.p[1]]])];
-   const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),base=Math.max(W/1800,H/780);
-   manual=true;cam.z=cam.tz=Math.min(4,Math.max(1,Math.min(W/(x1-x0+130),H/(y1-y0+110))/base));
-   const v=live.cameraView(),k=base*cam.z,s=live.city.scale*live.factor;cam.x+=((x0+x1)/2-W/k/2-v.x)/s;cam.y+=((y0+y1)/2-H/k/2-v.y)/s;live.clampCamera(true);
+   glideTo([...response.events.flatMap(e=>e.route.points),...sites.flatMap(s=>[[s.p[0]-s.severity.width/2,s.p[1]-s.severity.height],[s.p[0]+s.severity.width/2,s.p[1]]])],now);
   }
  }
 
  const pts=celebrations.takeFrame();if(pts){
   // Demo only: frame the celebrating district, as the capture demo does.
-  const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),base=Math.max(W/1800,H/780);
-  manual=true;cam.z=cam.tz=Math.min(4,Math.max(1,Math.min(W/(x1-x0+130),H/(y1-y0+110))/base));
-  const v=live.cameraView(),k=base*cam.z,s=live.city.scale*live.factor;cam.x+=((x0+x1)/2-W/k/2-v.x)/s;cam.y+=((y0+y1)/2-H/k/2-v.y)/s;live.clampCamera(true);
+  glideTo(pts,now);
  }
+ stepGlide(now);
  for(let i=0;i<N;i++)heat[i]=live.model.heat(C.names[i].toLowerCase());
  const seen=new Set();for(const c of [...cabs.values(),...demoCabs.values()]){seen.add(c.key);let f=fl.find(q=>q.key===c.key);const d=Math.max(0,C.names.indexOf((c.home?.district||'core').toUpperCase())),kind=(/claude/i.test(c.engine||'')?3:0)+modelTier(c.model);
  const T=c.T||territory(c.machine,cityProject(c.machine,c.stage));
@@ -282,5 +289,5 @@ function draw(now){g=live.gpu.painter;g.reset();g.depth=.915;drawCars();g.global
 function names(){const g=ctx;live.transform();g.globalCompositeOperation='source-over';g.font=`600 ${13/Math.sqrt(cam.z)}px ui-monospace,Menlo,monospace`;g.textAlign='center';for(let i=1;i<N;i++){const p=mainPad[i];if(p){g.fillStyle=rgb(tint[i],.42);g.fillText(C.names[i],p.p[0],Math.max(14,p.p[1]-10));}}ctx.restore();}
 function worker(){}
 function clear(){response.clear();queue.length=0;bolts=[];beams=[];landings=[];heat.fill(0);sparks=[];rings=[];flare=0;for(const f of fl){f.cargo=0;f.trail=[];f.pendingFlight=null;f.state='park';placeAt(f,f.slot||slotFor(f,f.at));}live.pulses=[];}
-return{response,celebrations,demo,roofColour,update,draw,names,worker,dispatch,dispatchEvent,territory,queue,clear,fl,heat,byD,owner,mainPad,cars,LP,LPD,slotFor,go,arrive,stepFlyers,beam,get sparks(){return sparks},get rings(){return rings},get bolts(){return bolts},get beams(){return beams},get landings(){return landings}};
+return{response,celebrations,demo,glideTo,stopGlide(){glide=null},roofColour,update,draw,names,worker,dispatch,dispatchEvent,territory,queue,clear,fl,heat,byD,owner,mainPad,cars,LP,LPD,slotFor,go,arrive,stepFlyers,beam,get sparks(){return sparks},get rings(){return rings},get bolts(){return bolts},get beams(){return beams},get landings(){return landings}};
 }

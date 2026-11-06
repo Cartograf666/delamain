@@ -88,7 +88,7 @@ one soft bloom, one glow on the water and a steady soft light on the main tower,
 
 Demo: `/?map=1&live=1&demo=celebration` shows the "Test events" panel that plays local events on click and never
 writes the journal; `&kind=pr|merge|release` repeats one firework by itself, `&panel=0` cycles the three kinds,
-`&panel=1` adds the panel to a live page (`/?map=1&live=1&lang=ru&follow=0&panel=1`). A demo page reloads when the
+`&panel=1` adds the panel to a live page (`/?map=1&live=1&lang=ru&follow=0&panel=1`). `&tour=1` (`assets/gl/tour.js`, needs `follow=0`) plays every event in turn, in a loop, under a timeline bar instead of the panel: dragging it picks a scene, since flights and fires are simulation, not a recording, and a scene restarts rather than seeks. A demo page reloads when the
 server restarts. One project selector serves two groups. Fireworks: `PR opened`, `PR merged`, `Release`. Taxis
 (`demo-panel.js` over `runtime.js` `demo`): virtual cabs, two per project made on first use, flagged `demo`, never in
 `/state`, the journal or the hub home; they use the real launch, caps and queue. `Delivery in project` goes to the

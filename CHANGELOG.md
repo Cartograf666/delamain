@@ -49,6 +49,8 @@
   depth-sorted buildings, fixed graph trajectories and bounded haze form the prototype. The default rendering
   and Swift saver remain unchanged. Per-district workers drive CORE load; missing data uses stable lot hashes.
 
+- **A self-playing tour of the city.** `/?map=1&live=1&follow=0&demo=celebration&tour=1` plays every event in turn, in a loop: fireworks, taxis, the owner's question, captures, growth, closure and work levels. The camera flies between scenes and a timeline bar picks a scene by dragging; nothing reaches the journal.
+
 ## 1.0.26 — 2026-11-04
 
 - **The watchdog stops retired hubs it used to report forever; a project hook no longer leaves its probes behind.**

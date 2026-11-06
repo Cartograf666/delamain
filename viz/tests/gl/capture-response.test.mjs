@@ -48,5 +48,10 @@ queueSnapshot.aggressiveCaptures.push({plotId:5,from:'A',to:'B'});queueResponse.
 queueResponse.update(19001);assert.deepEqual(queueResponse.events.map(e=>e.capture.plotId),[3,4,5]);
 queueLive.districtsVisible=false;queueResponse.update(20000);queueLive.districtsVisible=true;queueResponse.update(20001);assert.equal(queueResponse.events.length,0);
 const noRoads=createCaptureResponse(queueLive,{roads:[],water:()=>{},storage:memory(),day:()=>today,reduce:{matches:false}});noRoads.update(0);assert.equal(noRoads.events.length,3);assert(noRoads.events.every(e=>e.route===null&&e.vehicles.length===0)&&noRoads.smokeSites.length===0,'An inaccessible captured lot has no road smoke or off-road responders');
+// A demo capture put out mid-queue: nothing more starts, what burns fades over 2.2 s, not cut.
+const putOut=createCaptureResponse(queueLive,{roads:[],water:()=>{},storage:memory(),day:()=>'2000-01-01',reduce:{matches:false}});putOut.update(0);
+putOut.play(Array.from({length:8},(_,plotId)=>({plotId,from:'A',to:'B'})),'demo');putOut.update(1000);putOut.update(3000);assert.equal(putOut.events.length,3);assert(putOut.events.every(e=>e.alpha===1));
+putOut.extinguishDemo(3000);putOut.update(4100);assert.equal(putOut.events.length,3);assert(putOut.events.every(e=>Math.abs(e.alpha-.5)<1e-9));
+putOut.update(5200);assert.equal(putOut.events.length,0);putOut.update(6000);assert.equal(putOut.events.length,0,'The queue must not relight the fire');
 const unavailable=createCaptureGate(null);assert.equal(unavailable.take(snapshot,{visible:true,today}).length,1);assert.equal(unavailable.take(snapshot,{visible:true,today}).length,0);
 console.log('PASS queued second group, in-place same-day addition, mode exit discards queue, unroutable incident, in-memory storage fallback');

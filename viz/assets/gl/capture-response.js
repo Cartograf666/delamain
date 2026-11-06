@@ -14,7 +14,7 @@ export function responseBeacon(now,index=0,reduced=false){
  return {color:blue?[62,143,255]:[255,70,57],red:blue?.08:1,blue:blue?1:.08};
 }
 const validCapture=c=>Number.isInteger(c?.plotId)&&typeof c.from==='string'&&!!c.from&&typeof c.to==='string'&&!!c.to&&c.from!==c.to;
-const LIFE=19000,MAX_EVENTS=3,STORE='delamain:capture-response:v1';
+const LIFE=19000,OUT=2200,MAX_EVENTS=3,STORE='delamain:capture-response:v1';
 export const CAPTURE_DEMO=Object.freeze({date:'2026-11-02',aggressiveCaptures:[2799,2803,2770].map(plotId=>Object.freeze({plotId,from:'Telegram',to:'Куда за музыкой'}))});
 function intersection(a,b,c,d){const r=sub(b,a),s=sub(d,c),den=cross(r,s);if(Math.abs(den)<1e-9)return null;const q=sub(c,a),t=cross(q,s)/den,u=cross(q,r)/den;return t>=-1e-7&&t<=1+1e-7&&u>=-1e-7&&u<=1+1e-7?[clamp(t),clamp(u)]:null;}
 function nearest(p,a,b){const d=sub(b,a),t=clamp(((p[0]-a[0])*d[0]+(p[1]-a[1])*d[1])/(d[0]*d[0]+d[1]*d[1]||1));return {p:mix(a,b,t),t};}
@@ -195,9 +195,9 @@ export function createCaptureResponse(live,{roads,water,search=globalThis.locati
   }
   // Receipts control which locations launch; severity always uses the full snapshot.
   if(batch.length){stats.batches++;for(const c of batch)queued.push({capture:c,group:groups.get(groupKey(c))});}
-  events=events.filter(e=>now-e.born<LIFE&&now>=e.born);
+  events=events.filter(e=>now-e.born<LIFE&&now>=e.born&&!(e.ending&&now-e.ending>=OUT));
   while(queued.length&&events.length<MAX_EVENTS){const e=start(queued.shift(),now);if(e){events.push(e);stats.started++;const before=globalThis.performance?.now()||0;routing(e);stats.setupMs.push((globalThis.performance?.now()||0)-before);}}
-  for(const e of events){const age=now-e.born;e.alpha=clamp(age/900)*clamp((LIFE-age)/2200);if(!e.route)continue;
+  for(const e of events){const age=now-e.born;e.alpha=clamp(age/900)*clamp((LIFE-age)/OUT)*(e.ending?clamp(1-(now-e.ending)/OUT):1);if(!e.route)continue;
    // Reduced motion has steady stationary responders already at the roadside.
    for(let i=0;i<3;i++){const s=motion.matches?Math.max(0,e.route.length-i*6):clamp((age-1100)/1000*24-i*7,0,Math.max(0,e.route.length-i*6));const p=sampleRoute(e.route,s);const v=e.vehicles[i]||{};Object.assign(v,{p,s,arrived:s>=e.route.length-i*6-.01,index:i,alpha:e.alpha*clamp((age-1100-i*300)/700)});e.vehicles[i]=v;}
   }
@@ -317,5 +317,7 @@ export function createCaptureResponse(live,{roads,water,search=globalThis.locati
  // Test stand: queue captures as one group (severity = its plot count); stats.frame asks the page to frame them.
  function play(captures,key){const group={key,demo:true,plotIds:new Set(captures.map(c=>c.plotId))};for(const c of captures)if(validCapture(c))queued.push({capture:c,group});stats.frame=true;return group.plotIds.size;}
  function clearDemo(){events=events.filter(e=>!e.group?.demo);queued=queued.filter(q=>!q.group?.demo);}
- return {update,draw,clear(){events=[];queued=[];water([]);},play,clearDemo,roads,stats,get smokeSites(){return smokeSites(globalThis.performance?.now()??0);},get fireStats(){return fireStats;},get events(){return events;},get router(){return router;}};
+ // Puts a demo capture out: nothing more queues and what burns fades over OUT, where clearDemo would cut it.
+ function extinguishDemo(now=globalThis.performance?.now()??0){queued=queued.filter(q=>!q.group?.demo);stats.frame=false;for(const e of events)if(e.group?.demo)e.ending??=now;}
+ return {update,draw,clear(){events=[];queued=[];water([]);},play,clearDemo,extinguishDemo,roads,stats,get smokeSites(){return smokeSites(globalThis.performance?.now()??0);},get fireStats(){return fireStats;},get events(){return events;},get router(){return router;}};
 }
