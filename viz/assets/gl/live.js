@@ -37,10 +37,12 @@ class GPUCityLive extends AquariumLiveCity {
  hubProject(t){if(!t.lot?.pad||t.open===false)return null;const p=cityProject(t.machine,t.stage);if(!p||p.closed)return null;t.lot.hubBuilding??=this.gpu.buildingAt(...t.lot.pad.g).id;return p;}
  hubSign(t,now){const p=this.hubProject(t),G=p&&this.gpu.hubs.geometry(t.lot.hubBuilding);if(!G)return false;
   const v=this.cameraView(),k=Math.max(cv.clientWidth/this.gpu.scene.w,cv.clientHeight/this.gpu.scene.h)*v.z,ax=(G.base[0]-v.x)*k,ay=(G.base[1]-G.spire*.45-v.y)*k;
-  const size=Math.min(24,12*Math.sqrt(v.z))*UI;ctx.font=`600 ${size}px ui-monospace,Menlo,monospace`;const w=ctx.measureText(t.label).width+14,h=size+6,at=this.city.labelPosition(ax,ay+h/2-4,w,h,t.label);if(!at)return true;
+  const size=Math.min(24,12*Math.sqrt(v.z))*UI;ctx.font=`600 ${size}px ui-monospace,Menlo,monospace`;const alerted=[...this.alerts.entries.values()].some(e=>(e.demoHub||machines.get(e.src)?.stages.get(e.stage)?.hub)===t),icon=alerted?Math.max(40*UI,52*k):0,w=ctx.measureText(t.label).width+14,h=size+6,at=this.city.labelPosition(ax,ay+h/2-4,w,h+icon,t.label);if(!at){t.sign=null;return true;}
+  // A question or blocker stands on its hub's sign: the place above the sign is reserved, so no other sign takes it.
+  const top=at.top+icon;t.sign=alerted?{x:at.x,top,icon}:null;
   const s=this.gpu.hubs.signal(t.questions||0,now),c=s.gold?C.gold:this.gpu.hubs.colour(p.colour),a=s.gold?.35+.65*s.k:1;
   if(Math.hypot(at.x-ax,at.y-(ay+h/2-4))>2){ctx.strokeStyle=rgba(c,.55);ctx.lineWidth=.8;ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(at.x,at.bottom);ctx.stroke();}
-  ctx.fillStyle='rgba(3,7,16,.86)';ctx.fillRect(at.left,at.top,w,at.bottom-at.top);ctx.strokeStyle=rgba(c,.5*a);ctx.lineWidth=1;ctx.strokeRect(at.left+.5,at.top+.5,w-1,at.bottom-at.top-1);
+  ctx.fillStyle='rgba(3,7,16,.86)';ctx.fillRect(at.left,top,w,at.bottom-top);ctx.strokeStyle=rgba(c,.5*a);ctx.lineWidth=1;ctx.strokeRect(at.left+.5,top+.5,w-1,at.bottom-top-1);
   ctx.save();ctx.textAlign='center';ctx.shadowColor=c;ctx.shadowBlur=6+6*a;ctx.fillStyle=rgba(c,a);ctx.fillText(t.label,at.x,at.y);ctx.restore();return true;}
  draw(){const open=[...towers.values()].filter(t=>this.hubProject(t));this.gpu.hubs.set(open.map(t=>({building:t.lot.hubBuilding,colour:cityProject(t.machine,t.stage).colour,questions:t.questions||0})));
   // The hub building grows with its session context; a closed hub drops out of the list and returns to a plain house.

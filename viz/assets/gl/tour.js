@@ -25,31 +25,30 @@
   const whole = () => [[0, 0], [1800, 780]];
 
   // A scene lasts as its event does (hold: seconds after the camera has arrived), or the camera leaves before the taxi lands.
-  // Minas Tirith is the nearest to the owner, a flight of 7-10 s where other projects take 18-25; Clip Factory's border is
-  // compact, so its capture stays in one place.
+  // Minas Tirith is the nearest to the owner; Clip Factory's border is compact, so its capture stays in one place.
   const Q = q => () => press(q);
   const firework = kind => Q(`[data-kind="${kind}"]`), taxi = kind => Q(`[data-taxi="${kind}"]`);
-  const out = () => aq.response.extinguishDemo();
+  const out = () => aq.response.extinguishDemo(), alerts = () => document.getElementById('gl-alert-demo')?.click();
   const scenes = [
     { label: say('Город', 'The city'), view: whole, hold: 3 },
-    { label: say('PR открыт', 'PR opened'), id: 'Dota2Helper', view: sky, hold: 5, act: firework('pr-opened') },
-    { label: say('PR смёржен', 'PR merged'), id: 'Dota2Helper', view: sky, hold: 8, act: firework('pr-merged') },
-    { label: say('Релиз', 'Release'), id: 'Stravel', view: sky, hold: 20, act: firework('release') },
+    { label: say('Работа: уровень 1', 'Work: level 1'), id: 'Stravel', view: id => box(land(id), 30), hold: 6, work: 1 },
+    { label: say('PR открыт', 'PR opened'), id: 'Stravel', view: sky, hold: 6, work: 2, act: firework('pr-opened') },
+    { label: say('PR смёржен', 'PR merged'), id: 'Stravel', view: sky, hold: 9, work: 2, act: firework('pr-merged') },
+    { label: say('Работа: уровень 3', 'Work: level 3'), id: 'Stravel', view: id => box(land(id), 30), hold: 5, work: 3 },
+    { label: say('Релиз', 'Release'), id: 'Stravel', view: sky, hold: 20, work: 3, act: firework('release') },
+    { label: say('Работа окончена', 'Work ended'), id: 'Stravel', view: id => box(land(id), 30), hold: 4, work: 0 },
     { label: say('Доставка в проекте', 'Delivery in project'), id: 'Delamain', view: id => trip(id, 'project'), hold: 9, act: taxi('project') },
     { label: say('Доставка соседу', 'Delivery to neighbour'), id: 'Delamain', view: id => trip(id, 'neighbour'), hold: 12, act: taxi('neighbour') },
     { label: say('Доставка владельцу', 'Delivery to owner'), id: 'Minas Tirith', view: id => trip(id, 'owner'), hold: 11, act: taxi('owner') },
     { label: say('Пять рейсов сразу', 'Five at once'), id: 'Stravel', view: id => box(land(id), 30), hold: 14, act: taxi('five') },
     { label: say('Патруль', 'Patrol'), id: 'Agent Harness', view: id => box(land(id), 30), hold: 9, act: taxi('patrol'), leave: taxi('patrol') },
     { label: say('Вопрос владельцу', 'Question for the owner'), id: hub, view: sky, hold: 7, act: Q('[data-district="question"]'), leave: Q('[data-district="question"]') },
+    { label: say('Вопрос и блокер', 'Question and blocker'), id: hub, view: sky, hold: 7, act: alerts, leave: alerts },
     { label: say('Захват: малый', 'Capture: small'), id: 'Clip Factory', mode: 'territories', hold: 11, act: Q('[data-district="capture-small"]'), leave: out },
     { label: say('Захват: средний', 'Capture: medium'), id: 'Clip Factory', mode: 'territories', hold: 12, act: Q('[data-district="capture-medium"]'), leave: out },
     { label: say('Захват: большой', 'Capture: large'), id: 'Clip Factory', mode: 'territories', hold: 16, act: Q('[data-district="capture-large"]'), leave: out },
     { label: say('Район растёт', 'District grows'), id: 'Clip Factory', mode: 'territories', view: id => box(land(id), 30), hold: 12, act: Q('[data-district="grow"]') },
     { label: say('Проект закрыт', 'Project closed'), id: 'Clip Factory', mode: 'territories', view: id => box(land(id), 30), hold: 7, act: Q('[data-district="closed"]'), leave: Q('[data-district="closed"]') },
-    { label: say('Работа: уровень 1', 'Work: level 1'), id: 'Stravel', mode: 'activity', view: id => box(land(id), 30), hold: 6, act: Q('[data-work="1"]') },
-    { label: say('Работа: уровень 2', 'Work: level 2'), id: 'Stravel', mode: 'activity', view: id => box(land(id), 30), hold: 5, act: Q('[data-work="2"]') },
-    { label: say('Работа: уровень 3', 'Work: level 3'), id: 'Stravel', mode: 'activity', view: id => box(land(id), 30), hold: 6, act: Q('[data-work="3"]') },
-    { label: say('Работа окончена', 'Work ended'), id: 'Stravel', mode: 'activity', view: id => box(land(id), 30), hold: 4, act: Q('[data-work="0"]') },
   ].filter(s => typeof s.id !== 'function' || (s.id = s.id()));
 
   const FLY = 3.2;   // a glide is at most 3.2 s: every scene reserves it, so the timeline does not depend on the distance
@@ -90,6 +89,7 @@
   function enter(i) {
     const me = ++token, s = scenes[cur = i];
     if (s.mode) mode(s.mode); if (s.id) pick(s.id);
+    if (s.work != null) press(`[data-work="${s.work}"]`);   // events come out of work: the more of it, the more light at the tower
     const box = s.view?.(s.id), ms = box ? aq.glideTo(box) : 0;
     setTimeout(() => { if (me === token) s.act?.(); }, Math.min(ms, FLY * 1000));
   }

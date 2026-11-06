@@ -60,7 +60,7 @@ function go(f,to,now,fast){if(!to)return false;if(f.state!=='park'){f.pendingFli
   f.route=live.gpu.flight.plan([f.x,f.y],to.g,{height:f.z,targetHeight:roofZ(to),speed:f.vmax});
   f.cz=f.route.altitude;f.phase=0;f.bank=0;f.startZ=f.z;f.riseDuration=Math.max(.6,(f.cz-f.z)*1.875/(fast?64:38));
   // Finish gaining obstacle clearance before translating across any footprint.
-  f.state=f.cz-f.z>.2?'up':'cruise';return true;}
+  f.state=f.route.climb||f.cz-f.z<=.2?'cruise':'up';return true;}
 function resumePending(f,now){const next=f.pendingFlight;f.pendingFlight=null;if(!go(f,next.to,now,next.fast)){f.pendingFlight=next;f.until=now+800;}}
 const fl=[];
 function ring(x,y,d,now,big){rings.push({x,y,d,t:now,big});if(rings.length>40)rings.shift()}
@@ -81,7 +81,7 @@ function launch(j,now){const busy=fl.filter(f=>f.cargo),T=j.T;if(busy.length>=li
   heat2(f.T,f.at?.g,now);heat2(j.to?.T,j.to?.pad.g,now);
   // A line without any tower (unseated stage, wastes) keeps the legacy zone flight.
   f.want=j.to?toward(j.to.pad,j.to.T):d===0?anyPad([1,2,4,6,7,8][live.rand()*6|0]):coreDest();go(f,f.want,now,true);return true}
-function arrive(f,now){if(f.leave){f.gone=true;freeSlot(f);if(f.worker)f.worker.landed=true;}const p=f.to;if(!f.leave)beam(f.cargo===1&&f.dest||(f.stage&&machines.get(f.machine)?.stages.get(f.stage)?.hub?.lot?.pad)||mainPad[f.d],tint[f.d],now,f.cargo===1?1:.5);f.at=p;f.x=p.g[0];f.y=p.g[1];f.z=roofZ(p);f.state='park';f.sp=0;f.wp=[];const sx=p.p[0],sy=p.p[1];if(f.T&&!f.homePad&&f.T.home.includes(p.par))f.homePad=p.par;
+function arrive(f,now){if(f.leave){f.gone=true;freeSlot(f);if(f.worker)f.worker.landed=true;}const p=f.to;if(!f.leave)beam(f.cargo===1&&f.dest||(f.stage&&machines.get(f.machine)?.stages.get(f.stage)?.hub?.lot?.pad)||mainPad[f.d],tint[f.d],now,f.cargo===1?.55:.3);f.at=p;f.x=p.g[0];f.y=p.g[1];f.z=roofZ(p);f.state='park';f.sp=0;f.wp=[];const sx=p.p[0],sy=p.p[1];if(f.T&&!f.homePad&&f.T.home.includes(p.par))f.homePad=p.par;
   if(f.pendingFlight&&!f.leave){resumePending(f,now);return;}
   if(f.cargo===1){landing(f,p,now,'delivery');bolt(f.d,now,p.g[0],(p.g[1]+p.p[1])/2,14);spark(p.d,now,p,70,2600);flare=Math.min(1,flare+(p===owner?.5:.15));heat[p.d]=Math.min(1,heat[p.d]+.04);f.cargo=2;f.unloaded=now;f.want=null;f.until=now+rnd(500,1400);return}
   if(f.cargo===2&&(f.homePad?homeTarget(f).pads.includes(p.par):f.d===f.home&&p.d===f.home)){const d=f.d;landing(f,p,now,'return');heat[d]=1-(1-heat[d])*.82;bolt(d,now,p.g[0],(p.g[1]+p.p[1])/2,32);cascade(d,now,p.g[0],(p.g[1]+p.p[1])/2,120,46);f.cargo=0;f.size=32;f.dest=null;f.until=now+rnd(1200,3500);if(f.temp){f.gone=true;freeSlot(f)};return}
@@ -107,21 +107,25 @@ function followHubRoofs(){const lifts=live.gpu.hubLifts;if(!lifts?.size)return;l
 function stepFlyers(now,frameDt){followHubRoofs();const dt=Math.max(0,Math.min(frameDt,.1));for(const f of fl){
   if(f.waiting)continue;
   if(f.state==='park'){if(f.trail.length)f.trail.shift();if(now>f.until){if(f.pendingFlight)resumePending(f,now);else if(f.cargo||f.work||(f.T&&!atHome(f))){const to=nextDest(f,now);if(to)go(f,to,now,f.cargo===2);else f.until=now+2000;}}continue}
-  const previousX=f.x,previousY=f.y;f.phase+=dt;f.bank=0;
+  const previousX=f.x,previousY=f.y,previousH=f.h;f.phase+=dt;
   if(f.state==='up'){
     f.z=f.startZ+(f.cz-f.startZ)*live.gpu.flight.settle(f.phase/f.riseDuration);
     if(f.phase>=f.riseDuration){f.z=f.cz;f.state='cruise';f.phase=0;}
   }else if(f.state==='cruise'){
-    const u=Math.min(1,f.phase/f.route.duration),p=live.gpu.flight.sample(f.route,u);f.x=p.x;f.y=p.y;f.h=p.heading;f.z=f.cz;
-    if(Math.abs(Math.cos(f.h))>.15)f.dir=Math.cos(f.h)>=0?1:-1;
-    if(u>=1){f.x=f.to.g[0];f.y=f.to.g[1];f.state='hover';f.phase=0;f.sp=0;}
+    const u=Math.min(1,f.phase/f.route.duration),p=live.gpu.flight.sample(f.route,u);f.x=p.x;f.y=p.y;f.h=p.heading;f.z=p.z;
+    if(Math.abs(Math.cos(f.h))>.3)f.dir=Math.cos(f.h)>=0?1:-1;
+    if(f.route.approach)f.descentDuration=f.route.duration;
+    if(u>=1){f.x=f.to.g[0];f.y=f.to.g[1];f.sp=0;f.phase=0;if(f.route.approach){f.z=roofZ(f.to);arrive(f,now);}else f.state='hover';}
   }else if(f.state==='hover'){
     f.x=f.to.g[0];f.y=f.to.g[1];f.z=f.cz;
-    if(f.phase>=.9){f.state='descend';f.phase=0;f.descentDuration=Math.max(3,(f.cz-roofZ(f.to))*1.875/12);}
+    if(f.phase>=.25){f.state='descend';f.phase=0;f.descentDuration=Math.max(.9,(f.cz-roofZ(f.to))*1.875/36);}
   }else if(f.state==='descend'){
     f.x=f.to.g[0];f.y=f.to.g[1];const u=f.phase/f.descentDuration;f.z=f.cz+(roofZ(f.to)-f.cz)*live.gpu.flight.settle(u);
     if(u>=1)arrive(f,now);
   }
+  // It leans into a turn and swings round to its new side instead of mirroring in a frame.
+  const turn=f.state==='cruise'&&dt?Math.atan2(Math.sin(f.h-previousH),Math.cos(f.h-previousH))/dt:0;f.bank+=(Math.max(-1,Math.min(1,turn*1.4))-f.bank)*Math.min(1,dt*5);
+  f.face??=f.dir;f.face+=Math.max(-dt*4.5,Math.min(dt*4.5,f.dir-f.face));
   f.sp=dt?Math.hypot(f.x-previousX,(f.y-previousY)*2)/dt:0;
   const tl=f.cargo?56:34;if(now-(f.tt||0)>16){f.tt=now;f.trail.push([f.x,f.y-f.z,f.dir]);if(f.trail.length>tl)f.trail.shift()}}
   for(let i=fl.length-1;i>=0;i--)if(fl[i].gone)fl.splice(i,1)}
@@ -131,16 +135,17 @@ function drawPads(now){for(const P of LP){g.depth=P.depth;const w=P.w,cx=P.p[0],
 function drawFlyer(f,now){if(f.waiting||f.gone)return;g.depth=f.state==='park'?(f.slot?.depth??-.96)-.00002:-.97;const px=f.x,py=f.y-f.z,col=tint[f.cargo?f.home:f.d],air=f.state!=='park',r=f.cargo?4.2:2.9;
   const z=CARGO_PX[f.kind%3]*(.9+.22*f.y/H),TH=THRUST[f.kind%6],T=f.trail,n=T.length,by=py-(air?0:z*.05);g.globalCompositeOperation='lighter';g.lineCap='round';g.lineJoin='round';
   {const R=z*.62,cy=by+z*.2,q=g.createRadialGradient(0,0,0,0,0,1);for(const [o,a] of [[0,.24],[.2,.19],[.42,.11],[.65,.05],[.85,.015],[1,0]])q.addColorStop(o,rgb(col,a*(air?1:.55)));g.save();g.translate(px,cy);g.scale(R,R*.5);g.fillStyle=q;g.beginPath();g.arc(0,0,1,0,7);g.fill();g.restore()}
-  if(f.state==='descend'&&f.to)descentLight(f,px,by,z,col);
+  if((f.state==='descend'||f.state==='cruise'&&f.route?.approach)&&f.to)descentLight(f,px,by,z,col);
   for(const t of TH){const ox=t[0]*z,oy=t[1]*z;
     if(air&&n>2)g.trail(T.map(t=>[t[0]+ox*t[2],t[1]+oy]),rgb(col,1),.8+z*.03);
   }
-  g.globalCompositeOperation='source-over';g.save();g.translate(px,by);g.rotate(f.bank*.28);g.scale(f.dir,1);g.drawImage(spr[f.kind%spr.length],-z/2,-z/2,z,z);if(f.worker&&(hover===f.worker||pinned===f.worker))g.drawImageOutline(spr[f.kind%spr.length],-z/2,-z/2,z,z,'#ffe9ae');g.restore();if(f.cargo===1)drawCargo(f,px,by+z*.34,z)}
+  g.globalCompositeOperation='source-over';const face=f.face??f.dir,side=Math.abs(face)<.08?Math.sign(face||1)*.08:face;g.save();g.translate(px,by);g.rotate(f.bank*.16);g.scale(side,1);if(f.cargo===1)drawCargo(f,0,z*.2,z);g.drawImage(spr[f.kind%spr.length],-z/2,-z/2,z,z);if(f.worker&&(hover===f.worker||pinned===f.worker))g.drawImageOutline(spr[f.kind%spr.length],-z/2,-z/2,z,z,'#ffe9ae');g.restore()}
 // The delivery container hangs under the taxi while loaded: the project's colour, lifted towards white to read at night.
 const crateColour=f=>{const h=f.T?.p.colour,c=/^#[\da-f]{6}$/i.test(h||'')?h.slice(1).match(/../g).map(x=>parseInt(x,16)):tint[f.home];return c.map(v=>Math.round(v+(255-v)*.35))};
-function drawCargo(f,x,y,z){const c=crateColour(f),w=z*.2,h=z*.13,k=w*.5;g.globalCompositeOperation='source-over';g.strokeStyle=rgb(c,.7);g.lineWidth=.5;g.beginPath();g.moveTo(x-w*.6,y-z*.18);g.lineTo(x-w*.5,y-h*.5);g.moveTo(x+w*.6,y-z*.18);g.lineTo(x+w*.5,y-h*.5);g.stroke();
+// Drawn inside the taxi's own transform and long along its axis, as the sprite's frame is: it turns and leans with the taxi.
+function drawCargo(f,x,y,z){const c=crateColour(f),L=z*.13,W=z*.06,h=z*.1,top=[[x-L-W,y-L/2+W/2],[x+L-W,y+L/2+W/2],[x+L+W,y+L/2-W/2],[x-L+W,y-L/2-W/2]],down=p=>[p[0],p[1]+h];g.globalCompositeOperation='source-over';g.strokeStyle=rgb(c,.7);g.lineWidth=.5;g.beginPath();for(const p of [top[0],top[2]]){g.moveTo(p[0],p[1]-z*.07);g.lineTo(p[0],p[1])}g.stroke();
   const face=(pts,a)=>{g.fillStyle=rgb(a,1);g.beginPath();pts.forEach((p,i)=>g[i?'lineTo':'moveTo'](p[0],p[1]));g.closePath();g.fill()};
-  face([[x-w,y-h*.5],[x,y-h*.5+k*.5],[x,y+h*.5+k*.5],[x-w,y+h*.5]],c.map(v=>v*.62|0));face([[x,y-h*.5+k*.5],[x+w,y-h*.5],[x+w,y+h*.5],[x,y+h*.5+k*.5]],c.map(v=>v*.82|0));face([[x-w,y-h*.5],[x,y-h*.5-k*.5],[x+w,y-h*.5],[x,y-h*.5+k*.5]],c);}
+  face([top[0],top[1],down(top[1]),down(top[0])],c.map(v=>v*.62|0));face([top[1],top[2],down(top[2]),down(top[1])],c.map(v=>v*.82|0));face(top,c);}
 // traffic on visible roads only
 const RD=C.roads.map(r=>{const p=r.p,c=[0];for(let i=1;i<p.length;i++)c.push(c[i-1]+Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]));return{gpuId:r.gpuId,c:r.c,p,len:c[c.length-1],cum:c}}).filter(r=>r.len>4);
 const ends=new Map(),key=q=>Math.round(q[0]/6)+','+Math.round(q[1]/6);
@@ -182,23 +187,24 @@ const big=b.strength>=1,R=big?85:52;g.depth=.945;const q=g.createRadialGradient(
 // container opening. Scale by kind and the simultaneous cap live in lighting.js (landing); reduced motion keeps one soft bloom.
 let landings=[],fxSeed=7;const frnd=()=>(fxSeed=fxSeed*16807%2147483647)/2147483647,WHITE=[255,250,235],sm=t=>(t=Math.max(0,Math.min(1,t)),t*t*(3-2*t));
 const hexRgb=h=>/^#[\da-f]{6}$/i.test(h||'')?h.slice(1).match(/../g).map(x=>parseInt(x,16)):null,lift=(c,k)=>c.map(v=>Math.round(v+(255-v)*k));
+const LANDING_GAIN=.5;
 function landing(f,p,now,kind){const L=live.gpu.landing;if(!L)return;const x=p.p[0],y=p.p[1],calm=still(),s=L.scale(kind),sp=[];
   for(let i=calm?0:kind==='delivery'?48:22;i>0;i--){const a=frnd()*6.283,v=(45+frnd()*75)*(.7+.3*s);sp.push([Math.cos(a)*v,Math.sin(a)*v*.5,12+frnd()*30])}
   landings=L.admit(landings,{x,y,depth:(p.depth??live.gpu.roofDepth(x,y))-.000004,col:hexRgb(f.T?.p.colour)||roofColour(x,y,tint[f.cargo?f.home:f.d]),t:now,scale:s,kind,calm,sp,crate:kind==='delivery'&&!calm&&crateColour(f)},now)}
 // A soft isometric light pool as one quad (radial falloff in the shader), cheap enough for every spark.
 function blob(x,y,R,c,a,sy=.5){if(a<=.003)return;g.save();g.translate(x,y);g.scale(1,sy);const q=g.createRadialGradient(0,0,0,0,0,R);q.addColorStop(0,rgb(c,Math.min(1,a)));q.addColorStop(1,rgb(c,0));g.fillStyle=q;g.fillRect(-R,-R,R*2,R*2);g.restore()}
 function drawLandings(now){const L=live.gpu.landing;if(!L||!landings.length)return;L.frame(landings,now);g.save();g.globalCompositeOperation='lighter';g.lineCap='round';
-  for(const e of landings){const dt=(now-e.t)/1000,fade=e.fade==null?1:Math.max(0,1-(now-e.fade)/200),k=e.k*fade*e.scale,c=e.col,x=e.x,y=e.y,full=e.scale>=1;if(dt<0||k<=0)continue;g.depth=e.depth;
+  for(const e of landings){const dt=(now-e.t)/1000,fade=e.fade==null?1:Math.max(0,1-(now-e.fade)/200),k=e.k*fade*e.scale*LANDING_GAIN,c=e.col,x=e.x,y=e.y,full=e.scale>=1;if(dt<0||k<=0)continue;g.depth=e.depth;
     // Bloom: up in 120 ms (400 ms calm), eases out over 1.2 s; 130 units for a delivery, 95 at half.
-    const R=full?130:95,b=k*Math.min(1,dt/(e.calm?.4:.12))*(1-sm((dt-.15)/1.2));blob(x,y,R,c,(e.calm?.36:.7)*b);if(e.calm)continue;blob(x,y,R*.42,lift(c,.3),.8*b);
+    const R=full?84:60,b=k*Math.min(1,dt/(e.calm?.4:.12))*(1-sm((dt-.15)/1.2));blob(x,y,R,c,(e.calm?.36:.7)*b);if(e.calm)continue;blob(x,y,R*.42,lift(c,.3),.8*b);
     if(dt<.15){const a=k*(1-dt/.15);blob(x,y,full?64:40,WHITE,a);blob(x,y,full?20:14,WHITE,a)}
     // Column: shoots up in 0.18 s, holds to 0.15 s and fades by 0.65 s; tall enough to clear the roofs in front of a
     // hidden pad. An air halo around its lower third stays at the pad's depth, so nearer buildings still cover it.
     if(dt<.9)blob(x,y-(full?70:40),full?75:50,c,.4*k*Math.min(1,dt/.1)*(1-sm(dt/.9)),1);
-    if(dt<.65){const h=(full?300:170)*sm(dt/.18),a=k*(1-sm((dt-.15)/.5));for(const [w,cc,o] of [[11,c,.6],[3.5,WHITE,.95]]){const q=g.createLinearGradient(x,y,x,y-h);q.addColorStop(0,rgb(cc,o*a));q.addColorStop(1,rgb(cc,0));g.fillStyle=q;g.beginPath();g.moveTo(x-w,y);g.lineTo(x+w,y);g.lineTo(x+w*.35,y-h);g.lineTo(x-w*.35,y-h);g.closePath();g.fill()}}
+    if(dt<.65){const h=(full?150:90)*sm(dt/.18),a=k*(1-sm((dt-.15)/.5));for(const [w,cc,o] of [[11,c,.6],[3.5,WHITE,.95]]){const q=g.createLinearGradient(x,y,x,y-h);q.addColorStop(0,rgb(cc,o*a));q.addColorStop(1,rgb(cc,0));g.fillStyle=q;g.beginPath();g.moveTo(x-w,y);g.lineTo(x+w,y);g.lineTo(x+w*.35,y-h);g.lineTo(x-w*.35,y-h);g.closePath();g.fill()}}
     // Two thick rings 0.15 s apart, each with a bright core and a white outline. Each keeps its stroke profile while it
     // fades: chosen by its fading alpha, the core would turn from a hard band to a soft one as it passes .5.
-    for(const o of [0,.15]){const age=dt-o;if(age<0||age>=1)continue;const r=10+(full?110:65)*(1-(1-age)**2),a=k*(1-age*age);for(const [w,cc,al,rr] of [[14,c,.45,1],[4,lift(c,.45),1,1],[1.2,WHITE,.7,1.07]]){g.strokeStyle=rgb(cc,al*a);g.lineWidth=w;g.beginPath();g.ellipse(x,y,r*rr,r*rr/2,0,0,Math.PI*2);g.stroke(w>2&&al<.5?8:9)}}
+    for(const o of [0,.15]){const age=dt-o;if(age<0||age>=1)continue;const r=8+(full?62:38)*(1-(1-age)**2),a=k*(1-age*age);for(const [w,cc,al,rr] of [[8,c,.45,1],[2.4,lift(c,.45),1,1],[.8,WHITE,.7,1.07]]){g.strokeStyle=rgb(cc,al*a);g.lineWidth=w;g.beginPath();g.ellipse(x,y,r*rr,r*rr/2,0,0,Math.PI*2);g.stroke(w>2&&al<.5?8:9)}}
     // Sparks fly out low with drag and fall back to the roof within 0.8 s.
     if(dt<.8){const D=(1-Math.exp(-3.2*dt))/3.2,a=k*(1-dt/.8);for(const s of e.sp){const z=Math.max(0,s[2]*dt-70*dt*dt),sx=x+s[0]*D,sy=y+s[1]*D-z;blob(sx,sy,3.2,c,.5*a);g.fillStyle=rgb(lift(c,.6),Math.min(1,a*1.4));g.beginPath();g.arc(sx,sy,.75,0,Math.PI*2);g.fill()}}
     // Delivery: the container opens with a small light burst that rises out of it.
@@ -212,12 +218,14 @@ const glyphQ=()=>{g.arc(0,-6,9,-Math.PI*.95,Math.PI*.32);g.lineTo(0,6);g.moveTo(
   glyphS=()=>{for(let i=0;i<=8;i++){const a=Math.PI/8+i*Math.PI/4;g[i?'lineTo':'moveTo'](Math.cos(a)*16,Math.sin(a)*16)}g.moveTo(-8,0);g.lineTo(8,0)};
 function drawAlerts(now){g.save();g.globalCompositeOperation='lighter';g.lineCap='round';g.lineJoin='round';let n=0;
   for(const E of live.alerts.entries.values()){const hub=E.demoHub||machines.get(E.src)?.stages.get(E.stage)?.hub,kp=hub?.lot?.pad;if(!kp)continue;n++;
-    const ask=E.items.some(q=>q.kind==='QUESTION'),col=ask?[70,235,255]:[255,64,170],up=Math.min(1,(now-E.t0)/520),x=kp.p[0]+Math.sin(now/4300+n)*1.5,y=kp.p[1],cy=y-50+Math.sin(now/2800+n)*3,fl=.88+.12*Math.sin(now/3400+n);const w=live.world(x,cy);E.screen=P(w.x,w.y);E.radius=Math.max(16,30*unit()/live.city.scale/live.factor);
-    const q=g.createLinearGradient(0,y,0,cy);q.addColorStop(0,rgb(col,.34*up));q.addColorStop(1,rgb(col,0));g.fillStyle=q;g.beginPath();g.moveTo(x-5,y);g.lineTo(x+5,y);g.lineTo(x+19,cy);g.lineTo(x-19,cy);g.closePath();g.fill();
-    g.strokeStyle=rgb(col,.6*up);g.lineWidth=1;g.beginPath();g.ellipse(x,y,9,4.5,0,0,7);g.stroke();
-    g.save();g.translate(x,cy);g.scale(1,up);
-    g.strokeStyle=rgb(col,.5*fl);g.lineWidth=.9;const a=now/900;g.beginPath();g.ellipse(0,1,25,8,0,a,a+4.5);g.stroke();
-    for(const [w,o] of [[6,.14],[2.8,.34],[1.3,.98]]){g.strokeStyle=o>.9?rgb(col.map(c=>Math.min(255,c+95)),fl):rgb(col,o*fl);g.lineWidth=w;g.beginPath();(ask?glyphQ:glyphS)();g.stroke()}
+    // The tower's own colour; the glyph tells a question from a blocker. It stands on the hub's sign, so no sign covers it, at
+    // its world size, which stops shrinking where it would turn unreadable from afar; without a sign, over the pad.
+    const ask=E.items.some(q=>q.kind==='QUESTION'),col=hexRgb(live.gpu.hubs.colour(cityProject(hub.machine,hub.stage)?.colour))||[70,235,255],up=Math.min(1,(now-E.t0)/520),v=live.cameraView(),px=Math.max(cv.clientWidth/live.gpu.scene.w,cv.clientHeight/live.gpu.scene.h)*v.z,sign=hub.sign,y=kp.p[1],x=(sign?sign.x/px+v.x:kp.p[0])+Math.sin(now/4300+n)*.6/Math.max(1,v.z),cy=(sign?(sign.top-sign.icon/2)/px+v.y:y-50)+Math.sin(now/2800+n)*1.2/Math.max(1,v.z),s=sign?sign.icon/px/52:1,fl=.88+.12*Math.sin(now/3400+n);const w=live.world(x,cy);E.screen=P(w.x,w.y);E.radius=Math.max(16,30*unit()/live.city.scale/live.factor);
+    const q=g.createLinearGradient(0,y,0,cy);q.addColorStop(0,rgb(col,.34*up));q.addColorStop(1,rgb(col,0));g.fillStyle=q;g.beginPath();g.moveTo(kp.p[0]-5,y);g.lineTo(kp.p[0]+5,y);g.lineTo(x+19*s,cy);g.lineTo(x-19*s,cy);g.closePath();g.fill();
+    g.strokeStyle=rgb(col,.6*up);g.lineWidth=1;g.beginPath();g.ellipse(kp.p[0],y,9,4.5,0,0,7);g.stroke();
+    g.save();g.translate(x,cy);g.scale(s,s*up);
+    g.strokeStyle=rgb(col,.6*fl);g.lineWidth=2;const a=now/900;g.beginPath();g.ellipse(0,1,25,8,0,a,a+4.5);g.stroke();
+    for(const [w,o] of [[13,.16],[8,.36],[4.4,.98]]){g.strokeStyle=o>.9?rgb(col.map(c=>Math.min(255,c+95)),fl):rgb(col,o*fl);g.lineWidth=w;g.beginPath();(ask?glyphQ:glyphS)();g.stroke()}
     g.restore()}
   g.restore()}
 

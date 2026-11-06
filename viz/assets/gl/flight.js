@@ -3,6 +3,7 @@
 const metric = p => [p[0], p[1] * 2];
 const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 export const settle = t => { t = Math.max(0, Math.min(1, t)); return t*t*t*(10+t*(-15+6*t)); };
+const CLEARANCE=4,ARCS=[.5,.38,.28,.2,.13],ARC_MAX=170,ARC_MIN=14;
 export function cubic(points, t) {
   const u = 1-t, [a,b,c,d] = points;
   return [0,1].map(i => u*u*u*a[i]+3*u*u*t*b[i]+3*u*t*t*c[i]+t*t*t*d[i]);
@@ -61,7 +62,14 @@ export function createFlightPlanner(buildings) {
       const cost=length+(altitude-baseHeight)*4;
       if(!best||cost<best.cost)best={points,samples,length,altitude,cost};
     }
-    best.duration=Math.max(1.2,best.length*1.5/speed);
+    // Climb and approach belong to the flight: one arc, not lift, cruise and lift. Each is as long as the buildings under it
+    // allow; zero means no arc fits (a taller neighbour at the pad) and the flyer rises or descends in place.
+    const heights=best.samples.map(q=>ceiling(cubic(best.points,q.t),CLEARANCE));
+    const fits=(from,to,len,side)=>best.samples.every((q,i)=>{const u=side==='up'?q.s/len:(best.length-q.s)/len;return u>=1||from+(to-from)*settle(u)+.2>=heights[i];});
+    const arc=(from,side)=>ARCS.map(k=>Math.min(best.length*k,ARC_MAX)).find(len=>len>=ARC_MIN&&fits(from,best.altitude,len,side))||0;
+    best.from=height;best.to=targetHeight;best.climb=arc(height,'up');best.approach=arc(targetHeight,'down');
+    const vertical=(best.climb?best.altitude-height:0)+(best.approach?best.altitude-targetHeight:0);
+    best.duration=Math.max(2.4,best.length*1.5/speed,vertical*2/speed);
     best.initialVelocity=Math.min(1.5,initialSpeed*best.duration/Math.max(1,best.length));
     return best;
   }
@@ -76,5 +84,8 @@ export function sampleFlight(route, progress) {
   const t=L[lo].t+(L[hi].t-L[lo].t)*(s-L[lo].s)/(L[hi].s-L[lo].s||1),p=cubic(route.points,t),[a,b,c,d]=route.points,q=1-t;
   const dx=3*q*q*(b[0]-a[0])+6*q*t*(c[0]-b[0])+3*t*t*(d[0]-c[0]);
   const dy=3*q*q*(b[1]-a[1])+6*q*t*(c[1]-b[1])+3*t*t*(d[1]-c[1]);
-  return {x:p[0],y:p[1]/2,heading:Math.atan2(dy,dx)};
+  let z=route.altitude;
+  if(route.climb&&s<route.climb)z=route.from+(route.altitude-route.from)*settle(s/route.climb);
+  if(route.approach&&route.length-s<route.approach)z=route.to+(route.altitude-route.to)*settle((route.length-s)/route.approach);
+  return {x:p[0],y:p[1]/2,z,heading:Math.atan2(dy,dx)};
 }

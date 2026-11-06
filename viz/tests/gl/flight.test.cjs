@@ -3,20 +3,22 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
 const {createFlightPlanner,settle}=await import('data:text/javascript;base64,'+fs.readFileSync(__dirname+'/../../assets/gl/flight.js').toString('base64'));
 const S=JSON.parse(fs.readFileSync(__dirname+'/../../assets/gl/scene.json')),C=JSON.parse(fs.readFileSync(__dirname+'/../../assets/gl/live-data.json'));
 const planner=createFlightPlanner(S.buildings),pads=C.pads.filter(p=>planner.canLand(p.g,p.g[1]-p.p[1]));
-assert(pads.length>100);let minClearance=Infinity,maxMs=0;const started=performance.now();
+assert(pads.length>100);let minClearance=Infinity,maxMs=0,arcs=0,withArc=0;const started=performance.now();
 for(let i=0;i<120;i++){
  const a=pads[i*17%pads.length],b=pads[(i*37+41)%pads.length],t=performance.now();
  const r=planner.plan(a.g,b.g,{height:a.g[1]-a.p[1],targetHeight:b.g[1]-b.p[1],speed:130});maxMs=Math.max(maxMs,performance.now()-t);
- const first=planner.sample(r,0),last=planner.sample(r,1);assert(Math.hypot(first.x-a.g[0],first.y-a.g[1])<1e-6);assert(Math.hypot(last.x-b.g[0],last.y-b.g[1])<1e-6);
+ if(r.approach)withArc++;const first=planner.sample(r,0),last=planner.sample(r,1);if(r.approach)assert(Math.abs(last.z-(b.g[1]-b.p[1]))<1e-6,'The arc ends on the pad');assert(Math.hypot(first.x-a.g[0],first.y-a.g[1])<1e-6);assert(Math.hypot(last.x-b.g[0],last.y-b.g[1])<1e-6);
  let previous=first,turnSign=0;
  for(let j=1;j<=600;j++){
   const p=planner.sample(r,j/600),clearance=r.altitude-planner.ceiling([p.x,p.y*2],8);minClearance=Math.min(clearance,minClearance);assert(clearance>=17.99,'Obstacle intersection');
+  assert(p.z+.5>=planner.ceiling([p.x,p.y*2],2),'The arc must not cut through a building');arcs+=p.z<r.altitude?1:0;
   const turn=Math.atan2(Math.sin(p.heading-previous.heading),Math.cos(p.heading-previous.heading));
   if(Math.abs(turn)>1e-5){if(turnSign)assert.equal(Math.sign(turn),turnSign,'Curve weaves');turnSign=Math.sign(turn);}
   previous=p;
  }
  const endBefore=planner.sample(r,1-1e-4);assert(Math.hypot(last.x-endBefore.x,last.y-endBefore.y)<.0001,'No settled arrival');
 }
+assert(withArc>=80,`most flights land in one arc: ${withArc} of 120`);assert(arcs>0);
 const route=planner.plan([850,438],[1080,438],{height:20,targetHeight:20,speed:130});
 assert(route.altitude<300,'Owner tower should be skirted, not intersected');
 const reroute=planner.plan([850,438],[750,400],{height:90,targetHeight:50,speed:130,heading:.7,initialSpeed:70});assert(Math.abs(planner.sample(reroute,0).heading-.7)<1e-8);
@@ -27,17 +29,15 @@ vm.runInContext(fs.readFileSync(__dirname+'/../../assets/gl/runtime.js','utf8')+
 let seed=17;const live={rand:()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;},gpu:{createCaptureResponse:()=>({clear(){}}),createCelebrations:()=>({update(){},draw(){},takeFrame:()=>null}),createDistrictWork:()=>({update(){},draw(){}}),painter:{},flight:{...planner,settle},roadTraffic:new Float32Array(308),roofDepth:()=>0,buildingAt:()=>null},cascade:()=>{},config:{maxFlights:30}};
 const aq=box.aquarium(live,C,[]),source=aq.LPD[1][0];
 const f={d:1,kind:0,state:'park',at:source,x:source.g[0],y:source.g[1],z:source.g[1]-source.p[1],h:0,sp:0,trail:[],wp:[],until:Infinity,bank:0,dir:1};aq.fl.push(f);
-assert(aq.go(f,aq.LPD[2][0],0,true));let time=0,queued=false,completed=false,retried=false,hover=null,maxDescent=0,phases=new Set();
+assert(aq.go(f,aq.LPD[2][0],0,true));let time=0,queued=false,completed=false,retried=false,phases=new Set();
 for(let i=0;i<18000;i++){
- const lastZ=f.z,lastState=f.state;time+=1000/120;aq.stepFlyers(time,1/120);phases.add(f.state);
+ time+=1000/120;aq.stepFlyers(time,1/120);phases.add(f.state);
  if(f.state==='cruise'&&!queued){const position=[f.x,f.y,f.z],route=f.route;assert(aq.go(f,aq.LPD[4][0],time,true));assert.deepEqual([f.x,f.y,f.z],position);assert.equal(f.route,route);assert.equal(f.state,'cruise');queued=true;f.cargo=1;for(const pad of aq.LPD[4])pad.use.set('test-reservation','all');}
- if(f.state==='hover'){hover??=[f.x,f.y,f.z];assert.deepEqual([f.x,f.y,f.z],hover);}
- if(f.state==='descend'&&lastState==='descend'){maxDescent=Math.max(maxDescent,(lastZ-f.z)*120);assert.deepEqual([f.x,f.y],hover.slice(0,2));}
  if(f.state==='park'&&queued&&!retried){assert(f.pendingFlight,'Lost pending dispatch when pads were full');assert.equal(f.cargo,1);for(const pad of aq.LPD[4])pad.use.delete('test-reservation');retried=true;}
- if(f.state==='up'&&queued&&!f.pendingFlight){completed=true;break;}
- assert.equal(f.bank,0);
+ if(f.state!=='park'&&retried&&!f.pendingFlight){completed=true;break;}
+ assert(Math.abs(f.bank)<=1);
 }
-assert(completed&&retried,'Queued dispatch did not resume after capacity returned');assert(phases.has('hover')&&phases.has('descend'));assert(maxDescent<=12.01);aq.clear();assert.equal(f.pendingFlight,null);
+assert(completed&&retried,'Queued dispatch did not resume after capacity returned');aq.clear();assert.equal(f.pendingFlight,null);
 // Hub height: raise one pad building to 2.4x in place (hubs.js raiseClearance, as main.js does) and fly across it.
 const {scaledBuilding,raiseClearance,scalableHub}=await import(require('node:url').pathToFileURL(__dirname+'/../../assets/gl/hubs.js'));
 const atB=(x,y)=>S.buildings.reduce((a,b)=>Math.hypot(b.ground[0]-x,b.ground[1]-y)<Math.hypot(a.ground[0]-x,a.ground[1]-y)?b:a);
@@ -60,5 +60,5 @@ assert(raised.canLand(padOnHub.g,rz+H0*1.4)&&!raised.canLand(padOnHub.g,rz),'the
 const fresh=routes.map(r=>minClear(raised,truth,r)),old=routes.map(r=>minClear(stale,truth,r));
 assert(fresh.every(c=>c>=17.99),'Obstacle intersection with the raised hub: '+Math.min(...fresh));assert(old.every(c=>c<17.99));
 console.log('PASS: raised hub building '+hub.id+' H '+H0.toFixed(1)+' -> '+(H0*2.4).toFixed(1)+': '+routes.length+' routes that the unpatched planner flies through (min clearance '+Math.min(...old).toFixed(1)+') clear it after raiseClearance, 600 samples each, min clearance '+Math.min(...fresh).toFixed(1));
-console.log(JSON.stringify({pass:true,paths:120,collisionSamples:72000,minClearance,maxPlanMs:maxMs,totalMs:performance.now()-started,landablePads:pads.length,ownerDetourAltitude:route.altitude,queuedDispatch:true,maxDescent}));
+console.log(JSON.stringify({pass:true,paths:120,collisionSamples:72000,minClearance,maxPlanMs:maxMs,totalMs:performance.now()-started,landablePads:pads.length,ownerDetourAltitude:route.altitude,queuedDispatch:true}));
 })().catch(e=>{console.error(e);process.exitCode=1});
