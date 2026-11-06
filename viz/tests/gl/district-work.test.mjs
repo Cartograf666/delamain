@@ -2,7 +2,7 @@
 // Work in a district on the real GL geometry and a frozen territory snapshot; the painter only records calls.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {createDistrictWork,levelOf,at,pick,stream,GLOW,HAZE,MOTE} from '../../assets/gl/district-work.js';
+import {createDistrictWork,levelOf,at,pick,stream,facadeWindows,GLOW,FACADE,MOTE} from '../../assets/gl/district-work.js';
 const A=new URL('../../assets/gl/',import.meta.url),read=f=>JSON.parse(fs.readFileSync(new URL(f,A)));
 const S=read('scene.json'),G=read('growth-plots.json'),city=JSON.parse(fs.readFileSync(new URL('../growth/legacy-identity-city.json',import.meta.url)));
 const plots=new Map(G.plots.map(p=>[p.id,p])),buildings=new Map(S.buildings.map(b=>[b.id,b]));
@@ -37,8 +37,7 @@ const settle=(w,t=3000)=>{for(let x=0;x<=t;x+=100)w.frame(x);return w.frame(t);}
 // Levels and tables: 0 nothing; every layer grows with the level; the window shares the brief names.
 assert.deepEqual([0,1,2,3,4,9,-1,undefined].map(levelOf),[0,1,2,3,3,3,0,0]);
 assert.deepEqual(GLOW.share,[0,.35,.6,.85]);
-for(const key of ['share','wall','edge','haze','twinkles','motes','streaks']){const t=GLOW[key];assert.equal(t[0],0,key);assert(t[1]>0&&t[1]<t[2]&&t[2]<t[3],key);}
-for(const key of ['wall','haze'])assert(GLOW.edge[3]>GLOW.wall[3],'roof lines a little brighter than walls');
+for(const key of ['share','twinkles','motes','streaks']){const t=GLOW[key];assert.equal(t[0],0,key);assert(t[1]>0&&t[1]<t[2]&&t[2]<t[3],key);}
 assert.equal(at(GLOW.share,1.5),(GLOW.share[1]+GLOW.share[2])/2);assert.equal(at(GLOW.share,3),GLOW.share[3]);
 assert.equal(GLOW.breath,5000);assert.equal(GLOW.swing,.15);
 // pick: deterministic and order-free; stream: a steady rate.
@@ -62,33 +61,37 @@ for(const [n,level] of [[0,0],[1,1],[2,2],[3,3],[6,3]]){
   for(const i of prev)assert(lit.includes(i),'a higher level keeps the windows of a lower one');prev=new Set(lit);}
 }
 
-// Motion at level 3: no ring, every light on the project's own buildings and streets, haze over its territory,
-// breathing, motes and streaks; level 3 is stronger than level 1 in every layer.
+// Motion at level 3: no ring and no wash, every light on the project's own buildings and streets, breathing windows,
+// motes and streaks.
 {
  const mine=own(DOTA),w=world({working:[DOTA,DOTA,DOTA]}),T=w.dw.territory(city.projects.find(p=>p.id===DOTA),city);
- settle(w);const hz=[],walls=new Set(),flicker=new Set();let motes=0,streaks=0,edges=0,last=null,water=0,checked=0;
+ settle(w);const flicker=new Set();let motes=0,streaks=0,last=null,water=0,checked=0;
  const nearest=(x,y)=>{let best=Infinity,id=null;for(const p of G.plots){if(!p.ground)continue;const d=(p.ground[0]-x)**2+((p.ground[1]-y)*2)**2;if(d<best){best=d;id=p.id;}}return {id,land:best<=(18+6)**2};};
  for(let t=3000;t<13000;t+=100){const s=w.frame(t),P=s.projects[0];
   const winNow=litWindows(w.gpu).map(i=>w.gpu.windowState[i*4+3].toFixed(3)).join();if(last&&winNow!==last)flicker.add(t);last=winNow;
   motes+=P.motes;streaks+=P.streaks;
   for(const c of w.calls){
    assert.notEqual(c.depth,.93,'nothing at the old ring depth');
-   if(c.kind==='wall'){assert(mine.has(c.building),`wall light on ${c.building}`);walls.add(c.building);}
-   if(c.kind==='edge'){assert(mine.has(c.building),`roof edge on ${c.building}`);edges++;}
-   if(c.kind==='glow'&&c.depth===-.9)hz.push(c.a);
+   assert(c.kind!=='wall'&&c.kind!=='edge','the light comes from windows, not from a wash on the walls');
+   assert(!(c.kind==='glow'&&c.depth===-.9),'no haze over the territory');
    if(c.kind==='streak'&&checked<300){for(const p of c.pts){const n=nearest(...p);checked++;if(!T.own.has(n.id))water++;}}
   }}
  assert(!('rings' in w.dw.stats())&&!w.dw.stats().projects[0].rings,'no ring in the stats');
- assert(walls.size>=mine.size*.9,`walls lit on ${walls.size} of ${mine.size} buildings`);assert(edges>0);
- assert(T.haze.length>=HAZE.count[0]&&T.haze.length<=HAZE.count[1]);for(const h of T.haze)assert(h.r>=HAZE.radius[0]&&h.r<=HAZE.radius[1]);
- const lo=Math.min(...hz),hi=Math.max(...hz);assert(hi/lo>1.25&&hi/lo<1.36,`breathing ±15 %: ${lo.toFixed(3)}..${hi.toFixed(3)}`);
- assert(Math.abs(hi/(1+GLOW.swing)-GLOW.haze[3])<.002);
  assert(motes>0&&streaks>0,`motes ${motes}, streaks ${streaks}`);assert(flicker.size>20,'a few windows flicker');
  assert(checked>0&&water/checked<.05,`streak points off own land: ${water} of ${checked}`);
- // Level 1 is lit but modest.
- const one=world({working:[DOTA]});settle(one);let a1=0,a3=0;
- for(let t=3000;t<8000;t+=100){one.frame(t);w.frame(t);a1+=one.calls.filter(c=>c.kind==='wall').reduce((a,c)=>a+c.gain,0);a3+=w.calls.filter(c=>c.kind==='wall').reduce((a,c)=>a+c.gain,0);}
- assert(a1>0&&a3>a1*2,`wall light level 1 ${a1.toFixed(0)}, level 3 ${a3.toFixed(0)}`);
+}
+
+// Facade windows: a grid inside its wall, more of them with each level, a superset, all gone once the work ends.
+{
+ const grid=facadeWindows([[0,0],[32,0],[32,-42],[0,-42]]);assert.equal(grid.length,100,'10 columns by 10 floors');
+ for(const [p,along,up] of grid){assert(p[0]>=0&&along[0]<=32&&p[1]<=0&&up[1]>=-42);assert(Math.abs(along[0]-p[0]-FACADE.width)<1e-9);assert(Math.abs(p[1]-up[1]-FACADE.height)<1e-9);}
+ assert.equal(facadeWindows([[0,0],[2,0],[2,-3],[0,-3]]).length,0,'a wall too small for a window has none');
+ const litOf=level=>{const w=world({working:Array(level).fill(DOTA)});let states=null,count=0;w.gpu.setWorkWindows=i=>{count=i.length/7;};w.gpu.writeWorkWindows=s=>{states=s;};settle(w);const lit=[];for(let i=0;i<count;i++)if(states[i*4+3]>0)lit.push(i);return {w,lit,count};};
+ const one=litOf(1),three=litOf(3);
+ assert(three.count>dark(DOTA)*3,`facade windows ${three.count}, the scene's dark ones ${dark(DOTA)}`);
+ assert(Math.abs(one.lit.length-GLOW.share[1]*one.count)<=1.5&&Math.abs(three.lit.length-GLOW.share[3]*three.count)<=1.5);
+ const lit3=new Set(three.lit);assert(one.lit.every(i=>lit3.has(i)),'a higher level keeps the windows of a lower one');
+ let cleared=-1;three.w.gpu.setWorkWindows=i=>{cleared=i.length;};three.w.feed.working=[];for(let t=3000;t<6000;t+=100)three.w.frame(t);assert.equal(cleared,0,'nothing stays lit after the work ends');
 }
 
 // Reduced motion: the same strength at once, steady: no flicker, breathing, motes or streaks.
@@ -98,8 +101,7 @@ for(const [n,level] of [[0,0],[1,1],[2,2],[3,3],[6,3]]){
  assert.equal(a.projects[0].strength,3,'full strength at once');assert(Math.abs(litWindows(w.gpu).length-GLOW.share[3]*total)<=1.5);
  for(const t of [1300,2700,4100,65000]){const s=w.frame(t);assert.equal([...w.gpu.windowState].join(),winA,'steady windows');
   assert.equal(w.calls.map(c=>c.kind+c.a+c.gain).join(),callsA,'steady glow');assert.equal(s.projects[0].motes+s.projects[0].streaks,0);}
- assert(w.calls.some(c=>c.kind==='wall')&&w.calls.some(c=>c.kind==='glow'&&c.depth===-.9),'facades and haze still shown');
-}
+ }
 
 // Silent, unseated, closed or empty territory: nothing at all; demo levels set and fade out without workers.
 {

@@ -1,10 +1,11 @@
 // "Work is happening here": a project with working agents glows from inside its own territory (its plots from
-// plotOwners plus the main plot, as celebrations use). The level (0..3) sets the strength of every layer: a share of its
-// own dark windows lit warm (a few flicker slowly), soft light from below on its own walls with brighter roof edges,
-// large soft haze over the territory, tiny roof twinkles, light motes rising from roofs and short fast streaks along its
-// own streets. The whole glow breathes (5 s, ±15 %). Steady, never a burst; the colour is the project's own softened
-// towards white, never the capture red/blue or the question gold. Reduced motion: the same strength, steady, without
-// flicker, breathing, motes or streaks. A project without a seated territory shows nothing; no legacy-zone fallback.
+// plotOwners plus the main plot, as celebrations use), and the light comes from its windows, not from a wash over the
+// district. The level (0..3) sets a share of its own windows lit warm (a few flicker slowly): the scene's dark windows and
+// a full grid on its facades, since the scene alone has fewer dark windows than buildings. Their halo is the page's bloom.
+// Tiny roof twinkles, light motes rising from roofs and short fast streaks along its own streets go with them. The whole
+// glow breathes (5 s, ±15 %). Steady, never a burst; the colour is the project's own softened towards white, never the
+// capture red/blue or the question gold. Reduced motion: the same strength, steady, without flicker, breathing, motes
+// or streaks. A project without a seated territory shows nothing; no legacy-zone fallback.
 import {displayColour} from './growth.js';
 
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
@@ -12,11 +13,10 @@ const smooth=(a,b,v)=>{const t=clamp((v-a)/(b-a));return t*t*(3-2*t);};
 const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
 const hex=s=>[1,3,5].map(i=>parseInt(String(s).slice(i,i+2),16)||0);
 const WARM=[255,226,196],WHITE=[246,244,255];
-// Per level 0..3. share: lit fraction of the project's dark windows; wall/edge: uplight gain on its own walls and roof
-// lines; haze: alpha of the territory blobs; twinkles: roofs; motes and streaks: per second.
-export const GLOW=Object.freeze({share:[0,.35,.6,.85],wall:[0,.2,.34,.5],edge:[0,.22,.36,.54],haze:[0,.08,.14,.22],
- twinkles:[0,6,12,20],motes:[0,.8,1.8,3.2],streaks:[0,.6,1.4,2.6],breath:5000,swing:.15,ease:1200,flicker:.06});
-export const HAZE=Object.freeze({count:[8,12],radius:[40,90],lift:14});
+// Per level 0..3. share: lit fraction of the project's windows; twinkles: roofs; motes and streaks: per second.
+export const GLOW=Object.freeze({share:[0,.35,.6,.85],twinkles:[0,6,12,20],motes:[0,.8,1.8,3.2],streaks:[0,.6,1.4,2.6],breath:5000,swing:.15,ease:1200,flicker:.06});
+// Facade windows: one every step along a wall and per floor, of the scene's own window size; budget bounds a whole project.
+export const FACADE=Object.freeze({step:3.2,floor:4.2,width:1.9,height:2.6,budget:20000});
 export const MOTE=Object.freeze({life:3600,rise:46});
 export const STREAK=Object.freeze({speed:150,length:18,piece:160,min:30});
 const LAND=18,CELL=6;
@@ -40,10 +40,18 @@ export function stream(now,since,rate,life){
  return out;
 }
 
+// The window grid of one wall as [p, along, up] in wall points: columns by its length, floors by its height.
+export function facadeWindows(points){
+ const [a,b,c,d]=points,len=Math.hypot(b[0]-a[0],b[1]-a[1]),height=b[1]-c[1],cols=Math.floor(len/FACADE.step),rows=Math.floor(height/FACADE.floor),out=[];
+ const at=(u,v)=>{const lo=[a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u],hi=[d[0]+(c[0]-d[0])*u,d[1]+(c[1]-d[1])*u];return [lo[0]+(hi[0]-lo[0])*v,lo[1]+(hi[1]-lo[1])*v];};
+ for(let r=0;r<rows;r++)for(let k=0;k<cols;k++){const u=(k+.5)/cols-FACADE.width/len/2,v=(r+.5)/rows-FACADE.height/height/2,du=FACADE.width/len,dv=FACADE.height/height;out.push([at(u,v),at(u+du,v),at(u,v+dv)]);}
+ return out;
+}
+
 export function createDistrictWork(live,{feed=()=>[],reduce,search=globalThis.location?.search||''}={}){
  const gpu=live.gpu,params=new URLSearchParams(search);
  const motion=reduce||(params.get('reduced')==='1'?{matches:true}:null)||globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')||{matches:false};
- const cache=new Map(),active=new Map(),demo=new Map();let last={projects:[],windows:0};
+ const cache=new Map(),active=new Map(),demo=new Map();let last={projects:[],windows:0},facadeKey='',facadeStates=new Float32Array(0);
  const plots=()=>gpu.growth.plots;
  const dist=(a,b)=>Math.hypot(a[0]-b[0],(a[1]-b[1])*2);
  // The project's own buildings: main plot plus the plots plotOwners gives it. Null when unseated or empty.
@@ -66,7 +74,7 @@ export function createDistrictWork(live,{feed=()=>[],reduce,search=globalThis.lo
     // Ground membership: the nearest plot is the project's own and close enough to be land, not water.
     const grounds=[...plots().values()].filter(p=>p.ground&&near(p)).map(p=>[p.ground[0],p.ground[1],own.has(p.id)]);
     T={id:project.id,project,ground:main.ground,buildings,ids,own,windows,flicker,grounds,cells:new Map(),colour,reach,phase:rng(project.id)()*6.283};
-    T.haze=haze(T);T.streets=streets(T);
+    T.streets=streets(T);
    }
   }
   cache.set(key,{project,city,T});return T;
@@ -74,14 +82,18 @@ export function createDistrictWork(live,{feed=()=>[],reduce,search=globalThis.lo
  function inside(T,x,y){const cx=Math.round(x/CELL),cy=Math.round(y/CELL),key=cx*65536+cy;let v=T.cells.get(key);if(v!==undefined)return v;
   x=cx*CELL;y=cy*CELL;let best=Infinity,own=false;for(const g of T.grounds){const d=(g[0]-x)**2+((g[1]-y)*2)**2;if(d<best){best=d;own=g[2];}}
   v=own&&best<=LAND**2;T.cells.set(key,v);return v;}
- // Haze: centres spread over the territory (farthest-point from the main tower), each radius kept off foreign land.
- function haze(T){
-  const mine=T.grounds.filter(g=>g[2]),foreign=T.grounds.filter(g=>!g[2]),n=Math.round(clamp(mine.length/40,0,1)*(HAZE.count[1]-HAZE.count[0]))+HAZE.count[0];
-  const out=[[...T.ground]];
-  while(out.length<Math.min(n,mine.length)){let best=null,bd=-1;for(const g of mine){const d=Math.min(...out.map(c=>dist(c,g)));if(d>bd){bd=d;best=g;}}out.push([best[0],best[1]]);}
-  // Most of the blob's ellipse stays over the project's own land, so it does not spill over water or a neighbour.
-  const fits=(c,r)=>{let k=0;for(let i=0;i<16;i++){const a=i/16*6.283;if(inside(T,c[0]+Math.cos(a)*r*.8,c[1]+Math.sin(a)*r*.4))k++;}return k>=12;};
-  return out.map(c=>{let r=Math.min(HAZE.radius[1],foreign.length?Math.min(...foreign.map(f=>dist(c,f)))*1.1:Infinity);while(r>HAZE.radius[0]&&!fits(c,r))r-=5;return {p:c,r:clamp(r,...HAZE.radius)};});
+ // Its facades' window grid, in a fixed shuffled order, so that a higher level lights a superset. Windows that an ad screen
+ // covers are left out. Seven floats per window, as the page's window instances.
+ function facades(T){
+  if(T.facade)return T.facade;
+  const ads=gpu.scene.ads||[],covered=p=>ads.some(([a])=>{const ux=a[1][0]-a[0][0],uy=a[1][1]-a[0][1],vx=a[3][0]-a[0][0],vy=a[3][1]-a[0][1],det=ux*vy-uy*vx,dx=p[0]-a[0][0],dy=p[1]-a[0][1],u=(dx*vy-dy*vx)/det,v=(ux*dy-uy*dx)/det;return u>=0&&u<=1&&v>=0&&v<=1;});
+  const all=[];
+  for(const {b:B} of T.buildings)for(const f of B.surfaces){if(f.kind!=='wall'||f.points.length<4)continue;const z=gpu.depth(f.layer+.15)-.000002;
+   for(const [p,along,up] of facadeWindows(f.points.map(q=>gpu.growth.point(B.id,q))))if(!covered(p))all.push([p[0],p[1],z,along[0]-p[0],along[1]-p[1],up[0]-p[0],up[1]-p[1]]);}
+  const random=rng(T.id+'|facade');for(let i=all.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[all[i],all[j]]=[all[j],all[i]];}
+  const list=all.slice(0,FACADE.budget),seen=rng(T.id+'|facade-tone');
+  T.facade={instances:new Float32Array(list.flat()),count:list.length,tone:Float32Array.from(list,()=>.72+.28*seen()),flicker:new Map(list.flatMap((_,i)=>seen()<GLOW.flicker?[[i,{period:3000+seen()*5000,phase:seen()*6.283}]]:[]))};
+  return T.facade;
  }
  // Streets: every road resampled at 4 units, cut to runs over the project's own land, split into pieces ≤ STREAK.piece.
  function streets(T){
@@ -121,7 +133,20 @@ export function createDistrictWork(live,{feed=()=>[],reduce,search=globalThis.lo
    for(let k=0;k<Math.ceil(count);k++){const i=T.windows[k],j=i*4;if(base&&base[j+3]===0)continue;
     const f=!reduced&&T.flicker.get(i),v=Math.min(1,count-k)*b*(f?.45+.55*(.5+.5*Math.sin(now/f.period*6.283+f.phase)):1);
     for(let m=0;m<3;m++)state[j+m]+=(c[m]/255-state[j+m])*Math.min(1,v);state[j+3]=Math.max(state[j+3],Math.min(1,v));n++;}}
-  last.windows=n;
+  n+=lightFacades(now);last.windows=n;
+ }
+ // The working projects' grids in one GPU buffer, rebuilt when the set changes; only the lit state moves per frame.
+ function lightFacades(now){
+  if(!gpu.setWorkWindows)return 0;
+  const list=[...active.values()],key=list.map(A=>`${A.T.id}:${facades(A.T).count}`).join('\n');
+  if(key!==facadeKey){facadeKey=key;const parts=list.map(A=>facades(A.T)),instances=new Float32Array(parts.reduce((a,f)=>a+f.instances.length,0));let offset=0;for(const f of parts){instances.set(f.instances,offset);offset+=f.instances.length;}gpu.setWorkWindows(instances);facadeStates=new Float32Array(instances.length/7*4);}
+  if(!list.length)return 0;
+  const reduced=motion.matches;let base=0,lit=0;facadeStates.fill(0);
+  for(const A of list){const T=A.T,F=facades(T),c=mix(WARM,T.colour,.15).map(v=>v/255),b=breath(T,now),count=at(GLOW.share,A.s)*F.count;
+   for(let k=0;k<Math.ceil(count)&&k<F.count;k++){const f=!reduced&&F.flicker.get(k),v=Math.min(1,Math.min(1,count-k)*b*(f?.45+.55*(.5+.5*Math.sin(now/f.period*6.283+f.phase)):1)),j=(base+k)*4,tone=F.tone[k];
+    facadeStates[j]=c[0]*tone;facadeStates[j+1]=c[1]*tone;facadeStates[j+2]=c[2]*tone;facadeStates[j+3]=v;lit++;}
+   base+=F.count;}
+  gpu.writeWorkWindows(facadeStates);return lit;
  }
  const breath=(T,now)=>motion.matches?1:1+GLOW.swing*Math.sin(now/GLOW.breath*6.283+T.phase);
  function glow(g,p,r,c,a,squash=1){if(a<=.004)return;g.save();g.translate(p[0],p[1]);g.scale(1,squash);const q=g.createRadialGradient(0,0,0,0,0,r);q.addColorStop(0,[...c.map(v=>v/255),a]);q.addColorStop(1,[...c.map(v=>v/255),0]);g.fillStyle=q;g.fillRect(-r,-r,2*r,2*r);g.restore();}
@@ -131,16 +156,9 @@ export function createDistrictWork(live,{feed=()=>[],reduce,search=globalThis.lo
   const report={projects:[],windows:last.windows,reduced:motion.matches};
   if(active.size){
    const g=gpu.painter,still=motion.matches;g.save();g.globalCompositeOperation='lighter';
-   for(const A of active.values()){const T=A.T,s=A.s,b=breath(T,now),light=mix(T.colour,WHITE,.4),soft=mix(T.colour,WHITE,.2);
-    const P={id:T.id,level:A.level,strength:+s.toFixed(3),demo:A.demo,buildings:[...T.ids],walls:0,edges:0,haze:0,twinkles:[],motes:0,streaks:0};report.projects.push(P);
-    // Haze over the territory, in front of the buildings: one luminous area from afar.
-    const hz=at(GLOW.haze,s)*b;g.depth=-.9;for(const h of T.haze){glow(g,[h.p[0],h.p[1]-HAZE.lift],h.r,soft,hz,.55);P.haze++;}
-    // Light from below on its own walls (each at its own depth, so nothing shines through a building in front) and
-    // a brighter line along its top roof.
-    const wall=at(GLOW.wall,s)*b,edge=at(GLOW.edge,s)*b;
-    for(const {b:B} of T.buildings){let r=roofs.get(B.id);if(!r||r.k!==gpu.growth.hubScale?.(B.id)){r={...roofOf(B),k:gpu.growth.hubScale?.(B.id)};roofs.set(B.id,r);}
-     for(const f of B.surfaces){if(f.kind!=='wall')continue;g.depth=gpu.depth(f.layer)-.000002;g.uplight(f.points.map(p=>gpu.growth.point(B.id,p)),light,wall);P.walls++;}
-     if(r.q){g.depth=r.depth;g.ribbon([...r.q,r.q[0]],[...light.map(v=>v/255),edge],r.q.map(()=>2.4).concat(2.4),r.q.map(()=>1).concat(1),8);P.edges++;}}
+   for(const A of active.values()){const T=A.T,s=A.s,light=mix(T.colour,WHITE,.4);
+    const P={id:T.id,level:A.level,strength:+s.toFixed(3),demo:A.demo,buildings:[...T.ids],twinkles:[],motes:0,streaks:0};report.projects.push(P);
+    for(const {b:B} of T.buildings){const r=roofs.get(B.id);if(!r||r.k!==gpu.growth.hubScale?.(B.id))roofs.set(B.id,{...roofOf(B),k:gpu.growth.hubScale?.(B.id)});}
     // Roof twinkles: a fixed set by level; each sparkles on its own slow period.
     const byId=new Map(T.buildings.map(x=>[x.b.id,x.b]));
     pick(T.id+'|twinkle',T.ids,Math.round(at(GLOW.twinkles,s))).forEach((id,i)=>{const R=rng(T.id+'|t'+i),period=2200+R()*2400,phase=R()*6.283,r=roofs.get(id)||roofOf(byId.get(id));

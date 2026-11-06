@@ -4,7 +4,7 @@
 
 ## 1.1.0 — 2026-11-06
 
-- **Work in a district glows from inside.** A project with working agents lights its own territory, more with each level (1, 2, 3 and more agents): 35/60/85 % of its dark windows warm-lit with a few slow flickers, soft light from below on its own walls and soft roof lines, large haze over its land, roof twinkles, rising light motes and short streaks along its own streets; the glow breathes slowly. The ground ring is gone. Reduced motion shows the same strength, steady. Empty, unseated or closed projects show nothing.
+- **Work in a district glows from inside.** A project with working agents lights its own territory, more with each level (1, 2, 3 and more agents): 35/60/85 % of its windows warm-lit with a few slow flickers, on a full window grid over its facades, each lit window with its own soft halo and no wash over walls, roofs or land; roof twinkles, rising light motes and short streaks along its own streets; the glow breathes slowly. The ground ring is gone. Reduced motion shows the same strength, steady. Empty, unseated or closed projects show nothing.
 
 - **Territory growth as a gradual recolouring.** Plots that changed owner since the previous day cross-fade from the old owner's tint to the new one over about 25 s, plot by plot from the border inward, instead of a wave; reduced motion switches at once. The test panel's «Район растёт» replays it on built border plots and «Сброс всего» undoes it.
 

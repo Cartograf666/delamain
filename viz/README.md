@@ -130,16 +130,16 @@ eased over 3 s (instant with reduced motion). Stepped landmarks and ground pads 
 Work without any delivery is shown inside the project's own territory (`district-work.js`): the plots `/city`
 `plotOwners` gives the project plus its main plot. The level counts the project's cabs in `/state` with `working` true
 (0 none: nothing; 1; 2; 3 and more) and the district glows from inside, more with each level, in the project colour
-softened towards white (windows towards warm white): 35/60/85 % of its own dark windows lit (a fixed shuffled order, so
-a higher level keeps the lower one's windows; about 6 % of them flicker slowly), soft light from below on its own walls
-(each at its own depth, so nothing shines through a building in front) with a soft brighter line along each top roof,
-8–12 large soft haze blobs (radius 40–90, kept over its own land) so the district reads as one luminous area from afar,
-6/12/20 roof twinkles, light motes rising from roofs (0.8/1.8/3.2 a second) and short fast streaks along its own streets
+softened towards white (windows towards warm white). The light comes from its windows, with no wash over walls, roofs or
+land: 35/60/85 % of its windows lit, the scene's dark ones and a full grid over its facades, since the scene has fewer dark
+windows than buildings (a fixed shuffled order, so a higher level keeps the lower one's windows; about 6 % of them flicker
+slowly). Each lit window has its own soft additive halo at its wall's depth, so a nearer building covers it; a window is
+too small for the page's bloom to spread. With them go 6/12/20 roof twinkles, light motes rising from roofs (0.8/1.8/3.2 a second) and short fast streaks along its own streets
 (0.6/1.4/2.6 a second). The whole glow breathes (5 s, ±15 %) and eases in and out over about 1.2 s. Steady, never a burst;
 no ring, no red/orange of its own, no gold. Reduced motion: the same strength at once and steady, without flicker,
 breathing, motes or streaks. A closed, unseated or empty project shows nothing; nothing falls back to a legacy zone. Test
 stand: `live.gpu.districtWork.setDemo(projectId, level)` (0 clears; never the journal or the hub home) and
-`districtWork.stats()`. Tables: `GLOW`, `HAZE`, `MOTE`, `STREAK` in `district-work.js`.
+`districtWork.stats()`. Tables: `GLOW`, `FACADE`, `MOTE`, `STREAK` in `district-work.js`.
 
 ### Territory growth
 
