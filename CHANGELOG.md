@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.27 — 2026-11-08
+
 - **A lesson that reaches the helped threshold is promoted by `hub takeover`, not listed and forgotten.** A week after
   1.0.25 none of 42 lessons in two stages was promoted although nine passed the rule (helped from 2 shifts, no hurt):
   the digest line naming them was read and dropped. Now each takeover writes every promotable lesson as one line of
