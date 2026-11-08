@@ -14,6 +14,10 @@ FAKE_HOLD=6 $B/agent spawn --role probe --cwd $W --model haiku --brief $W/b.md >
 $B/agent send probe "alive one" > /dev/null; check $? 0 "send to a running agent"
 last_line '@probe alive one' | grep -q '^- [0-9:]* \[cli\] @probe alive one'; check $? 0 "…is signed [cli], not [hub]"
 wait_dead probe
+# the run left "alive one" unread: the exit wrapper resumes it ([inbox]); let that run end before the next send
+for i in $(seq 1 40); do grep -q '\[inbox\] @probe (session resumed' $(journal stage-a) && break; sleep 0.25; done
+last_line '@probe (session resumed' | grep -q '^- [0-9:]* \[inbox\] @probe (session resumed'; check $? 0 "the unread message was replayed at once, signed [inbox]"
+wait_dead probe; sleep 0.5; wait_dead probe
 $B/agent send probe "resume one" > /dev/null; check $? 0 "send to a finished agent (resume)"
 last_line '@probe (session resumed' | grep -q '^- [0-9:]* \[cli\] @probe (session resumed'; check $? 0 "…is signed [cli] too"
 wait_dead probe

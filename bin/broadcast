@@ -14,8 +14,8 @@ Each recipient is reached exactly as `tell <stage> "text"` reaches it, run in th
 wake rules are tell's: a plain line from another stage's hub is held until that hub's next wake (at most ~30 minutes);
 --urgent and --question wake it at once.
 The line is signed once for all recipients: $HUB_TAG (qualified with $HUB_STAGE when set), else this session's stage-
-qualified tag from the registry of its own stage, else `owner` — a terminal or the Desktop `/broadcast` command of the
-owner, as `hub close` signs a close from the agent-top pane.
+qualified tag from the registry of its own stage, else that of the hub it was in a stage since closed, else `owner` —
+a terminal or the Desktop `/broadcast` command of the owner, as `hub close` signs a close from the agent-top pane.
 A tell that gives no answer in 120 s is stopped with its children and reported `????` (unknown: the line may be there,
 and a headless hub that `agent send` had already resumed may still read it; look before sending again).
 A recipient that has not written for over --silent-hours (default 12; 0 turns the check off) is named in a warning
@@ -60,7 +60,8 @@ def own_tag() -> str:
         tag = hc.registered_tag(env_stage)
         if tag:
             return f"{env_stage}-{tag}"
-    found = hc.other_stage_tag("")  # the one stage of this home that lists this session; None when none or several
+    # the one stage of this home that lists this session; else the hub it was in a closed stage: never `owner` for a hub
+    found = hc.other_stage_tag("") or hc.retired_hub_tag()
     return f"{found[0]}-{found[1]}" if found else "owner"
 
 

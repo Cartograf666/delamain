@@ -6,6 +6,8 @@ new_home; export HUB_STAGE=stage-a HUB_TAG=hub-test CLAUDE_BIN=$T/fake_claude.py
 R=$AGENT_HUB_HOME; W=$R/w; mkdir -p $W; echo "brief: do the thing" > $W/b.md
 pid_of(){ python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['pid'])" $R/stage-a/agents/$1/meta.json; }
 wait_dead(){ for i in $(seq 1 40); do $B/agent status $1 | grep -q 'ALIVE' || return 0; sleep 0.5; done; }
+# the resume the exit wrapper starts for a message the run left unread (bin/agent hand_over_unread)
+handed(){ for i in $(seq 1 40); do grep -q "\[inbox\] @$1 (session resumed, pid [0-9]*, unread replayed: 1)" $(journal stage-a) && return 0; sleep 0.25; done; return 1; }
 
 # 1. spawn from a wrapper in its own process group, then kill that group: the agent must survive
 WR=$(FAKE_HOLD=8 python3 -c "
@@ -28,12 +30,16 @@ $B/agent-send probe "inbox check" > $R/send1.out; grep -q 'inbox check' $R/stage
 grep -q '@probe inbox check' $(journal stage-a); check $? 0 "send while alive -> journal @tag line"
 wait_dead probe
 kill -0 $PID 2>/dev/null; check $? 1 "agent finished by itself"
+grep -q 'ENDED probe: finished, no status word in the journal' $(journal stage-a); check $? 0 "a clean run without a status word journals ENDED (EXIT is for abnormal ends: t_agent_ended.sh)"
+# a message queued while the run was alive and left unread resumes the agent at once, not at the hub's next send
+handed probe; check $? 0 "the unread message resumed the finished agent by itself ([inbox] line, unread replayed: 1)"
+grep -c 'inbox check' $W/prompts.log | grep -qv '^0$'; check $? 0 "…and the resumed run read the message on stdin"
+wait_dead probe; sleep 0.5; wait_dead probe
 $B/agent status probe > $R/st2.out
 grep -q 'finished (success' $R/st2.out; check $? 0 "status: finished with success"
 grep -q 'last: echo: ' $R/st2.out; check $? 0 "status: last assistant line"
-grep -q 'unread inbox messages 1' $R/st2.out; check $? 0 "unread message (not read, no DONE) flagged after exit"
-grep -q 'ENDED probe: finished, no status word in the journal' $(journal stage-a); check $? 0 "a clean run without a status word journals ENDED (EXIT is for abnormal ends: t_agent_ended.sh)"
-# 2. send after exit resumes the same session and replays the unread message
+grep -q 'unread' $R/st2.out; check $? 1 "…and nothing is left unread"
+# 2. send after exit resumes the same session
 $B/agent-send probe "Answer with one word: RESUMED" > $R/send2.out; rc=$?
 check $rc 0 "send while dead -> resume"
 PID2=$(pid_of probe); [ "$PID2" != "$PID" ]; check $? 0 "resume started a new process"
@@ -107,22 +113,25 @@ $B/roles get d >/dev/null 2>&1; check $? 1 "…and no role is recorded"
 AGENT_INIT_TIMEOUT=3 FAKE_CLAUDE=hang $B/agent-spawn --role h --cwd $W --model sonnet --brief $W/b.md > $R/o6.out 2>&1; rc=$?
 check $rc 1 "no init within AGENT_INIT_TIMEOUT → spawn fails"
 grep -q 'no init event in 3 s' $R/o6.out; check $? 0 "…the message names the timeout"
+grep -q '\[h\] EXIT h: spawn failed, no agent is running — claude sent no init event in 3 s' $(journal stage-a); check $? 0 "…and the journal says so under the agent's tag (the hub wakes on EXIT)"
 grep -q 'return int(hc.setting("AGENT_INIT_TIMEOUT", cwd=cwd) or 120)' $B/agent; check $? 0 "default init wait is 120 s"
 # 7. a 60 KB brief: still seen as alive (the session id stays at the head of the command line)
 python3 -c "print('brief line '*6000)" > $W/big.md
 FAKE_HOLD=6 $B/agent-spawn --role big --cwd $W --model sonnet --brief $W/big.md >/dev/null 2>&1; check $? 0 "spawn with a 60 KB brief"
 $B/agent-status big | grep -q 'ALIVE'; check $? 0 "long-argv agent reads as alive"
 $B/agent-stop big >/dev/null
-# 8. a message the agent read (tool call on inbox.md) or a run ending in DONE is not "unread"
+# 8. a message the agent read (tool call on inbox.md) is not "unread"; a final DONE is no receipt (review #180)
 FAKE_HOLD=4 FAKE_READ_INBOX=1 $B/agent-spawn --role rd --cwd $W --model sonnet --brief $W/b.md >/dev/null 2>&1
 $B/agent-send rd "hub answer" >/dev/null; wait_dead rd
 $B/agent-status rd | grep -q 'unread'; check $? 1 "inbox read in the log → not flagged unread"
+handed rd; check $? 1 "…and the run is not resumed with it"
 FAKE_HOLD=4 FAKE_FINAL="DONE work/dn-REPORT.md" $B/agent-spawn --role dn --cwd $W --model sonnet --brief $W/b.md >/dev/null 2>&1
+HUB_TAG=dn $B/jlog "DONE work/dn-REPORT.md"   # the agent reported its task, then the hub's message came
 $B/agent-send dn "hub answer" >/dev/null; wait_dead dn
-$B/agent-status dn | grep -q 'unread'; check $? 1 "run ended with DONE → not flagged unread"
+handed dn; check $? 0 "journal DONE → send → final DONE without an inbox read: the message is still delivered (resumed)"
 FAKE_HOLD=4 $B/agent-spawn --role nr --cwd $W --model sonnet --brief $W/b.md >/dev/null 2>&1
 $B/agent-send nr "hub answer" >/dev/null; wait_dead nr
-$B/agent-status nr | grep -q 'unread inbox messages 1'; check $? 0 "positive control: not read, no DONE → flagged"
+handed nr; check $? 0 "positive control: not read, no DONE → the run is resumed with it at once"
 for r in rd dn nr; do $B/agent-stop $r >/dev/null 2>&1; done
 # 9. a status word journaled by the agent suppresses the EXIT line
 cat > $W/jl.md <<'B2'

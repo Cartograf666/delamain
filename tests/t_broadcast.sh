@@ -43,6 +43,12 @@ grep -q 'who holds main-merge' $JF; check $? 1 "negative: --this-home left the s
 # 3. no registration and no HUB_TAG: signed owner
 env -u CLAUDE_CODE_SESSION_ID $B/broadcast --this-home "owner here" > $A/o4.txt 2>&1; check $? 0 "an unregistered caller exits 0"
 grep -q '\[owner\] @hub owner here$' $JC && grep -q '\[owner\] @hub owner here$' $JD; check $? 0 "…signed [owner], to every hub of the home"
+# …but the hub of a stage since closed (its registration retired) signs as that hub, not as the owner
+GONE=99999999-9999-4999-8999-999999999999
+$B/roles --stage bc-gone set hub $GONE --kind cli --tag hub-2 >/dev/null && $B/roles --stage bc-gone retire hub >/dev/null
+CLAUDE_CODE_SESSION_ID=$GONE $B/broadcast --this-home "closed hub here" > $A/o4b.txt 2>&1; check $? 0 "a closed stage's hub exits 0"
+grep -q '\[bc-gone-hub-2\] @hub closed hub here$' $JC; check $? 0 "…signed with its retired hub tag, qualified with its stage"
+grep -q '\[owner\] @hub closed hub here' $JC; check $? 1 "negative: not signed [owner]"
 HUB_TAG=hub-30 HUB_STAGE=bc-core $B/broadcast --this-home "from env" > $A/o5.txt 2>&1; check $? 0 "HUB_TAG + HUB_STAGE exits 0"
 grep -q '\[bc-core-hub-30\] @hub from env$' $JW; check $? 0 "…signed with the qualified env tag"
 # 4. --dry-run and --json write nothing

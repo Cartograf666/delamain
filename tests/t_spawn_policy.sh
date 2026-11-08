@@ -195,6 +195,14 @@ grep -q -- '- please fix' $W/prompts.log; check $? 0 "…and reaches the agent"
 ctx s1 300000
 $B/agent send s1 --resume-anyway --odd-word "x" > $R/rs5f.out 2>&1; check $? 0 "after the role even a word that looks like an option is the message"; wait_dead s1
 grep -q -- '--odd-word x' $W/prompts.log; check $? 0 "…and reaches the agent"
+# …but --file / --brief (a spawn habit) is refused, not sent as the text «--file …» (dolya 05.11)
+N_PROMPTS=$(grep -c '' $W/prompts.log)
+$B/agent send s1 --file $W/b.md > $R/rs5h.out 2>&1; check $? 2 "agent send R --file F is a usage error"
+grep -q 'takes no --file' $R/rs5h.out; check $? 0 "…that says there is no --file"
+$B/agent send s1 "look:" --brief=$W/b.md > $R/rs5i.out 2>&1; check $? 2 "…--brief=F after text too"
+check "$(grep -c '' $W/prompts.log)" "$N_PROMPTS" "…and nothing was sent"
+grep -q -- "--file $W/b.md" $R/stage-a/agents/s1/inbox.md; check $? 1 "…nor queued"
+$B/agent send s1 --resume-anyway -- --file is a word > $R/rs5j.out 2>&1; check $? 0 "after -- it is text"; wait_dead s1
 ctx s1 900000 sub   # a sub-agent's call (parent_tool_use_id) is not this agent's context
 python3 - $R/stage-a/agents/s1/log.jsonl <<'PY'
 import json, sys

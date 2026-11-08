@@ -119,6 +119,8 @@ Sol reviewer for Sol-authored work, bring that entry into line with the approved
   (`--worktree <new-branch> --base <branch>`).
   A new branch starts from origin's default branch (fetched first), not from the commit `--cwd` has checked out — which
   may be someone's feature branch; `--base REF` chooses another start (`--base HEAD` for the checked-out commit).
+  Work that continues a stack (on top of an unmerged branch) gets `--base <that branch>`: from origin's default branch
+  its worktree lacks the stack and the agent rebuilds it by hand.
   `agent spawn --worktree` refuses a repository with no commits: in a new, empty one the hub makes the first commit
   itself and says so in one line.
   Nothing removes a worktree by itself; at handoff `agent worktrees` lists them all (who made each, in use, dirty,
