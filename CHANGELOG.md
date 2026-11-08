@@ -36,6 +36,26 @@
   `tests/t_agent_top.sh` prints a FAIL line naming itself, and the pty journal-filter checks wait for the filter's mark
   on the screen instead of reading it before a loaded program redraws (macOS CI).
 
+- **A message to an agent that has just finished resumes it at once; `agent spawn` with no agent says so in the
+  journal; closed hubs no longer sign `[owner]`.** Weekly audit 07.11, § 6 items 6–7.
+  - `agent send` to an agent whose run was winding down (it had said DONE, its process had not exited) queued the
+    message, and nothing delivered it until the hub's next send: 15–33 min in Dolya (03.11, 06.11). The exit wrapper now
+    resumes the agent with a message its run left unread as soon as the run's process is gone (`[inbox] @<role>
+    (session resumed, …, unread replayed: N)`).
+  - A spawn whose CLI gives no init event in its window (Codex stuck on Gatekeeper) or exits first still exits 1, and
+    now also journals `EXIT <role>: spawn failed, no agent is running — …` under the agent's tag, naming a worktree it
+    left, so a spawn run in the background wakes the hub. Both engines.
+  - `broadcast` from the hub of a stage since closed (its hub registration retired) signs `[<stage>-<hub tag>]`, not
+    `[owner]` (02.11 16:51, four journals).
+  - The end-of-run line no longer says "no status word in the journal" next to a quoted `VERDICT:` or status-word
+    line: it says `finished, outcome in its last answer`.
+  - `agent send R --file F` (or `--brief`) is a usage error instead of the message text "--file F"; `--` before the
+    role still sends such words as text.
+  - `ask close/withdraw/done/show/revoke/default-taken --stage S ID` picks the entry of stage S when several stages share
+    the id, instead of failing "ambiguous"; a new stage whose default prefix another stage uses gets a longer one
+    (`weekly-audit` → `WEEKLYAUDIT` when `AUDIT` is taken).
+  - Hub reference: work that continues a stack is spawned with `--base <stack branch>`.
+
 ## 1.0.26 — 2026-11-04
 
 - **The watchdog stops retired hubs it used to report forever; a project hook no longer leaves its probes behind.**

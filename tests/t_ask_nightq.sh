@@ -34,6 +34,16 @@ $B/ask list --stage stage-a | grep -q '^P-A-'; check $? 1 "negative: an approved
 $B/ask list --stage stage-a --all | grep -q '^P-A-001 \[stage-a\] approved — Build X'; check $? 0 "list --all shows the plan"
 $B/ask search "build x" | grep -q '^P-A-001'; check $? 0 "search finds the plan"
 $B/ask close P-A-001 --answer x >/dev/null 2>&1; check $? 1 "negative: a plan is not a question to close"
+# a new stage does not take a prefix another stage uses; --stage picks the entry when stages share an id (weekly-audit 07.11)
+check "$($B/ask add --stage dead-audit --print-id "Remove it?")" "Q-AUDIT-001" "the first stage ending in -audit gets AUDIT"
+check "$($B/ask add --stage weekly-audit --print-id "Which week?")" "Q-WEEKLYAUDIT-001" "…the next one does not reuse it"
+check "$($B/ask add --stage token-audit --prefix AUDIT --print-id "Tokens?")" "Q-AUDIT-001" "fixture: an explicit --prefix still may (an old register)"
+$B/ask close Q-AUDIT-001 --answer x > $R/amb.out 2>&1; check $? 1 "an id two stages share is ambiguous without --stage"
+grep -q 'pass --stage' $R/amb.out; check $? 0 "…and the error says --stage settles it"
+$B/ask close --stage token-audit Q-AUDIT-001 --answer "yes" > /dev/null 2>&1; check $? 0 "--stage picks the entry"
+grep -A3 '^## Q-AUDIT-001' $R/token-audit/questions.md | grep -q 'yes'; check $? 0 "…in that stage"
+grep -A3 '^## Q-AUDIT-001' $R/dead-audit/questions.md | grep -q 'yes'; check $? 1 "…not in the other one"
+$B/ask close --stage stage-a Q-AUDIT-001 --answer x > /dev/null 2>&1; check $? 1 "negative: a stage that does not hold the id is refused"
 # ---- nightq
 cp $T/fixtures/night-queue.md $R/stage-a/night-queue.md
 subst $R/stage-a/night-queue.md 'PREV_ID' 'abababab-abab-4bab-8bab-abababababab'

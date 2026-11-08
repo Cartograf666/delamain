@@ -2151,6 +2151,27 @@ def other_stage_tag(target: str, tag: Optional[str] = None, unique: bool = True)
     return hits[0] if len(hits) == 1 or (hits and not unique) else None
 
 
+def retired_hub_tag() -> Optional[tuple]:
+    """(stage, tag) of this session's latest retired hub registration (its stage closed, or a successor took over),
+    else None: such a session still signs as that hub, never as the owner."""
+    sid, host = session_id(), os.environ.get("CLAUDE_CODE_HOST_SESSION_ID", "").strip()
+    if not sid:
+        return None
+    hits = []
+    try:
+        names = sorted(d.name for d in root().iterdir() if (d / "roles.json").is_file())
+    except OSError:
+        return None
+    for name in names:
+        try:
+            retired = roles_load(name).get("retired") or []
+        except (OSError, ValueError, Failure, UsageError):
+            continue
+        hits += [(str(r.get("retired_at") or ""), name, r["tag"]) for r in retired
+                 if r.get("role") == "hub" and r.get("tag") and session_matches(r, sid, host)]
+    return max(hits)[1:] if hits else None
+
+
 def own_stage(tag: Optional[str]) -> Optional[str]:
     """The caller's own stage: $HUB_STAGE, else the only registry that lists this session under `tag`; None when it
     cannot be told."""

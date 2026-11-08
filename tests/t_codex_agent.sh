@@ -73,6 +73,7 @@ FAKE_CODEX_HOLD=30 spawn stoppable >/dev/null; check $? 0 'Codex uses configured
 FAKE_CODEX=die spawn rejected >/dev/null 2>&1; check $? 1 'CLI rejection fails spawn'
 "$B/roles" get rejected >/dev/null 2>&1; check $? 1 'rejected launch never registered'
 FAKE_CODEX=hang AGENT_INIT_TIMEOUT=1 spawn hanging >/dev/null 2>&1; check $? 1 'init deadline kills hanging CLI'
+grep -rq 'EXIT hanging: spawn failed, no agent is running — codex sent no init event in 1 s' "$AGENT_HUB_HOME"/*/coordinator/work/journal-*.md; check $? 0 'a spawn with no init is journaled as EXIT'
 FAKE_CODEX=error spawn errored >/dev/null; check $? 0 'started thread recorded before API failure'
 wait_done errored
 "$B/agent" status errored | grep -Eq 'finished \(error, error'; check $? 0 'API failure reported as error'

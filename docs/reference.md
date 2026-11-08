@@ -452,7 +452,10 @@ When a run ends, a small wrapper checks the journal and writes one line under th
 status word itself, so the hub's `jwait` wakes anyway. A run that ended normally (code 0, a successful result) with no
 status word of its own is `ENDED <role>: …` — `REVIEWED <role>: …` for a review role, one whose name or tag has the word
 `review`/`reviewer` in it (`review-pr34`, `desktop-review`) and which often cannot journal at all. Both are neutral: the agent
-stopped, nothing looks wrong, and the hub reads the last text of the run with `agent status`. `EXIT <role>: …` is for
+stopped, nothing looks wrong, and the hub reads the last text of the run with `agent status`; when that text is the
+outcome (a `VERDICT:` or status-word line) the line says `finished, outcome in its last answer`. A message `agent send`
+queued while the run was winding down and that the run did not read is replayed at once: the wrapper resumes the agent
+with it (`[inbox] @<role> (session resumed, …, unread replayed: N)`) instead of leaving it for the hub's next send. `EXIT <role>: …` is for
 an abnormal end: a non-zero code, an error result, no result. `PROGRESS …` lines are not status words (the brief footer
 tells agents to put milestones in the report or in such a line), so they neither wake the hub nor stand in for the
 final status. When the process is killed together with the wrapper (`kill -9` of its group), the first
