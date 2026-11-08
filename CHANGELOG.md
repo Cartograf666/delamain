@@ -43,7 +43,10 @@
     resumes the agent with a message its run left unread as soon as the run's process is gone (`[inbox] @<role>
     (session resumed, …, unread replayed: N)`). Only a read of `inbox.md` counts as reading it: a final DONE no longer
     does (it closes the task the run had, often reported before the message came; also in agent-top). `agent stop`
-    marks the agent `stopping` under its lock before the kill, so such a replay cannot restart a stopped agent.
+    marks the agent `stopping` under its lock before the kill, so such a replay cannot restart a stopped agent. The
+    replay decides under the agent's lock once the run's process is gone (a message queued in the last moments is not
+    missed); a replay whose resume fails before init is not retried: the message stays queued and the hub gets
+    `EXIT <role>: its unread message could not be replayed and stays queued — <why>`.
   - A spawn whose CLI gives no init event in its window (Codex stuck on Gatekeeper) or exits first still exits 1, and
     now also journals `EXIT <role>: spawn failed, no agent is running — …` under the agent's tag, naming a worktree it
     left, so a spawn run in the background wakes the hub. Both engines.

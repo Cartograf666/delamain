@@ -8,7 +8,7 @@ R=$AGENT_HUB_HOME; W=$R/w; mkdir -p $W; echo "brief: send race, the code word is
 M=$R/stage-a/agents
 meta(){ python3 -c "import json,sys;m=json.load(open(sys.argv[1]));print(eval(sys.argv[2]))" $M/$1/meta.json "$2"; }
 wait_gone(){ for i in $(seq 1 40); do kill -0 "$1" 2>/dev/null || return 0; sleep 0.25; done; return 1; }
-trap 'for r in s1 s2 s3; do $B/agent stop $r >/dev/null 2>&1; done; test_cleanup' EXIT
+trap 'for r in s1 s2 s3 s4 s5; do $B/agent stop $r >/dev/null 2>&1; done; test_cleanup' EXIT
 
 # 1. a message B queued while send A's resume waits for init survives A's save of the meta
 FAKE_HOLD=60 $B/agent spawn --role s1 --cwd $W --model haiku --brief $W/b.md > $R/sp1.out 2>&1; check $? 0 "spawn s1"
@@ -86,4 +86,52 @@ grep -q 'send during stop: refused: agent s3 was stopped' $R/stop-race.out; chec
 check "$(meta s3 "len(m['runs'])")" "$RUNS" "…no new run was started"
 P=$(meta s3 "m['pid']"); kill -0 $P 2>/dev/null; check $? 1 "…and no process of s3 is left"
 $B/roles get s3 > /dev/null 2>&1; check $? 1 "…and the role is retired"
+
+# 5. a replay whose resume fails before init (review #180 r2): one attempt, not a loop; the message stays queued and the
+# hub gets an EXIT line with the reason. The CLI dies from the replay on (a flag file), as twice in a row would.
+printf '#!/bin/sh\n[ -e "$FLAKY_DIE" ] && export FAKE_CLAUDE=die\nexec python3 %s "$@"\n' "$T/fake_claude.py" > $W/flaky.sh
+chmod +x $W/flaky.sh
+CLAUDE_BIN=$W/flaky.sh FLAKY_DIE=$W/die FAKE_HOLD=3 $B/agent spawn --role s4 --cwd $W --model haiku --brief $W/b.md > /dev/null 2>&1; check $? 0 "spawn s4"
+touch $W/die
+$B/agent send s4 "replay me please" > /dev/null; check $? 0 "a message is queued while s4 runs"
+for i in $(seq 1 80); do grep -q 'EXIT s4: its unread message could not be replayed' $(journal stage-a) && break; sleep 0.25; done
+grep -q '\[s4\] EXIT s4: its unread message could not be replayed and stays queued — claude exited with code 1' $(journal stage-a); check $? 0 "a failed replay journals EXIT with the reason under the agent's tag"
+sleep 6   # time enough for a second attempt (the CLI dies after 2 s) if the failed run scheduled one
+check "$(grep -c 'replay me please' $W/prompts.log)" 1 "…one replay attempt, not a loop"
+meta s4 "' '.join(u['msg'] for u in m['inbox_unread'])" | grep -q 'replay me please'; check $? 0 "…and the message stays queued"
+rm -f $W/die
+
+# 6. a message queued after the exit wrapper looked (the launch shell still alive) is still replayed: the waiter decides
+# after the shell is gone, under the agent's lock (review #180 r2)
+FAKE_HOLD=0 $B/agent spawn --role s5 --cwd $W --model haiku --brief $W/b.md > /dev/null 2>&1; check $? 0 "spawn s5"
+for i in $(seq 1 40); do [ -n "$(meta s5 "m['pid']")" ] && ! kill -0 "$(meta s5 "m['pid']")" 2>/dev/null && break; sleep 0.25; done; sleep 1
+FAKE_HOLD=0 AGENT_LOG_OFFSET=0 python3 - "$B" s5 > $R/late.out 2>&1 <<'PY'
+import importlib.machinery, importlib.util, json, os, subprocess, sys
+loader = importlib.machinery.SourceFileLoader("agent_mod", sys.argv[1] + "/agent")
+agent = importlib.util.module_from_spec(importlib.util.spec_from_loader("agent_mod", loader))
+loader.exec_module(agent)
+role, calls = sys.argv[2], []
+meta = agent.load_meta("stage-a", role)
+assert not meta.get("inbox_unread"), "the queue is empty when the exit wrapper looks"
+gone = subprocess.Popen(["true"]); gone.wait()
+agent.os.getppid = lambda: gone.pid            # the launch shell, already gone by the time the waiter checks
+real_popen = subprocess.Popen
+agent.subprocess.Popen = lambda argv, **kw: calls.append((argv, kw["env"]))
+agent.hand_over_unread("stage-a", role)
+subprocess.Popen = real_popen
+print("waiter scheduled:", bool(calls))
+if calls:
+    log = os.path.join(meta["dir"], "log.jsonl")  # the late message: queued by a send that still saw the shell alive
+    meta = agent.load_meta("stage-a", role)
+    meta["inbox_unread"] = [{"at": "2026-11-08T15:00:00", "msg": "late message", "log_offset": os.path.getsize(log)}]
+    agent.save_meta("stage-a", role, meta)
+    print("waiter exit:", subprocess.run(calls[0][0], env=calls[0][1]).returncode)
+PY
+grep -q 'waiter scheduled: True' $R/late.out; check $? 0 "the exit wrapper schedules the waiter even with an empty queue"
+grep -q 'waiter exit: 0' $R/late.out; check $? 0 "…the waiter's send succeeds"
+grep -q '\[inbox\] @s5 (session resumed, pid [0-9]*, unread replayed: 1)' $(journal stage-a); check $? 0 "…and replays the message queued after the wrapper looked"
+grep -q 'late message' $W/prompts.log; check $? 0 "…which reaches the agent"
+for i in $(seq 1 40); do kill -0 "$(meta s5 "m['pid']")" 2>/dev/null || break; sleep 0.25; done
+FAKE_HOLD=0 AGENT_HUB_REPLAY=1 HUB_TAG=inbox $B/agent send s5 > $R/quiet.out 2>&1; check $? 0 "a replay with nothing left unread exits 0"
+check "$(grep -c '@s5 (session resumed' $(journal stage-a))" 1 "…and resumes nothing"
 exit $fail

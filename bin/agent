@@ -671,7 +671,8 @@ def launch(meta: dict, prompt: str, resume: bool) -> int:
     token = meta.get("process_token") or meta["session_id"]
     argv = ["/bin/sh", "-c", note, str(Path(__file__).resolve()), token, sys.executable] + argv
     env = child_env(meta["stage"], meta["tag"])
-    env.update({"AGENT_ROLE": meta["role"], "AGENT_SESSION_ID": meta["session_id"], "AGENT_HUB_ENGINE": engine})
+    env.update({"AGENT_ROLE": meta["role"], "AGENT_SESSION_ID": meta["session_id"], "AGENT_HUB_ENGINE": engine,
+                "AGENT_LOG_OFFSET": str(offset)})
     if (meta.get("worktree") or {}).get("slot"):
         env["AGENT_HUB_SLOT"] = str(meta["worktree"]["slot"])
     if engine == "codex" and meta.get("sandbox") == "workspace-write" and not is_review_role(meta):
@@ -1267,7 +1268,17 @@ def cmd_send(a) -> int:
     # wait — is one critical section: two sends never both resume, a message queued while a resume starts is not
     # overwritten by the resume's older copy of the meta, and the resume's prompt file is its own.
     with AgentLock(stage, a.role):
-        return _send_locked(stage, a, msg)
+        try:
+            return _send_locked(stage, a, msg)
+        except hc.Failure as e:
+            if os.environ.get(REPLAY_ENV) == "1":  # nobody reads this process's output: the hub hears it here
+                hc.journal_append(stage, load_meta(stage, a.role)["tag"],
+                                  f"EXIT {a.role}: its unread message could not be replayed and stays queued — "
+                                  f"{str(e)[:200]} — agent status {a.role}")
+            raise
+
+
+REPLAY_ENV = "AGENT_HUB_REPLAY"  # set by hand_over_unread for its `agent send`: deliver what is still unread, else nothing
 
 
 def legacy_effort(meta: dict) -> None:
@@ -1287,6 +1298,9 @@ def legacy_effort(meta: dict) -> None:
 
 def _send_locked(stage: str, a, msg: str) -> int:
     meta = load_meta(stage, a.role)
+    if os.environ.get(REPLAY_ENV) == "1" and (a.role not in hc.roles_load(stage)["roles"] or meta.get("stopping")
+                                              or alive(meta) or not pending_unread(meta)):
+        return 0  # the exit wrapper's replay: stopped, already resumed by a send, or nothing left unread
     if a.role not in hc.roles_load(stage)["roles"] or meta.get("stopping"):
         raise hc.Failure(f"agent {a.role} was stopped (role retired); start a new one with agent spawn")
     live = alive(meta)  # one reading: the checks and the branch below must agree on it
@@ -1463,18 +1477,39 @@ def cmd_exit_note(a) -> int:
 
 def hand_over_unread(stage: str, role: str) -> None:
     """A message `agent send` queued while this run was still alive (it had said DONE and was winding down) and that the
-    run did not read is not left until the hub's next send: a detached `agent send <role>` replays it as soon as this
-    run's launch shell, the caller's parent, is gone (the agent counts as alive until then)."""
+    run did not read is not left until the hub's next send: a detached `agent send <role>` in replay mode runs as soon as
+    this run's launch shell, the caller's parent, is gone (the agent counts as alive until then), and decides there,
+    under the agent's lock, whether anything is left to deliver — a message queued after this point is not missed.
+    A run that never started (no init: a failed resume) schedules nothing, so a failing replay does not repeat itself."""
     meta = load_meta(stage, role)
-    if role not in hc.roles_load(stage)["roles"] or not pending_unread(meta):
+    if role not in hc.roles_load(stage)["roles"] or not run_started(meta):
         return
-    env = {k: v for k, v in os.environ.items() if k not in ("AGENT_ROLE", "AGENT_SESSION_ID")}
-    env["HUB_TAG"] = "inbox"  # the resume line is the plugin's, not the agent's own
+    env = {k: v for k, v in os.environ.items() if k not in ("AGENT_ROLE", "AGENT_SESSION_ID", "AGENT_LOG_OFFSET")}
+    env.update({"HUB_TAG": "inbox", REPLAY_ENV: "1"})  # the resume line is the plugin's, not the agent's own
     wait = 'i=0; while kill -0 "$1" 2>/dev/null && [ $i -lt 300 ]; do sleep 0.2; i=$((i+1)); done; shift; exec "$@"'
     with open(Path(meta["dir"]) / "stderr.log", "ab") as err:
         subprocess.Popen(["/bin/sh", "-c", wait, "sh", str(os.getppid()), sys.executable, str(Path(__file__).resolve()),
                           "send", "--stage", stage, "--", role], stdin=subprocess.DEVNULL, stdout=err, stderr=err,
                          env=env, start_new_session=True, close_fds=True)
+
+
+def run_started(meta: dict) -> bool:
+    """Whether the run that just exited wrote its init event: its log from the offset its launch recorded
+    ($AGENT_LOG_OFFSET, set by launch) has one."""
+    try:
+        with open(Path(meta["dir"]) / "log.jsonl", "rb") as fh:
+            fh.seek(int(os.environ.get("AGENT_LOG_OFFSET") or 0))
+            for raw in fh:
+                try:
+                    ev = json.loads(raw)
+                except ValueError:
+                    continue
+                if isinstance(ev, dict) and any(e.get("type") == "system" and e.get("subtype") == "init"
+                                                for e in engines.normalize_event(ev)):
+                    return True
+    except (OSError, ValueError):
+        pass
+    return False
 
 
 def note_exit(a) -> int:
