@@ -92,7 +92,7 @@ chk("json: plan limits from rate_limit_event", d["limits"]["info"]["unifiedWindo
 chk("json: journal tail of both stages", any("ran the tests" in j["text"] for j in d["journal_tail"]) and any(j["stage"] == "stage-b" for j in d["journal_tail"]))
 sys.exit(fails)
 PY
-[ $? -eq 0 ] || fail=1
+check $? 0 "--json block ran to its end (a traceback is a failure)"
 
 # ---- ctx_window: the model's context window (reported, else by model id, else 200k; never below the context used)
 python3 - "$B/agent-top" <<'PY'
@@ -117,7 +117,23 @@ chk("model_usage_window: negative — no entry of the model -> 0", m.model_usage
 chk("model_usage_window: negative — junk -> 0", m.model_usage_window("x", "m") == 0 and m.model_usage_window({"m": {"contextWindow": "big"}}, "m") == 0)
 sys.exit(fails)
 PY
-[ $? -eq 0 ] || fail=1
+check $? 0 "ctx_window block ran to its end"
+
+# ---- owner questions on a freshly booted machine: monotonic() counts from boot, so a CI VM can be younger than the TTL
+python3 - "$B/agent-top" <<'PY'
+import importlib.machinery, importlib.util, sys
+from unittest.mock import patch
+loader = importlib.machinery.SourceFileLoader("agent_top_bin", sys.argv[1])
+spec = importlib.util.spec_from_loader("agent_top_bin", loader)
+m = importlib.util.module_from_spec(spec); loader.exec_module(m)
+ext = m.External()
+with patch("time.monotonic", return_value=m.External.TTL / 4):
+    ext.poll([], wait=True)
+ok = ext.thread is not None and ext.ok is True
+print(("PASS" if ok else "FAIL") + " questions: the first poll reads the registers even when uptime is under the TTL")
+sys.exit(0 if ok else 1)
+PY
+check $? 0 "uptime block ran to its end"
 
 # ---- --all, --stage, unknown things
 $B/agent-top --json --all > $R/st-all.out; check $? 0 "--json --all exit 0"
@@ -129,7 +145,7 @@ ok = A[("stage-a", "oldie")]["state"] == "done" and A[("stage-a", "done1.2026011
 print(("PASS" if ok else "FAIL") + " --all: old and archived agents shown (11 agents), archive flagged")
 sys.exit(0 if ok else 1)
 PY
-[ $? -eq 0 ] || fail=1
+check $? 0 "--all block ran to its end"
 $B/agent-top --json --stage stage-b > $R/st-stage-b.out; check "$(python3 -c "import json;d=json.load(open('$R/st-stage-b.out'));print(d['stages'],[a['role'] for a in d['agents']])")" "['stage-b'] ['b1']" "--stage stage-b limits the view"
 $B/agent-top --once --stage empty --width 80 > $R/st-empty.out; check $? 0 "--stage empty: exit 0"
 grep -q 'no agents' $R/st-empty.out; check $? 0 "--stage empty: says there are no agents"
@@ -209,7 +225,7 @@ for width in (40, 60, 80, 120):
 print(("PASS" if not bad else "FAIL") + f" once: no line wider than --width (40/60/80/120, plain, --agent, --all){'' if not bad else ' ' + str(bad[:3])}")
 sys.exit(1 if bad else 0)
 PY
-[ $? -eq 0 ] || fail=1
+check $? 0 "once width block ran to its end"
 
 # ---- big log: tail reading
 python3 - $B/agent-top <<'PY'
@@ -234,12 +250,12 @@ b = [a for a in d["agents"] if a["role"] == "big1"][0]
 chk("big log with a 1 MB scan cap: scanned from the tail, marked approximate, result still found", b["turns_approx"] and 0 < b["turns"] < 5000 and b["state"] == "done" and b["cost_usd"] == 2.0)
 sys.exit(fails)
 PY
-[ $? -eq 0 ] || fail=1
+check $? 0 "big log block ran to its end"
 
 # ---- owner questions in --json: full id list beyond the 12 display lines, questions_ok, unknown on a failed ask
 QH=$(mktemp -d)
 for i in 1 2 3 4 5; do
-  AGENT_HUB_HOME=$QH python3 $B/ask add --stage stage-q --blocks "test" --default "nothing" --due 2030-01-01T00:00 --by test --source test "Question $i?" > /dev/null 2>&1 || fail=1
+  AGENT_HUB_HOME=$QH python3 $B/ask add --stage stage-q --blocks "test" --default "nothing" --due 2030-01-01T00:00 --by test --source test "Question $i?" > /dev/null 2>&1; check $? 0 "questions fixture: ask add Question $i"
 done
 AGENT_HUB_HOME=$QH $B/agent-top --json --stage stage-q > $R/st-q.out 2> $R/st-q.err; check $? 0 "questions: --json exit 0 (5 open questions in a fresh home)"
 python3 - $R/st-q.out <<'PY'
@@ -250,7 +266,7 @@ ok = (q["open"] == 5 and len(q["items"]) == 12 and q["ids"] == [f"Q-Q-00{i}" for
 print(("PASS" if ok else "FAIL") + " questions: ids carry all 5 open questions while items are cut to 12 lines; questions_ok true")
 sys.exit(0 if ok else 1)
 PY
-[ $? -eq 0 ] || fail=1
+check $? 0 "questions block ran to its end"
 if [ "$(id -u)" != 0 ]; then
   chmod 000 $QH/stage-q/questions.md
   AGENT_HUB_HOME=$QH $B/agent-top --json --stage stage-q > $R/st-q-bad.out 2> /dev/null; check $? 0 "questions: --json still exits 0 when the register cannot be read"
@@ -262,7 +278,7 @@ ok = d["questions_ok"] is False and d["questions"] == {}
 print(("PASS" if ok else "FAIL") + " questions: a failed ask summary gives questions_ok false (negative control: not 'no registers')")
 sys.exit(0 if ok else 1)
 PY
-  [ $? -eq 0 ] || fail=1
+  check $? 0 "questions unreadable-register block ran to its end"
 fi
 
 # ---- nothing written by the non-interactive runs

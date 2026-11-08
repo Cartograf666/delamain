@@ -328,16 +328,19 @@ def run(argv):
     # journal ----------------------------------------------------------------------------------------------
     s.send("j")
     check("ui journal: lines of both stages", s.wait_for(r"ran the tests") and "[hub-t]" in s.text() and "a line of stage-b" in s.text(), s.text())
+    # each filter is read once its header mark is drawn: settle() alone can return before a loaded program redraws
     s.send("t")
+    s.wait_for(r"· tag ")
     t = s.text()
     check("ui journal: tag filter keeps the tag and @mentions", "ran the tests" in t and "check the inbox" in t and "DONE task 1" not in t, t)
     s.send("c")
-    check("ui journal: filter cleared", "DONE task 1" in s.text(), s.text())
+    check("ui journal: filter cleared", s.wait_for(r"DONE task 1"), s.text())
     s.send("/", "subtag", "ENTER")
+    s.wait_for(r'· "subtag"')
     t = s.text()
     check("ui journal: text filter", "subtag line" in t and "ran the tests" not in t, t)
     s.send("c", ",")
-    check("ui journal: yesterday is empty", "(empty)" in s.text(), s.text())
+    check("ui journal: yesterday is empty", s.wait_for(r"\(empty\)"), s.text())
     s.send(".", "ESC")
 
     # summary + help ---------------------------------------------------------------------------------------

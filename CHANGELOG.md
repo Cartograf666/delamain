@@ -10,6 +10,13 @@
   jwait no longer drops the line (core-d 05.11: three FAILED lines seen two hours late). A TIMEOUT after 0 s was a bad
   command line (an empty `--pipeline` value, argparse's exit 2 under the recipe's `--on 2=TIMEOUT`): the help says so.
 
+- **agent-top shows owner questions on a freshly booted machine; `t_agent_top` is green on CI again.** The question
+  reader's first refresh waited until `time.monotonic()` passed its 20 s TTL from 0, and that clock counts from boot:
+  on a CI VM younger than 20 s (`--json` ran 6 s into the job) `questions` came back empty and `questions_ok` false,
+  and the test died on a `KeyError` with no FAIL line. The first refresh now always runs. Every check of
+  `tests/t_agent_top.sh` prints a FAIL line naming itself, and the pty journal-filter checks wait for the filter's mark
+  on the screen instead of reading it before a loaded program redraws (macOS CI).
+
 ## 1.1.0 — 2026-11-06
 
 - **Work in a district lights it from the main tower outwards.** A project with working agents gets more light with each level (1, 2, 3 and more agents), nearest the tower first: the scene's windows give way to a full grid over its facades, 14/32/58 % lit, warm and neon, each with its own soft halo; scattered lights of their own colours along its roads; both trade places now and then; a soft pool of light around the tower grows with the level; roof twinkles, rising light motes and short streaks along its own streets; the glow breathes slowly. The ground ring is gone. Reduced motion shows the same strength, steady. Empty, unseated or closed projects show nothing.
