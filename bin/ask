@@ -173,7 +173,8 @@ def open_stages() -> list[str]:
 
 def default_prefix(stage: str) -> str:
     """The id prefix of a new stage file: its last word (`weekly-audit` → AUDIT), unless another stage's file already
-    uses it; then more of the name (WEEKLYAUDIT). Ids stay findable by id alone."""
+    uses it; then more of the name (WEEKLYAUDIT), then that with a number (WEEKLYAUDIT2). Ids stay findable by id
+    alone; the caller holds the home's lock (cmd_add), so two new stages cannot both take a free one."""
     used = set()
     for other in all_stages():
         try:
@@ -182,7 +183,9 @@ def default_prefix(stage: str) -> str:
             continue
     words = [re.sub(r"[^A-Z0-9]", "", w.upper()) for w in stage.split("-")]
     tries = ["".join(words[-n:]) for n in range(1, len(words) + 1)]
-    return next((t for t in tries if t and t not in used), tries[-1] or "X")
+    tries = [t for t in tries if t] or ["X"]
+    return next((t for t in tries if t not in used), None) or next(
+        f"{tries[-1]}{n}" for n in range(2, len(used) + 3) if f"{tries[-1]}{n}" not in used)
 
 
 def parse(stage: str, text: str) -> tuple[str | None, list[Entry]]:
@@ -217,10 +220,11 @@ def load(stage: str) -> tuple[str | None, list[Entry]]:
 
 
 class Locked:
-    """flock on <stage>/.questions.lock for the read-modify-write of one stage file."""
+    """flock on <stage>/.questions.lock for the read-modify-write of one stage file; Locked("") is the home's lock,
+    held by `add` so the prefixes of new stage files stay unique."""
 
     def __init__(self, stage: str):
-        self.dir = ROOT / stage
+        self.dir = ROOT / stage if stage else ROOT
         self.fd = None
 
     def __enter__(self):
@@ -335,7 +339,7 @@ def cmd_add(args, kind_letter: str) -> int:
     stage = args.stage
     path = stage_file(stage)
     when = resolve_when(args.at, args.asked)
-    with Locked(stage):
+    with Locked(stage), Locked(""):  # always stage, then home
         text = path.read_text(encoding="utf-8") if path.exists() else ""
         prefix, entries = parse(stage, text)
         if not text:

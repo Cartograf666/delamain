@@ -37,6 +37,13 @@ $B/ask close P-A-001 --answer x >/dev/null 2>&1; check $? 1 "negative: a plan is
 # a new stage does not take a prefix another stage uses; --stage picks the entry when stages share an id (weekly-audit 07.11)
 check "$($B/ask add --stage dead-audit --print-id "Remove it?")" "Q-AUDIT-001" "the first stage ending in -audit gets AUDIT"
 check "$($B/ask add --stage weekly-audit --print-id "Which week?")" "Q-WEEKLYAUDIT-001" "…the next one does not reuse it"
+check "$($B/ask add --stage weeklyaudit --print-id "Spelled together?")" "Q-WEEKLYAUDIT2-001" "…and when every form of the name is taken, a free numbered one"
+# eight new stages at once: the home's lock keeps their prefixes unique (each sees the others' files)
+PH=$(mktemp -d)
+for i in 1 2 3 4 5 6 7 8; do AGENT_HUB_HOME=$PH $B/ask add --stage s$i-race --print-id "Q$i?" > $PH/id$i.txt 2>&1 & done; wait
+check "$(cat $PH/id*.txt | sed 's/-[0-9]*$//' | sort -u | wc -l | tr -d ' ')" 8 "parallel new stages get eight different prefixes"
+check "$(grep -h '^<!-- ask:v1 prefix=' $PH/*/questions.md | sort -u | wc -l | tr -d ' ')" 8 "…written in eight register files"
+rm -rf $PH
 check "$($B/ask add --stage token-audit --prefix AUDIT --print-id "Tokens?")" "Q-AUDIT-001" "fixture: an explicit --prefix still may (an old register)"
 $B/ask close Q-AUDIT-001 --answer x > $R/amb.out 2>&1; check $? 1 "an id two stages share is ambiguous without --stage"
 grep -q 'pass --stage' $R/amb.out; check $? 0 "…and the error says --stage settles it"

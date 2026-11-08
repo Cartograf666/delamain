@@ -1023,8 +1023,9 @@ def turns_text(info: dict) -> str:
 
 
 def pending_unread(meta: dict) -> list:
-    """Unread messages the agent's log does not show as handled: after the message was queued the
-    agent neither touched inbox.md in a tool call nor ended a run with DONE."""
+    """Unread messages the agent's log does not show as handled: after the message was queued the agent did not touch
+    inbox.md in a tool call. A final DONE is not a receipt: it closes the task the run had, often one it reported
+    before the message came (dolya 06.11 12:23)."""
     unread = meta.get("inbox_unread") or []
     if not unread:
         return []
@@ -1045,13 +1046,10 @@ def pending_unread(meta: dict) -> list:
                 for block in (ev.get("message") or {}).get("content") or []:
                     if block.get("type") == "tool_use" and "inbox.md" in json.dumps(block.get("input"), ensure_ascii=False):
                         handled = True
-            elif ev.get("type") == "result" and re.search(r"\bDONE\b", str(ev.get("result") or "")):
-                handled = True
             elif ev.get("type") == "item.completed":
                 item = ev.get("item") or {}
-                handled = ((item.get("type") == "command_execution" and "inbox.md" in item.get("command", "")
-                            and item.get("exit_code") == 0) or
-                           (item.get("type") == "agent_message" and re.search(r"\bDONE\b", item.get("text", ""))))
+                handled = (item.get("type") == "command_execution" and "inbox.md" in item.get("command", "")
+                           and item.get("exit_code") == 0)
             if handled:
                 break
         if not handled:
@@ -1289,7 +1287,7 @@ def legacy_effort(meta: dict) -> None:
 
 def _send_locked(stage: str, a, msg: str) -> int:
     meta = load_meta(stage, a.role)
-    if a.role not in hc.roles_load(stage)["roles"]:
+    if a.role not in hc.roles_load(stage)["roles"] or meta.get("stopping"):
         raise hc.Failure(f"agent {a.role} was stopped (role retired); start a new one with agent spawn")
     live = alive(meta)  # one reading: the checks and the branch below must agree on it
     if not live:
@@ -1345,7 +1343,31 @@ def _send_locked(stage: str, a, msg: str) -> int:
 
 def cmd_stop(a) -> int:
     stage = hc.check_stage(a.stage or hc.default_stage())
-    meta = load_meta(stage, a.role)
+    load_meta(stage, a.role)  # an unknown agent fails before a lock file is made
+    # Under the agent's lock: a send that resumes finishes first, and every later one (the exit wrapper's replay of an
+    # unread message included) sees `stopping` and refuses, so nothing restarts the agent between the kill and the retire.
+    with AgentLock(stage, a.role):
+        meta = load_meta(stage, a.role)
+        meta["stopping"] = hc.now().isoformat(timespec="seconds")
+        save_meta(stage, a.role, meta)
+    try:
+        how = kill_run(stage, meta)
+    except hc.Failure:
+        with AgentLock(stage, a.role):
+            m = load_meta(stage, a.role)
+            m.pop("stopping", None)
+            save_meta(stage, a.role, m)
+        raise
+    if a.role in hc.roles_load(stage)["roles"]:
+        roles_cli.retire_role(stage, a.role, "agent-stop")
+    print(f"{a.role}: stopped ({how}), role retired")
+    if worktree_note(meta):
+        print(worktree_note(meta))
+    return 0
+
+
+def kill_run(stage: str, meta: dict) -> str:
+    """Stop the run's process group, TERM then KILL; returns how."""
     how = "no process was running"
     if alive(meta):
         pgid = meta["pid"]
@@ -1372,12 +1394,7 @@ def cmd_stop(a) -> int:
             how = "SIGTERM"
         if alive(meta):
             raise hc.Failure(f"pid {pgid} is alive after SIGKILL")
-    if a.role in hc.roles_load(stage)["roles"]:
-        roles_cli.retire_role(stage, a.role, "agent-stop")
-    print(f"{a.role}: stopped ({how}), role retired")
-    if worktree_note(meta):
-        print(worktree_note(meta))
-    return 0
+    return how
 
 
 

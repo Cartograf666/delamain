@@ -114,7 +114,6 @@ MENTION_RE = re.compile(r"(?<![\w@])@(\w[\w-]*)")   # an @name in a journal line
 _TYPE_RE = re.compile(rb'^\{\s*"type"\s*:\s*"([\w.]+)"')
 _RESULT_RE = re.compile(rb'"type"\s*:\s*"result"')   # the CLI writes `result` events with "duration_api_ms" first
 _CTRL_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
-_DONE_RE = re.compile(r"\bDONE\b")
 HOME_SEP = " · "                  # between a stage and its home label while stages come from more than one home
 ASK_LINE_RE = re.compile(r"^(\S+) — open (\d+), overdue (\d+)")
 QUESTION_ID_RE = re.compile(r"^(Q-[A-Za-z0-9]+-\d+)(?=\s|$)")  # the unindented id line of `ask list`; blocks:/asked are indented
@@ -361,7 +360,7 @@ class LogState:
         self.cost_by_sid = {}             # session id -> the last `total_cost_usd`: the CLI reports it cumulative for the whole session
         self.init_sid = ""                # the session of the latest init: the owner of a `result` that names none
         self.running = False              # an init after the last result: a run is (or was) in progress
-        self.inbox_touch, self.done_at = -1, -1
+        self.inbox_touch = -1
         self.truncated = False
         self.rate, self.rate_mtime = None, 0.0
         self.effort = None                # a session transcript records the effort on each assistant line
@@ -518,8 +517,6 @@ class LogState:
                     self.cost_by_sid[str(ev.get("session_id") or self.init_sid)] = cost
                 if isinstance(ev.get("modelUsage"), dict):
                     self.model_usage = ev["modelUsage"]
-                if _DONE_RE.search(str(ev.get("result") or "")):
-                    self.done_at = pos
                 self.pending.clear()
             self.events += 1
             return
@@ -1170,7 +1167,7 @@ class Collector:
             state = "dead"
         age = None if event_at is None else max(0, now - event_at)
         unread = [u for u in meta.get("inbox_unread") or []
-                  if isinstance(u, dict) and max(ls.inbox_touch, ls.done_at) < num(u.get("log_offset"))]
+                  if isinstance(u, dict) and ls.inbox_touch < num(u.get("log_offset"))]
         act = ls.action() if alive else None
         role = meta.get("role") or (m.group("role") if m else d.name)
         return {

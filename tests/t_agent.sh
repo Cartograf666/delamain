@@ -120,15 +120,15 @@ python3 -c "print('brief line '*6000)" > $W/big.md
 FAKE_HOLD=6 $B/agent-spawn --role big --cwd $W --model sonnet --brief $W/big.md >/dev/null 2>&1; check $? 0 "spawn with a 60 KB brief"
 $B/agent-status big | grep -q 'ALIVE'; check $? 0 "long-argv agent reads as alive"
 $B/agent-stop big >/dev/null
-# 8. a message the agent read (tool call on inbox.md) or a run ending in DONE is not "unread"
+# 8. a message the agent read (tool call on inbox.md) is not "unread"; a final DONE is no receipt (review #180)
 FAKE_HOLD=4 FAKE_READ_INBOX=1 $B/agent-spawn --role rd --cwd $W --model sonnet --brief $W/b.md >/dev/null 2>&1
 $B/agent-send rd "hub answer" >/dev/null; wait_dead rd
 $B/agent-status rd | grep -q 'unread'; check $? 1 "inbox read in the log → not flagged unread"
 handed rd; check $? 1 "…and the run is not resumed with it"
 FAKE_HOLD=4 FAKE_FINAL="DONE work/dn-REPORT.md" $B/agent-spawn --role dn --cwd $W --model sonnet --brief $W/b.md >/dev/null 2>&1
+HUB_TAG=dn $B/jlog "DONE work/dn-REPORT.md"   # the agent reported its task, then the hub's message came
 $B/agent-send dn "hub answer" >/dev/null; wait_dead dn
-$B/agent-status dn | grep -q 'unread'; check $? 1 "run ended with DONE → not flagged unread"
-grep -q '\[inbox\] @dn ' $(journal stage-a); check $? 1 "…and not resumed"
+handed dn; check $? 0 "journal DONE → send → final DONE without an inbox read: the message is still delivered (resumed)"
 FAKE_HOLD=4 $B/agent-spawn --role nr --cwd $W --model sonnet --brief $W/b.md >/dev/null 2>&1
 $B/agent-send nr "hub answer" >/dev/null; wait_dead nr
 handed nr; check $? 0 "positive control: not read, no DONE → the run is resumed with it at once"

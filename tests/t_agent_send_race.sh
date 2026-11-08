@@ -8,7 +8,7 @@ R=$AGENT_HUB_HOME; W=$R/w; mkdir -p $W; echo "brief: send race, the code word is
 M=$R/stage-a/agents
 meta(){ python3 -c "import json,sys;m=json.load(open(sys.argv[1]));print(eval(sys.argv[2]))" $M/$1/meta.json "$2"; }
 wait_gone(){ for i in $(seq 1 40); do kill -0 "$1" 2>/dev/null || return 0; sleep 0.25; done; return 1; }
-trap 'for r in s1 s2; do $B/agent stop $r >/dev/null 2>&1; done; test_cleanup' EXIT
+trap 'for r in s1 s2 s3; do $B/agent stop $r >/dev/null 2>&1; done; test_cleanup' EXIT
 
 # 1. a message B queued while send A's resume waits for init survives A's save of the meta
 FAKE_HOLD=60 $B/agent spawn --role s1 --cwd $W --model haiku --brief $W/b.md > $R/sp1.out 2>&1; check $? 0 "spawn s1"
@@ -49,4 +49,41 @@ for r in m["runs"][1:]:
 assert all(oct(os.stat(f"{d}/{f}").st_mode & 0o777) == "0o600" for f in files)
 PY
 check $? 0 "each run record names its own file; brief in the first, message in a resume; mode 0600"
+
+# 4. agent stop vs the exit wrapper's replay of an unread message (review #180): a send that comes between the kill and
+# the retire (the old run already gone, the role still registered) is refused, so nothing restarts a stopped agent
+FAKE_HOLD=60 $B/agent spawn --role s3 --cwd $W --model haiku --brief $W/b.md > /dev/null 2>&1; check $? 0 "spawn s3"
+FAKE_HOLD=60 $B/agent send s3 "queued before the stop" > /dev/null; check $? 0 "a message is queued while s3 runs"
+RUNS=$(meta s3 "len(m['runs'])")
+FAKE_HOLD=60 python3 - "$B" s3 > $R/stop-race.out 2>&1 <<'PY'
+import argparse, importlib.machinery, importlib.util, os, sys, time
+loader = importlib.machinery.SourceFileLoader("agent_mod", sys.argv[1] + "/agent")
+agent = importlib.util.module_from_spec(importlib.util.spec_from_loader("agent_mod", loader))
+loader.exec_module(agent)
+role, real_killpg, seen = sys.argv[2], os.killpg, []
+pid = agent.load_meta("stage-a", role)["pid"]
+def killpg(pg, sig):  # stop's SIGTERM: the old run dies, then the replay's send comes before the retire
+    real_killpg(pg, sig)
+    if seen:
+        return
+    for _ in range(100):
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.05)
+    try:
+        agent.cmd_send(argparse.Namespace(stage="stage-a", role=role, text=[], resume_anyway=False))
+        seen.append("resumed")
+    except agent.hc.Failure as e:
+        seen.append(f"refused: {e}")
+agent.os.killpg = killpg
+agent.cmd_stop(argparse.Namespace(stage="stage-a", role=role))
+print("send during stop:", seen[0] if seen else "not reached")
+PY
+check $? 0 "agent stop exits 0"
+grep -q 'send during stop: refused: agent s3 was stopped' $R/stop-race.out; check $? 0 "a send between the kill and the retire is refused"
+check "$(meta s3 "len(m['runs'])")" "$RUNS" "…no new run was started"
+P=$(meta s3 "m['pid']"); kill -0 $P 2>/dev/null; check $? 1 "…and no process of s3 is left"
+$B/roles get s3 > /dev/null 2>&1; check $? 1 "…and the role is retired"
 exit $fail
