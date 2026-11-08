@@ -10,6 +10,13 @@
   jwait no longer drops the line (core-d 05.11: three FAILED lines seen two hours late). A TIMEOUT after 0 s was a bad
   command line (an empty `--pipeline` value, argparse's exit 2 under the recipe's `--on 2=TIMEOUT`): the help says so.
 
+- **agent-top shows owner questions on a freshly booted machine; `t_agent_top` is green on CI again.** The question
+  reader's first refresh waited until `time.monotonic()` passed its 20 s TTL from 0, and that clock counts from boot:
+  on a CI VM younger than 20 s (`--json` ran 6 s into the job) `questions` came back empty and `questions_ok` false,
+  and the test died on a `KeyError` with no FAIL line. The first refresh now always runs. Every check of
+  `tests/t_agent_top.sh` prints a FAIL line naming itself, and the pty journal-filter checks wait for the filter's mark
+  on the screen instead of reading it before a loaded program redraws (macOS CI).
+
 ## 1.0.26 — 2026-11-04
 
 - **The watchdog stops retired hubs it used to report forever; a project hook no longer leaves its probes behind.**

@@ -905,7 +905,7 @@ class External:
     _mod = None
 
     def __init__(self):
-        self.data, self.at, self.busy = {}, 0.0, False
+        self.data, self.at, self.busy = {}, None, False   # None, not 0.0: monotonic() counts from boot, under TTL on a fresh VM
         self.ok = False  # True only when the last `ask summary` succeeded: {} then means "no registers", not "ask failed"
         self.thread = None
 
@@ -913,7 +913,7 @@ class External:
         """`stages`: StageRef of the shown stages; the answer is keyed by their ids."""
         """Starts a refresh when the last one is older than TTL; `wait` waits for the one in flight (a snapshot
         starts it early and waits at its end, so the registers are read while the logs are)."""
-        if not self.busy and time.monotonic() - self.at > self.TTL:
+        if not self.busy and (self.at is None or time.monotonic() - self.at > self.TTL):
             self.busy = True
             self.thread = threading.Thread(target=self._fetch, args=(list(stages),), daemon=True)
             self.thread.start()
