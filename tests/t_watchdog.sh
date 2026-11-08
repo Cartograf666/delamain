@@ -106,8 +106,8 @@ check "$(runs sd)" 1 "R3 detached: the hub has run once so far"
 check "$(tick)" 0 "R3 detached: tick exits 0"
 check "$(runs sd)" 2 "R3 detached: a line 16 min old, hub silent, no waiter → resumed once (agent send)"
 grep -q "\[watchdog\] woke hub-3 (agent send --stage sd hub-3, attempt 1): 1 lines waiting since" "$(J sd)"; check $? 0 "R3 detached: the record line names the transport"
-grep -q "\[cli\] @hub-3 (session resumed, pid [0-9]*) \[agent-hub watchdog\] sd: 1 journal lines addressed to you have waited since [0-9:]* and no jwait of yours is running\. Run your digest jwait with --since [0-9:]*, handle what it shows, and follow its NEXT WAIT\. Stop these wake-ups: watchdog quiet --stage sd --reason" "$(J sd)"  # rename:keep: the wake prefix stays on the former name for one release
-check $? 0 "R3 detached: the hub got the wake text (digest jwait --since, one waiter, quiet)"
+grep -q "\[cli\] @hub-3 (session resumed, pid [0-9]*) \[agent-hub watchdog\] sd: 1 journal lines addressed to you have waited since [0-9:]* and no jwait of yours is running\. Run your digest jwait with --since [0-9:]*, handle what it shows, and follow its NEXT WAIT\. Each line wakes you once; the lines: - [0-9:]* \[exec-1\] done the thing is finished\. Stop these wake-ups: watchdog quiet --stage sd --reason" "$(J sd)"  # rename:keep: the wake prefix stays on the former name for one release
+check $? 0 "R3 detached: the hub got the wake text (digest jwait --since, the lines themselves, one waiter, quiet)"
 grep -q "\[delamain watchdog\]" "$(J sd)"; check $? 1 "rename: the wake prefix written now is the former name, not the new form (a hub on an older plugin copy reads only it)"
 tick > /dev/null; check "$(runs sd)" 2 "R3 safety: a second tick in the same episode wakes no second time"
 # R3 held: another stage's hub addressing @hub waits for the stream deadline (30 min), then wakes a hub without a waiter
@@ -116,6 +116,18 @@ FX jline sh 16 "[sh-peer-hub-4] @hub fyi my side is merged"
 tick > /dev/null; check "$(runs sh)" 1 "R3 held negative: a 16-min-old line from another stage's hub does not wake"
 mk_dhub sh2; FX jline sh2 31 "[sh-peer-hub-4] @hub fyi my side is merged"
 tick > /dev/null; check "$(runs sh2)" 2 "R3 held: the same line 31 min old wakes a hub that has no waiter (late, not lost)"
+# R3 prompt: a status word, a verdict of `await` (signed <tag>-await) or a line of the owner wakes an idle hub at the
+# first tick; a plain line addressed to it still waits WAKE_AFTER
+prompt(){  # NAME LINE WANT-RUNS TEXT: a line a minute old, one tick
+  mk_dhub "$1"; FX jline "$1" 1 "$2"; tick > /dev/null; check "$(runs "$1")" "$3" "R3 prompt: $4"
+  tick > /dev/null; check "$(runs "$1")" "$3" "R3 prompt: …and the next tick does not wake it again (the record of the wake wakes nobody)"
+}
+prompt spdone "[exec-1] DONE work/x-REPORT.md" 2 "a DONE line a minute old wakes the hub at the first tick"
+prompt spfail "[exec-1] @hub tests FAILED on main" 2 "a FAILED line (jwait.HELD_WAKE_RE) a minute old wakes it"
+prompt spawait "[hub-3-await] @hub PASSED gh-ci-wait 7 (exit 0, 80s)" 2 "an await verdict a minute old wakes it, whatever its --ok word"
+prompt spowner "[owner] @hub-3 смотри Q-1" 2 "a line of the owner a minute old wakes it"
+prompt spplain "[exec-1] @hub-3 please look at this" 1 "negative: a plain line a minute old does not wake"
+prompt spheld "[sh-peer-hub-4] @hub fyi my side is merged" 1 "negative: a held line a minute old does not wake"
 
 # R3 detached negatives: nothing is resumed
 neg_detached(){  # NAME MINUTES-OLD LINE [SETUP-COMMAND]: one stage, one waiting-line situation, the hub must stay asleep
@@ -123,7 +135,7 @@ neg_detached(){  # NAME MINUTES-OLD LINE [SETUP-COMMAND]: one stage, one waiting
   [ -n "${5:-}" ] && eval "$5"
   tick > /dev/null; check "$(runs $s)" 1 "R3 negative: $6"
 }
-neg_detached sd14 14 "[exec-1] DONE just finished" "" "" "a line 14 min old is not waiting yet"
+neg_detached sd14 14 "[exec-1] @hub-3 please look" "" "" "a plain line 14 min old is not waiting yet"
 neg_detached sdown 20 "[hub-3] DONE the hub's own line" "" "" "the hub's own line is not addressed to it"
 neg_detached sdchat 20 "[exec-1] still working on the thing" "" "" "chatter without @ or a status word"
 neg_detached sdmine 20 "[exec-1] @hub-3 please look at this" "" "FX consume sdmine hub-3" "a line in the seen-state of the hub's tag (.jwait-state/hub-3.json)"
@@ -229,7 +241,7 @@ check "$(tick)" 0 "R3 claude-bg: a second tick exits 0"
 check "$(resumed)" 1 "R3 claude-bg: the second tick does not resume again (one wake per episode)"
 
 neg_bg(){  # NAME NUM SETUP-COMMAND TEXT: a hub that must not be stopped or resumed
-  local s=$1 b SID; b=$(U $2); SID=$b; mk_bhub "$s" "$b"; FX jline "$s" 16 "[exec-1] DONE a line is waiting"
+  local s=$1 b SID; b=$(U $2); SID=$b; mk_bhub "$s" "$b"; FX jline "$s" 16 "[exec-1] @hub-4 a line is waiting"
   eval "$3"; reset_log; tick > /dev/null
   check "$(( $(resumed) + $(stopped) ))" 0 "R3 negative: $4"
 }
@@ -238,6 +250,31 @@ neg_bg sbfresh 13 'FX transcript $SID 5 ok' "a hub whose transcript is 5 min old
 neg_bg sbnojob 14 'rm -rf "$CLAUDE_CONFIG_DIR/jobs/${SID:0:8}"' "no saved options of the background session → notify only"
 grep -q "delamain: sbnojob — hub silent [0-9]* min, 1 lines waiting" "$R/notify.log"; check $? 0 "…and the owner is notified (stage name, minutes, count)"
 neg_bg sbwaiting 15 'FX rows "$FAKE_WD_ROWS" ${SID:0:8} $SID background waiting "$CWD"' "a hub waiting for an answer (status waiting) is not stopped"
+neg_bg sbbusyp 34 'FX jline sbbusyp 1 "[exec-1] DONE just now"; FX rows "$FAKE_WD_ROWS" ${SID:0:8} $SID background busy "$CWD"' "a busy hub is not woken for a prompt line either"
+
+# one wake per line (dolya 05.11 16:32 and 16:52, phase-e 03.11 00:17 and 00:37): the hub answered after the wake without
+# its digest jwait, so the line stayed unseen, and the next silence woke it again for the same line
+B91=$(U 91); mk_bhub sbonce $B91; FX jline sbonce 16 "[exec-1] @hub-4 please look"; reset_log
+bw(){ AGENT_HUB_WATCHDOG_NOW=$(utc_iso "$1") WD run --stage sbonce > "$R/tick.out" 2>&1; }
+bw 0; check "$(resumed)" 1 "one wake per line: the first wake"
+FX_NOW=$(utc_iso 4) FX transcript $B91 0 ok                               # the hub answers (entries at +1, +2 min)
+bw 5; check "$(state_val stages sbonce hub episode)" "" "one wake per line: the hub's activity ends the episode"
+bw 25; check "$(resumed)" 1 "one wake per line: 21 min of silence later the same line does not wake it again"
+FX_NOW=$(utc_iso 25) FX jline sbonce 0 "[exec-1] @hub-4 one more thing"
+bw 41; check "$(resumed)" 2 "one wake per line: …a new line does, after its WAKE_AFTER"
+python3 - "$R/claude.log" <<'PY'
+import json, sys
+text = [json.loads(l) for l in open(sys.argv[1]) if "--resume" in l][-1]["argv"][-1]
+assert "1 journal lines" in text and "one more thing" in text and "please look" not in text, text
+PY
+check $? 0 "one wake per line: …and the wake names only the new line"
+
+# the 49-min wake (dolya 04.11 05:55 → 06:44): an idle background session's transcript is touched by bookkeeping lines
+# with no timestamp (bridge-session, cost-state), which read as activity and kept the hub "not silent"
+B92=$(U 92); mk_bhub sbbook $B92; FX transcript $B92 180 ok
+printf '{"type": "bridge-session", "x": 1}\n{"type": "cost-state", "x": 1}\n' >> "$CLAUDE_CONFIG_DIR/projects/p/$B92.jsonl"
+FX age "$CLAUDE_CONFIG_DIR/projects/p/$B92.jsonl" 5; FX jline sbbook 16 "[exec-1] @hub-4 please look"; reset_log
+tick > /dev/null; check "$(resumed)" 1 "R3 claude-bg: bookkeeping lines written 5 min ago over a 3 h old turn do not count as activity: woken"
 B16=$(U 16); mk_bhub sbfail $B16; FX jline sbfail 16 "[exec-1] DONE a line is waiting"
 reset_log; FAKE_WD_AGENTS=fail WD run --stage "$TS" > "$R/tick.out" 2>&1
 check "$(( $(resumed) + $(stopped) ))" 0 "R3 negative: \`claude agents --json\` fails (busy unknown) → no stop, no resume"
@@ -520,7 +557,7 @@ grep -q "another tick is running" "$R/held.out"; check $? 0 "safety: …and says
 kill $HOLDER 2>/dev/null; wait $HOLDER 2>/dev/null; HOLDER=
 
 # ---------------------------------------------------------------- backoff: 15 → 30 → 60 min while the wake keeps failing
-B81=$(U 81); mk_bhub sbo $B81; FX jline sbo 16 "[exec-1] DONE a line while the wake fails"
+B81=$(U 81); mk_bhub sbo $B81; FX jline sbo 16 "[exec-1] @hub-4 a line while the wake fails"
 reset_log
 BO_T0=$(date +%s)                                                        # one base for every tick: utc_iso truncates to the minute of the moment it runs
 bo(){ AGENT_HUB_WATCHDOG_NOW=$(python3 -c 'import datetime as d,sys; print((d.datetime.fromtimestamp(int(sys.argv[1]), d.timezone.utc)+d.timedelta(minutes=int(sys.argv[2]))).strftime("%Y-%m-%dT%H:%M"))' "$BO_T0" "$1") \
@@ -535,7 +572,7 @@ bo 105; check "$(resumed)" 4 "backoff: …the fourth at +105 min (60 min after t
 check "$(count 'wake of hub-4 failed' "$(J sbo)")" 4 "backoff: every failed attempt is journaled"
 check "$(count 'delamain: sbo — wake failed' "$R/notify.log")" 4 "backoff: …and the owner notified each time"
 # the hub shows activity after a wake: the episode is over, a later silence starts a new one at once
-FX_NOW=$(utc_iso 106) FX age "$R/claude-home/projects/p/$B81.jsonl" 0
+FX_NOW=$(utc_iso 106) FX transcript $B81 0 ok                           # entries at +103, +104 min
 bo 110; check "$(state_val stages sbo hub episode)" "" "backoff: activity after the wake resets the episode"
 check "$(resumed)" 4 "backoff: …and nothing is done while the hub is not silent"
 bo 140; check "$(resumed)" 5 "backoff: …a new silence of 15 min starts a new episode: woken at once"

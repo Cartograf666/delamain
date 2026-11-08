@@ -19,6 +19,15 @@
   error message. A `--tag` that names the caller's own tag is signed `<tag>-await` like the default, so the hub's own
   jwait no longer drops the line (core-d 05.11: three FAILED lines seen two hours late). A TIMEOUT after 0 s was a bad
   command line (an empty `--pipeline` value, argparse's exit 2 under the recipe's `--on 2=TIMEOUT`): the help says so.
+- **The watchdog wakes a hub at the next tick for a line that needs it, once per line, and stops a retired hub it
+  reported for days.** In the week to 07.11 lines waited 15–49 min for a watchdog wake; the same line woke a hub twice
+  (dolya 05.11 16:32 and 16:52); retired phase-e #9 ran 2 days after its successor took over. Now a waiting line with
+  a status word, an `await` verdict (`PASSED` or any `--ok` word), `FAILED`/`TIMEOUT`/`CONFLICT`/`URGENT` or the owner's
+  tag wakes an idle hub at the next tick (other lines keep the 15/30 min thresholds); a wake quotes its lines and they
+  never wake the hub again once it has acted after the wake. The hub's silence and R7's quiet time no longer count the
+  CLI's touches of an idle transcript (the 49 min: a line of 05:55 woke the hub at 06:44), and R7 reads a transcript
+  whose entries are out of order (an `api-request` stamped after the entry below it, in nearly every turn) instead of
+  treating it as unknown and reporting the hub "idle/working" every day.
 
 - **agent-top shows owner questions on a freshly booted machine; `t_agent_top` is green on CI again.** The question
   reader's first refresh waited until `time.monotonic()` passed its 20 s TTL from 0, and that clock counts from boot:

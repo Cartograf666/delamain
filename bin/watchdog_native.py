@@ -88,7 +88,7 @@ def candidate(wd, tick, stage):
            "night_open": night[1].get("open", 0) if night else 0, "failed_turn": failure,
            "last_local_activity": wd.iso(last), "requires_native_idle_check": True,
            "requires_latest_turn_actionability_check": True,
-           "message": wd.wake_text(stage, {}, lines, dead, night, False)}
+           "message": wd.wake_text(stage, {}, lines, dead, night, False, quote=False)}
     return (out, rec, {} if recovered else ep), ""
 
 

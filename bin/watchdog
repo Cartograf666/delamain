@@ -14,7 +14,8 @@ Rules, per stage and tick (docs/monitoring.md has the long form):
   R1  an agent whose process is gone without a result → the existing `EXIT <role>: killed (no result)` line
   R2  an open question past its due time that has a default → one `[watchdog] @hub OVERDUE Q-…` line
   R3  the hub is silent, lines addressed to it have waited >= 15 min (or a night-queue item waits inside
-      AGENT_HUB_NIGHT) and no `jwait` of its own runs → wake it
+      AGENT_HUB_NIGHT) and no `jwait` of its own runs → wake it; a prompt line (a status word, an await verdict, the
+      owner) wakes an idle hub at the next tick; a line wakes the hub once (delivered when the hub acts after the wake)
   R4  a Claude API error or a confirmed idle Codex app's terminal overload >= 15 min ago → wake it
   R5  AGENT_HUB_SPAWN_HOLD_LOAD set and the 1-minute load per core above it → <state>/spawn-hold.json, which `agent
       spawn` warns about or refuses on (AGENT_HUB_SPAWN_HOLD); removed again below 80 % of the threshold
@@ -579,7 +580,8 @@ def claude_transcript(o: dict) -> None:
     if path is None:
         return
     o["transcript"] = path
-    o["last"] = newest(o["last"], mtime_of(path))
+    mtime = mtime_of(path)  # an idle session's bookkeeping moves it: the entries decide (transcript_time)
+    o["last"] = newest(o["last"], mtime and dt.datetime.fromtimestamp(transcript_time(path, mtime.timestamp()), hc.TZ))
     o["dead"] = dead_turn(path) if flag("AGENT_HUB_WATCHDOG_API_ERROR") else None
     last = session_effort.last_assistant(path)
     o["cwd"] = (last or {}).get("cwd") or o["cwd"]
@@ -601,11 +603,21 @@ def claude_rows(tick: Tick):
 HELD_WAKE_AFTER = dt.timedelta(minutes=30)  # jwait's stream deadline (29m) and its settle
 
 
+def prompt_line(flt, tag: str, text: str) -> bool:
+    """Whether a waiting line asks for the hub now, so it does not wait WAKE_AFTER: a status word of the digest's own
+    filter (hubcore.status_pattern, with AGENT_HUB_JWAIT_MATCH), a word that wakes even a held line (jwait.HELD_WAKE_RE),
+    a verdict of `await` (signed `<tag>-await`, whatever its --ok word) or a line of the owner."""
+    first = tag.split()[0] if tag else ""
+    return (any(p.search(text) for p in flt.patterns) or bool(tool("jwait").HELD_WAKE_RE.search(text))
+            or first.endswith("-await") or hc.tag_is(first, "owner"))
+
+
 def waiting_lines(tick: Tick, stage: str, rec: dict) -> list:
-    """[(stamp, key, text, kind)] of the journal lines the hub's own digest `jwait` would deliver (jwait.hub_filter; kind
-    "wake" or "held"), that no `jwait` of the hub has consumed (its seen-state, under either of its caller names), stamped
-    after the hub took over and at least WAKE_AFTER ago (a held line: at least HELD_WAKE_AFTER). The pacer's lines
-    (`[pace] @hub LIMIT …`) are left out: context for the next launch, never a reason to wake a hub."""
+    """[(stamp, key, text, kind, prompt)] of the journal lines the hub's own digest `jwait` would deliver
+    (jwait.hub_filter; kind "wake" or "held"), that no `jwait` of the hub has consumed (its seen-state, under either of its
+    caller names), stamped after the hub took over and at least WAKE_AFTER ago (a held line: at least HELD_WAKE_AFTER; a
+    prompt line, see prompt_line: at once). The pacer's lines (`[pace] @hub LIMIT …`) are left out: context for the next
+    launch, never a reason to wake a hub."""
     jw = tool("jwait")
     flt = jw.hub_filter(stage, rec.get("tag") or "hub")
     states = [jw.load_state(c) for c in callers_of(rec)]
@@ -627,10 +639,11 @@ def waiting_lines(tick: Tick, stage: str, rec: dict) -> list:
             stamp = dt.datetime.combine(day, dt.time(hh, mm), tzinfo=hc.TZ)
             # a held line (another stage's hub, the pacer) never wakes a waiting hub; one without a waiter gets it
             # after the stream deadline a waiter would have printed it at, so a plain `tell` is late, never lost
-            after = max(tick.wake_after, HELD_WAKE_AFTER) if kind == "held" else tick.wake_after
+            prompt = kind == "wake" and prompt_line(flt, parsed[1], text)
+            after = dt.timedelta(0) if prompt else max(tick.wake_after, HELD_WAKE_AFTER) if kind == "held" else tick.wake_after
             if (set_at and stamp < set_at) or tick.now - stamp < after:
                 continue
-            out.append((stamp, key, text, kind))
+            out.append((stamp, key, text, kind, prompt))
     return sorted(out)
 
 
@@ -691,7 +704,18 @@ def rule_r2(tick: Tick, stage: str, st: dict) -> None:
             sent[e.id] = due
 
 
-def wake_text(stage: str, o: dict, lines: list, dead, night, bg: bool) -> str:
+# The waiting lines a wake quotes (a fresh jwait holds a held line for 30 min), quieted: `agent send` records the text in
+# the journal, where a status word or an address would wake the hub once more
+WAKE_LINES, WAKE_LINE_CHARS = 10, 300
+
+
+def quoted(line: str) -> str:
+    """A waiting line as a wake quotes it: hc.quiet, and the words that wake even a held line lower-cased too."""
+    return tool("jwait").HELD_WAKE_RE.sub(lambda m: m.group(0).lower(), hc.quiet(first_line(line, WAKE_LINE_CHARS)))
+
+
+def wake_text(stage: str, o: dict, lines: list, dead, night, bg: bool, quote: bool = True) -> str:
+    """The wake prompt; `quote` False leaves the lines' text out (the app-native candidate, bin/watchdog_native.py)."""
     parts = []
     if dead:
         parts.append(f"{autopilot.WATCHDOG_MARKER} {stage}: your last turn ended on an API error at {dead[0]:%H:%M} "
@@ -700,7 +724,9 @@ def wake_text(stage: str, o: dict, lines: list, dead, night, bg: bool) -> str:
         since = f"{lines[0][0]:%H:%M}" if lines[0][0].date() == dt.datetime.now(hc.TZ).date() else f"{lines[0][0]:%Y-%m-%dT%H:%M}"
         parts.append(("" if dead else f"{autopilot.WATCHDOG_MARKER} {stage}: ") + f"{len(lines)} journal lines addressed to you "
                      f"have waited since {since} and no jwait of yours is running. Run your digest jwait with "
-                     f"--since {since}, handle what it shows, and follow its NEXT WAIT.")
+                     f"--since {since}, handle what it shows, and follow its NEXT WAIT."
+                     + (" Each line wakes you once; the lines: " + " | ".join(quoted(ln[2]) for ln in lines[:WAKE_LINES])
+                        + (f" | … {len(lines) - WAKE_LINES} more" if len(lines) > WAKE_LINES else "") + "." if quote else ""))
     if night:
         queue = night[1]
         parts.append(("" if parts else f"{autopilot.WATCHDOG_MARKER} {stage}: ") + f"Night queue: continue with "
@@ -927,11 +953,16 @@ def rule_hub(tick: Tick, stage: str, st: dict, rec: dict) -> None:
     acted = parse_ts((ep or {}).get("acted_at"))
     raw_dead = o["dead"] if flag("AGENT_HUB_WATCHDOG_API_ERROR") else None
     if acted and o["last"] and o["last"] > acted and not (raw_dead and raw_dead[0] > acted):
-        # the hub showed activity after the last action: that episode is over. A new API-error record is activity of
-        # a hub that is still failing, not recovery: that episode goes on with its backoff.
+        # the hub showed activity after the last action: that episode is over, and the lines that wake carried were
+        # delivered: they never wake it again (a hub that answered them without its digest jwait leaves them unseen).
+        # A new API-error record is activity of a hub that is still failing, not recovery: that episode goes on.
+        cutoff = iso(now - dt.timedelta(days=2))
+        hs["delivered"] = {k: v for k, v in {**(hs.get("delivered") or {}), **(ep.get("woke") or {})}.items() if v >= cutoff}
         ep = hs["episode"] = None
+    fresh = [ln for ln in lines if ln[1] not in (hs.get("delivered") or {})]
     last = o["last"] or parse_ts(rec.get("set_at")) or now
-    silent = o["busy"] is not True and now - last >= tick.wake_after
+    # a prompt line (prompt_line) wakes a hub known to be idle at once; anything else waits for WAKE_AFTER of silence
+    silent = o["busy"] is not True and (now - last >= tick.wake_after or (o["busy"] is False and any(ln[4] for ln in fresh)))
     dead = raw_dead if raw_dead and now - raw_dead[0] >= tick.wake_after else None
     armed = live_waiter(tick, stage, rec)
     unmatched = [ln for ln in lines if ln[3] != "held"]  # a held line waits in a live jwait by design (HELD_MAX)
@@ -952,10 +983,12 @@ def rule_hub(tick: Tick, stage: str, st: dict, rec: dict) -> None:
         tick.journal(stage, f"wake of {tag} failed (no activity of the hub within {VERIFY_AFTER_S // 60} min); owner notified")
         tick.say(stage, "R3", f"wake of {tag} showed no activity")
         tick.notify(stage, "R3", notify_message(stage, "wake-failed"))
+    if not (dead or fresh or night):
+        return  # what waits was delivered by an earlier wake
     nxt = parse_ts(ep.get("next_try_at"))
     if nxt and now < nxt:
         return
-    do_act(tick, stage, rec, o, ep, lines, dead, night, minutes(now - last))
+    do_act(tick, stage, rec, o, ep, fresh, dead, night, minutes(now - last))
 
 
 def do_act(tick: Tick, stage: str, rec: dict, o: dict, ep: dict, lines: list, dead, night, silent_min: int) -> None:
@@ -988,6 +1021,7 @@ def do_act(tick: Tick, stage: str, rec: dict, o: dict, ep: dict, lines: list, de
         tick.journal(stage, f"woke {tag} ({res['how']}, attempt {attempts}): {n}")
         if not tick.dry:
             ep["result"] = "pending"
+            ep["woke"] = {**(ep.get("woke") or {}), **{ln[1]: iso(ln[0]) for ln in lines}}
     else:
         tick.say(stage, rule, f"wake of {tag} failed ({res['how']}): {res['detail']}", argv=res["how"])
         tick.journal(stage, f"wake of {tag} failed ({res['how']}, {res['detail']}); owner notified")
@@ -1403,10 +1437,12 @@ TURN_END = frozenset({"turn_duration", "stop_hook_summary"})  # the `system` ent
 
 
 def transcript_tail(path: str):
-    """(newest entry time, whether that entry ends a turn) from the last TRANSCRIPT_TAIL bytes of a transcript, or None when
-    the tail cannot be read or says nothing for sure: no entry with a timestamp, or anything but IDLE_BOOKKEEPING after the
-    newest one (including a line that does not parse; only the first line of a tail that starts mid-file may be cut), or an
-    entry dated before one written above it."""
+    """(newest entry time, whether the last entry ends a turn) from the last TRANSCRIPT_TAIL bytes of a transcript, or None
+    when the tail cannot be read or says nothing for sure: no entry with a timestamp, or anything but IDLE_BOOKKEEPING after
+    the last one (including a line that does not parse; only the first line of a tail that starts mid-file may be cut).
+    The CLI writes entries out of order (an `api-request` stamped after the `user` or `attachment` written below it, a
+    queued message stamped when it was queued): the newest time is the greatest, and a turn has ended only when its end
+    entry is also the newest."""
     try:
         with open(path, "rb") as fh:
             start = max(0, os.fstat(fh.fileno()).st_size - TRANSCRIPT_TAIL)
@@ -1430,10 +1466,8 @@ def transcript_tail(path: str):
         except ValueError:
             t = None
         if t is not None and t.tzinfo is not None:
-            if newest is not None and t < newest:
-                return None  # an entry older than one above it (a clock step, a late write): the order says nothing
-            newest, after = t, False
-            ended = e.get("type") == "system" and e.get("subtype") in TURN_END
+            newest, after = max(newest or t, t), False
+            ended = e.get("type") == "system" and e.get("subtype") in TURN_END and t >= newest
         elif not (isinstance(e, dict) and "timestamp" not in e and e.get("type") in IDLE_BOOKKEEPING):
             after = True
     if newest is None or after:
