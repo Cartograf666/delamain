@@ -18,7 +18,7 @@ a merge, MERGED only for a wait on the merge itself), 124 or the end of --timeou
 `--on RC=WORD` (repeatable) maps other codes, e.g. `--on 3=CONFLICT`, and wins over the defaults; scripts/ci_wait.py
 needs `--on 2=TIMEOUT` (its 2 is a timeout or an unreachable GitLab, but also a bad command line: read the log of a
 TIMEOUT after 0s). LINK is `--link`, else the last CI URL COMMAND printed (a GitLab pipeline, job or merge request, a
-GitHub run or pull request), else none: a docs link in an error message is not the run. A COMMAND that cannot
+GitHub run, check run or pull request), else none: a docs link in an error message is not the run. A COMMAND that cannot
 start or is killed by a signal ends in FAILED. A supervisor that gets SIGTERM/SIGHUP/SIGINT (the hub's own `kill` of
 a superseded wait) stops COMMAND's process group and journals `CANCELLED LABEL (await interrupted by signal N, …)`
 without the `@hub` address: a cancel is the caller's own act, so it wakes nobody (FAILED again if the group could not
@@ -72,7 +72,7 @@ KILL_GRACE_S = 5.0
 READY_WAIT_S = 10.0
 LOG_SCAN_BYTES = 65536
 URL_RE = re.compile(r"https?://[^\s<>\"')\]]+")
-CI_URL_RE = re.compile(r"/-/(?:pipelines|jobs)/\d|/merge_requests/\d|/actions/runs/\d|/pull/\d")
+CI_URL_RE = re.compile(r"/-/(?:pipelines|jobs)/\d|/merge_requests/\d|/actions/runs/\d|/pull/\d|://[^/]+/[^/]+/[^/]+/runs/\d")
 WORD_RE = re.compile(r"[A-Z][A-Z0-9_]*")
 RESERVED_WORDS = ("FAILED", "TIMEOUT", "CANCELLED")  # what await itself says for a failure: never also the success word
 

@@ -79,6 +79,10 @@ for u in https://github.com/o/r/actions/runs/7/job/9 https://github.com/o/r/pull
 done
 : > $J; $B/await --wait -- /bin/echo "see https://nextjs.org/telemetry" >/dev/null 2>&1
 check "$(grep -c ' — ' $J)" 0 "no CI URL in the output: no link at all"
+# a GitHub check-run URL (/OWNER/REPO/runs/ID, what gh-ci-wait prints) is a CI URL too: with a passed check first and
+# the failed one last, the line links the failed one, not the passed one (review of PR #178)
+: > $J; $B/await --wait -- /bin/sh -c 'echo "pass https://github.com/o/r/actions/runs/7/job/9"; echo "fail https://github.com/o/r/runs/10"; exit 1' >/dev/null 2>&1
+check "$(grep -c '@hub FAILED .* — https://github.com/o/r/runs/10 (exit 1, ' $J)" 1 "mixed checks: the failed check run /runs/10 is the link"
 
 # 2b. a CI wait that must never read as success: the caller reads await's own exit code and output (the 26.10 incidents:
 # `await --wait --ok PASSED -- gh pr checks N --watch` exited 0 with an empty output on red checks, the FAILED line being
