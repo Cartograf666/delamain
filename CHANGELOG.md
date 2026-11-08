@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **A lesson that reaches the helped threshold is promoted by `hub takeover`, not listed and forgotten.** A week after
+  1.0.25 none of 42 lessons in two stages was promoted although nine passed the rule (helped from 2 shifts, no hurt):
+  the digest line naming them was read and dropped. Now each takeover writes every promotable lesson as one line of
+  `## Promoted lessons` in the stage's `hub-rules.md` (cue, the whole lesson, source id), marks the entry
+  `promoted: hub-rules.md DATE hub-N (hub takeover)` and names the ids in its journal start line (owner decision: the
+  hub promotes itself, no question to the owner). A lesson is never cut: one whose line would take the section over
+  the 2 KiB cap stays promotable and the takeover asks to shorten it. Both files are written only while they still
+  match what the plan was made from (one new plan after a change, nothing after a second), and the takeover takes back
+  its own rule line (`, auto)`) of a lesson that has since got a `hurt`. `--dry-run` only plans it.
+
 - **`await` stops giving false verdicts.** The CI-wait recipe said `--ok MERGED`, so a green pipeline was journaled as
   `MERGED MR !N` hours before the merge (dbt-elt 02.11); every recipe and help text now says `--ok PASSED`, and MERGED is
   left for a wait on the merge itself. The line's link is the last CI URL of the output (a GitLab pipeline, job or merge
