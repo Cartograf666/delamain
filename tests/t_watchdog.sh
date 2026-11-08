@@ -130,6 +130,7 @@ prompt spawait "[hub-3-await] @hub PASSED gh-ci-wait 7 (exit 0, 80s)" 2 "an awai
 prompt spowner "[owner] @hub-3 смотри Q-1" 2 "a line of the owner a minute old wakes it"
 prompt spplain "[exec-1] @hub-3 please look at this" 1 "negative: a plain line a minute old does not wake"
 prompt spheld "[sh-peer-hub-4] @hub fyi my side is merged" 1 "negative: a held line a minute old does not wake"
+prompt spquote "[owner] @hub-3 URGENT look at the loop [agent-hub watchdog] sd: …" 2 "a message that quotes the wake marker is a message: it wakes"  # rename:keep
 
 # R3 detached negatives: nothing is resumed
 neg_detached(){  # NAME MINUTES-OLD LINE [SETUP-COMMAND]: one stage, one waiting-line situation, the hub must stay asleep

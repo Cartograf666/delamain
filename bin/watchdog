@@ -612,6 +612,13 @@ def prompt_line(flt, tag: str, text: str) -> bool:
             or first.endswith("-await") or hc.tag_is(first, "owner"))
 
 
+def wake_record(parsed) -> bool:
+    """Whether a parsed journal line is the record `agent send` journals for a wake (bin/agent: `[cli] @<tag> [(session
+    resumed, pid N…)] <text>`) whose text is a watchdog wake: a line that only quotes the marker is a message like any."""
+    m = re.match(r"@\S+ (?:\(session resumed, pid \d+[^)]*\) )?(.*)", parsed[2])
+    return parsed[1] == "cli" and bool(m) and m.group(1).startswith(autopilot.WATCHDOG_MARKERS)
+
+
 def line_id(stamp: dt.datetime, key: str) -> str:
     """A journal line's identity across days: jwait's key hashes the text and its occurrence, not the day."""
     return f"{stamp:%Y-%m-%d}/{key}"
@@ -658,7 +665,7 @@ def waiting_lines(tick: Tick, stage: str, rec: dict) -> list:
             prompt = kind == "wake" and prompt_line(flt, parsed[1], text)
             after = dt.timedelta(0) if prompt else max(tick.wake_after, HELD_WAKE_AFTER) if kind == "held" else tick.wake_after
             if ((set_at and stamp < set_at) or tick.now - stamp < after or line_id(stamp, key) in done
-                    or any(m in text for m in autopilot.WATCHDOG_MARKERS)):
+                    or wake_record(parsed)):
                 continue
             out.append((stamp, key, text, kind, prompt))
     return sorted(out)
