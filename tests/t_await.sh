@@ -15,11 +15,11 @@ G=$O/gate; mkdir -p $G
 cat > $O/fake_wait.sh <<'SH'
 #!/bin/bash
 for i in 1 2 3; do
-  echo "step $i: pipeline running https://ci.example/pipelines/$i"
+  echo "step $i: pipeline running https://git.example/g/p/-/pipelines/$i"
   touch "$GATE/step$i"
   for _ in $(seq 1 300); do [ -e "$GATE/ack$i" ] && break; sleep 0.1; done
 done
-echo "result https://ci.example/mr/12 ok"
+echo "result https://git.example/g/p/-/merge_requests/12 ok"
 exit ${EXIT:-0}
 SH
 chmod +x $O/fake_wait.sh
@@ -39,7 +39,7 @@ touch $G/ack3
 waitline '\[hub-1-await\]' ; check $? 0 "terminal outcome journaled"
 sleep 1
 check "$(grep -c '' $J)" 1 "exactly one journal line for the whole wait"
-grep -q '^- [0-9:]* \[hub-1-await\] @hub MERGED MR !12 — https://ci.example/mr/12 (exit 0, ' $J; check $? 0 "line: @hub, status word, label, last URL, exit"
+grep -q '^- [0-9:]* \[hub-1-await\] @hub MERGED MR !12 — https://git.example/g/p/-/merge_requests/12 (exit 0, ' $J; check $? 0 "line: @hub, status word, label, last CI URL, exit"
 grep -q 'log .*/stage-a/coordinator/work/await/.*\.log)$' $J; check $? 0 "line names the log under the stage's work dir"
 
 # 2. outcome words: default ok word, exit codes, --on, explicit --link beats the log
@@ -59,6 +59,26 @@ check "$(grep -c '@hub TIMEOUT .*(exit 2, ' $J)" 1 "--on overrides the default (
 EXIT=1 run $B/await --wait --link https://git.example/mr/9 -- $O/fake_wait.sh
 check "$(grep -c '— https://git.example/mr/9 (' $J)" 1 "--link beats the URL in the output"
 check "$(grep -c '' $J)" 1 "…and still one line"
+
+# 2a. the link is the CI run, never the docs URL of an error message (dbt-elt 02.11: FAILED lines linked sqlalche.me,
+# nextjs.org/telemetry, docs.gitlab.com); no CI URL at all -> no link rather than an unrelated one
+cat > $O/docs_tail.sh <<'SH'
+#!/bin/bash
+echo "pipeline https://gitlab.example/g/p/-/pipelines/140759 failed"
+echo "sqlalchemy.exc.OperationalError (Background on this error at: https://sqlalche.me/e/20/e3q8)"
+echo "see https://docs.gitlab.com/ee/ci/yaml/."
+exit 1
+SH
+chmod +x $O/docs_tail.sh
+: > $J; $B/await --wait -- $O/docs_tail.sh >/dev/null 2>&1
+check "$(grep -c '@hub FAILED .* — https://gitlab.example/g/p/-/pipelines/140759 (exit 1, ' $J)" 1 "a failing output that ends in docs URLs links the pipeline"
+for u in https://github.com/o/r/actions/runs/7/job/9 https://github.com/o/r/pull/12 https://gitlab.example/g/p/-/jobs/5 \
+         https://gitlab.example/g/p/merge_requests/3; do
+  : > $J; $B/await --wait -- /bin/echo "x $u https://nextjs.org/telemetry" >/dev/null 2>&1
+  check "$(grep -c " — $u (" $J)" 1 "…a CI URL is the link: $u"
+done
+: > $J; $B/await --wait -- /bin/echo "see https://nextjs.org/telemetry" >/dev/null 2>&1
+check "$(grep -c ' — ' $J)" 0 "no CI URL in the output: no link at all"
 
 # 2b. a CI wait that must never read as success: the caller reads await's own exit code and output (the 26.10 incidents:
 # `await --wait --ok PASSED -- gh pr checks N --watch` exited 0 with an empty output on red checks, the FAILED line being
@@ -190,12 +210,12 @@ check "$(grep -c 'CANCELLED early.*interrupted by signal 15' $J)" 3 "kill right 
 pkill -f "[$]O/hang.sh" 2>/dev/null; true
 
 # 5e. a reused --log: the link comes from this run's output, not from the older content
-: > $J; printf 'old https://old.example/1\n' > $O/reused.log
+: > $J; printf 'old https://old.example/-/jobs/1\n' > $O/reused.log
 $B/await --wait --log $O/reused.log -- true >/dev/null 2>&1
 check "$(grep -c 'old.example' $J)" 0 "reused log: the old URL is not the link"
-printf '#!/bin/bash\necho new https://new.example/2\n' > $O/newurl.sh; chmod +x $O/newurl.sh
+printf '#!/bin/bash\necho new https://new.example/-/jobs/2\n' > $O/newurl.sh; chmod +x $O/newurl.sh
 : > $J; $B/await --wait --log $O/reused.log -- $O/newurl.sh >/dev/null 2>&1
-check "$(grep -c 'https://new.example/2 (' $J)" 1 "reused log: the link is this run's URL"
+check "$(grep -c 'https://new.example/-/jobs/2 (' $J)" 1 "reused log: the link is this run's URL"
 
 # 5f. killpg answered with EPERM. macOS says that, not ESRCH, while the group holds only zombies (the leader reaped, a
 # child still dying), and it used to cost the supervisor its line (rc 1, no TIMEOUT / FAILED). The race is ~1% a call and
@@ -265,17 +285,38 @@ echo "$sg" | grep -q '^detail: TIMEOUT could not be stopped (EPERM) after 1s, no
 check "$(grep -c '@hub FAILED crash .*await crashed: RuntimeError' $J)" 1 "a crash of run_wait still journals one FAILED line"
 check "$(echo "$sg" | grep '^crash rc:')" "crash rc: 3" "…and supervise exits 3: FAILED is not the ok word"
 
-# 6. the hub's own jwait (digest filter) wakes once on the line, though the line is written under the hub's tag family
+# 6. the hub's own jwait (digest filter) wakes once on the line, though the line is written under the hub's tag family;
+# PASSED, the word of the CI-wait recipe, is no status word: the @hub address is what wakes
 : > $J; rm -f $G/*; export EXIT=0
 $B/jlog --tag old "old line" >/dev/null
 ( armed $O/j1.out
-  $B/await --ok MERGED --label "MR !7" -- $O/fake_wait.sh >/dev/null
+  $B/await --ok PASSED --label "MR !7" -- $O/fake_wait.sh >/dev/null
   for i in 1 2 3; do waitfor $G/step$i; touch $G/ack$i; done ) &
 $B/jwait --journal --tag hub-1 --tag hub --hub-events --settle 1 --for 60s > $O/j1.out 2>&1; rc=$?
 check $rc 0 "the hub's jwait wakes on the await line"
 check "$(grep -c 'NEW: ' $O/j1.out)" 1 "…with one block"
-check "$(grep -c '@hub MERGED MR !7' $O/j1.out)" 1 "…holding exactly that line"
+check "$(grep -c '@hub PASSED MR !7' $O/j1.out)" 1 "…holding exactly that line"
 wait
+
+# 6a. `--tag <the hub's own tag>` (core-d 05.11: FAILED !1121/!1124/!1122 seen two hours late) is signed <tag>-await,
+# so the digest jwait still wakes; a sub-tag the same; a foreign tag stays as given
+: > $J
+( armed $O/j4.out; $B/await --tag hub-1 --label "MR !1121" -- /bin/sh -c 'exit 1' >/dev/null ) &
+$B/jwait --journal --tag hub-1 --tag hub --hub-events --settle 1 --for 60s > $O/j4.out 2>&1; rc=$?
+check $rc 0 "--tag with the hub's own tag: the hub's jwait wakes"
+check "$(grep -c '\[hub-1-await\] @hub FAILED MR !1121' $O/j4.out)" 1 "…on the line signed hub-1-await"
+wait
+: > $J; $B/await --wait --tag hub-1/ci -- true >/dev/null 2>&1
+check "$(grep -c '\[hub-1-await\] @hub DONE' $J)" 1 "--tag with a sub-tag of your own: signed <tag>-await too"
+: > $J; $B/await --wait --tag qa-2 -- true >/dev/null 2>&1
+check "$(grep -c '\[qa-2\] @hub DONE' $J)" 1 "negative: a tag that is not yours is kept as given"
+
+# 6e. no doc or help text pairs --ok MERGED with a CI wait (a green pipeline read as a merge: dbt-elt 02.11, MERGED
+# MR !1077 three hours before the merge)
+R=$(cd "$(dirname "$0")/.." && pwd)
+check "$(grep -rn -- '--ok MERGED' $R/bin $R/skills $R/docs $R/README.md 2>/dev/null | grep -cE 'ci_wait|ci-wait|pr checks|run watch')" 0 \
+  "no recipe pairs --ok MERGED with a CI wait"
+check "$(grep -n -- '--ok PASSED .*ci_wait' $R/bin/await $R/docs/launch-modes.md $R/skills/hub/references/launch-and-executors.md | grep -c .)" 3 "…positive control: the CI recipe says PASSED"
 
 # 6b. the digest jwait does not deliver a cancel (a killed supervisor), and still delivers a FAILED after it
 : > $J; rm -f $G/* $PIDFILE*

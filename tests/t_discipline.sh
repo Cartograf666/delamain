@@ -75,7 +75,7 @@ i=0; for c in "${CI_BLOCKED[@]}"; do i=$((i+1)); denied "$c"; check $? 0 "poll: 
 i=0; for c in "${CI_ALLOWED[@]}"; do i=$((i+1)); denied "$c"; check $? 1 "poll: CI lookup/log/action $i passes"; done
 # `await` without --wait returns at once, its supervisor does the waiting: the CI command inside it is the recommended
 # wait, not a read by hand. With --wait it holds the foreground, so it stays denied; a read outside the await still is.
-denied 'await --ok MERGED --label "PR #12" -- gh pr checks 12 --watch --fail-fast'; check $? 1 "poll: a detached await of gh pr checks passes"
+denied 'await --ok PASSED --label "PR #12" -- gh pr checks 12 --watch --fail-fast'; check $? 1 "poll: a detached await of gh pr checks passes"
 denied '$HUB_BIN/await --ok PASSED --label x --on 2=TIMEOUT -- gh run watch 123 --exit-status'; check $? 1 "poll: …also by path"
 denied 'await --wait --ok PASSED --label x -- gh pr checks 12 --watch'; check $? 0 "poll: await --wait in the foreground is still denied"
 denied 'await --ok DONE -- gh pr checks 12 --watch; gh pr checks 12'; check $? 0 "poll: …a read next to a detached await is still denied"
