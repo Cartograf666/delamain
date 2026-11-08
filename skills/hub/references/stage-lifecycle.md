@@ -149,10 +149,12 @@ the new hub's number continues after the closed one's.
 ## Watchdog
 
 **With the watchdog on** (the takeover digest says so; `docs/monitoring.md`): a hub that sleeps without a waiter is fine, the
-watchdog wakes it when lines addressed to it have waited 15 min — but keep one `jwait` anyway, it is the faster path. A
+watchdog wakes it at the next tick for a status word, an `await` verdict or the owner, after 15 min for other lines
+addressed to it — but keep one `jwait` anyway, it is the faster path. A
 wake arrives as a message that starts `[agent-hub watchdog]` (the name before the rename, still written for one
 release; `[delamain watchdog]` means the same), then `<stage>: N journal lines addressed to you have waited since
-HH:MM …`: run the digest `jwait` with `--since HH:MM`, handle what it shows, keep one waiter. An idle `claude --bg` hub is
+HH:MM …` and the lines themselves (each wakes you once; a fresh `jwait` holds another hub's line up to 30 min): run
+the digest `jwait` with `--since HH:MM`, handle what it and the wake show, keep one waiter. An idle `claude --bg` hub is
 woken by `claude stop` and a resume of the same session, so background commands of its last turn are gone: re-arm what
 you need. When you go quiet on purpose (a long wait for the owner, a pause), say so: `watchdog quiet --stage <S> --reason
 "…" [--for 8h]`, and `watchdog quiet --stage <S> --clear` when you are back.

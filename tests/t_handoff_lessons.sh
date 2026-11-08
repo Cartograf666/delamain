@@ -418,5 +418,162 @@ $B/hub handoff --stage stage-a --n 1 --out $C/dv.md > $R/dv2.out 2>&1
 OPEN=$(grep '^Open lessons to judge:' $C/dv.md)
 case "$OPEN" in *L-001*L-002*L-003*L-004*L-009*L-010*) r=0;; *) r=1;; esac; check $r 0 "…§ 7 lists the open and the promotable lessons"
 case "$OPEN" in *L-005*|*L-006*|*L-007*|*L-008*) r=1;; *) r=0;; esac; check $r 0 "…and not the retired or promoted ones"
+# 12. a real takeover promotes what is promotable (owner, Q-AUDIT-001: the hub does it itself, no question): one line in
+# `## Promoted lessons` of <stage>/hub-rules.md and status `promoted`; a lesson below the threshold is not touched; a re-run
+# adds nothing; a lesson whose line would take the section over 2 KiB stays promotable and the takeover says so
+cat > $L <<'MD'
+# Lessons — stage-a
+
+## L-001 — before merging a change that touches the lock board
+- status: confirmed: 2026-10-25 hub-2
+- by: hub-1, 2026-10-20
+- lesson: read `lock list` first and name the holder
+  in the merge line.
+  - verdict: hub-2 2026-10-21 helped — a nested verdict ends the wrapped lesson and still counts
+- evidence: journal 10:12 [hub-1]
+- verdict: hub-3 2026-10-22 helped — b
+
+## L-002 (proposed, hub-4 01.11): when a reviewer returns no findings in a minute
+- lesson: check that it read the diff.
+- verdict (hub-5, 02.11): helped — a
+- verdict (hub-6, 03.11): helped — b
+
+## L-003 — when a worker loops on one test
+- status: proposed
+- lesson: stop it after three runs.
+- verdict: hub-5 2026-11-02 helped — only one shift so far
+MD
+RULES=$R/stage-a/hub-rules.md; printf '# Rules\n\n## Coordination\n- keep it short\n' > $RULES
+sed -n '/^## L-003/,$p' $L > $R/l3.before
+$B/hub takeover --stage stage-a --session $HUB2 --handoff $C/on3-done.md > $R/pr1.out 2>&1; check $? 0 "promotion: takeover"
+grep -qF -- "- before merging a change that touches the lock board: read \`lock list\` first and name the holder in the merge line. (L-001, lessons.md, auto)" $RULES; check $? 0 "…L-001 is a rule line, its wrapped lesson joined"
+grep -qF -- "- when a reviewer returns no findings in a minute: check that it read the diff. (L-002, lessons.md, auto)" $RULES; check $? 0 "…L-002 too, without the (proposed …) of its heading"
+python3 - $RULES <<'PY'
+import sys
+t = open(sys.argv[1], encoding="utf-8").read()
+assert t.startswith("# Rules\n\n## Coordination\n- keep it short\n\n## Promoted lessons\n\n- before merging"), t
+PY
+check $? 0 "…in a new ## Promoted lessons section after the existing ones"
+grep -q 'L-003' $RULES; check $? 1 "…a lesson below the threshold gets no rule line"
+sed -n '/^## L-003/,$p' $L | cmp -s - $R/l3.before; check $? 0 "…and its entry is byte for byte as it was"
+[ "$(grep -c '^- status: promoted: hub-rules.md [0-9-]* hub-2 (hub takeover)$' $L)" = 2 ]; check $? 0 "…L-001 and L-002 say promoted, by hub-2"
+sed -n '/^## L-002/{n;p;}' $L | grep -q '^- status: promoted'; check $? 0 "…a status line goes right under a heading that had none"
+grep -q 'promoted lessons L-001, L-002 to .*hub-rules.md' $R/pr1.out && grep -q 'promoted lessons L-001, L-002' "$(journal)"; check $? 0 "…the takeover says so and journals it"
+grep -q '^Lessons of earlier shifts.*promotable' $R/pr1.out; check $? 1 "…and the digest no longer lists them as promotable"
+cp $RULES $R/rules.after1
+$B/hub takeover --stage stage-a --session $HUB2 --handoff $C/on3-done.md > $R/pr2.out 2>&1; check $? 0 "promotion: a re-run of the takeover"
+cmp -s $RULES $R/rules.after1; check $? 0 "…adds nothing"
+cat >> $L <<'MD'
+
+## L-005 — when a rule line is already there by hand
+- status: proposed
+- lesson: do not add it twice.
+- verdict: hub-7 2026-11-04 helped — a
+- verdict: hub-8 2026-11-05 helped — b
+MD
+echo '- written by hand before the status was changed (L-005, lessons.md)' >> $RULES
+$B/hub takeover --stage stage-a --session $HUB2 --handoff $C/on3-done.md > $R/pr25.out 2>&1; check $? 0 "promotion: a lesson already listed by hand"
+[ "$(grep -c '(L-005, lessons.md)' $RULES)" = 1 ] && sed -n '/^## L-005/{n;p;}' $L | grep -q '^- status: promoted'; check $? 0 "…gets no second line, only its status"
+# 13. a lesson is published whole or not at all: a cut would drop the condition at its end
+LONG=$(python3 -c 'print("merge the release branch and deploy " + "after checking the backup, the rollback and the logs, " * 40 + "but only after the owner approves the deployment.")')
+printf '\n## L-006 — when preparing a release\n- status: proposed\n- lesson: %s\n- verdict: hub-7 2026-11-04 helped — a\n- verdict: hub-8 2026-11-05 helped — b\n' "$LONG" >> $L
+cp $RULES $R/rules.before6; cp $L $R/l.before6
+$B/hub takeover --stage stage-a --session $HUB2 --handoff $C/on3-done.md > $R/pr6.out 2>&1; check $? 0 "long lesson: takeover"
+grep -q "ATTENTION: lessons left promotable: L-006 (its whole line does not fit ## Promoted lessons of .*: shorten L-006's lesson in lessons.md by hand" $R/pr6.out; check $? 0 "…names it and asks to shorten it"
+cmp -s $RULES $R/rules.before6 && cmp -s $L $R/l.before6; check $? 0 "…and writes no cut rule and no status"
+# 14. another writer between the takeover's read and its write (a hub that still runs appends a `hurt`): the plan is made
+# again from the new text, so the lesson is not promoted and the verdict is kept; a second change writes nothing
+mkdir -p $R/stage-r
+python3 - $B/hub $R/stage-r <<'PY'
+import importlib.machinery, importlib.util, sys
+from pathlib import Path
+loader = importlib.machinery.SourceFileLoader("hubmod", sys.argv[1])
+m = importlib.util.module_from_spec(importlib.util.spec_from_loader("hubmod", loader)); loader.exec_module(m)
+d = Path(sys.argv[2]); les, rules = d / "lessons.md", d / "hub-rules.md"
+entry = ("## L-001 — when X\n- status: proposed\n- lesson: do Y.\n"
+         "- verdict: hub-1 2026-11-01 helped — a\n- verdict: hub-2 2026-11-02 helped — b\n")
+plan, calls = m.planned_promotion, []
+def racing(*args, extra):
+    calls.append(1)
+    out = plan(*args)
+    if extra(len(calls)):
+        les.write_text(les.read_text(encoding="utf-8") + extra(len(calls)), encoding="utf-8")
+    return out
+# a: one hurt between read and write
+les.write_text(entry, encoding="utf-8"); rules.write_text("# Rules\n", encoding="utf-8")
+m.planned_promotion = lambda *a: racing(*a, extra=lambda n: "- verdict: hub-3 2026-11-03 hurt — it broke Z\n" if n == 1 else "")
+got = m.promote_lessons("stage-r", "hub-4", False)
+t = les.read_text(encoding="utf-8")
+assert got == ([], [], []), got
+assert "hurt — it broke Z" in t and "promoted" not in t and "L-001" not in rules.read_text(), (t, rules.read_text())
+# b: a change at every read: nothing written, the lesson stays promotable with why
+calls.clear(); les.write_text(entry, encoding="utf-8")
+m.planned_promotion = lambda *a: racing(*a, extra=lambda n: f"\n<!-- hand edit {n} -->\n")
+got = m.promote_lessons("stage-r", "hub-4", False)
+assert got[0] == [] and "L-001 (lessons.md or hub-rules.md changed twice" in got[1][0], got
+assert "promoted" not in les.read_text() and rules.read_text() == "# Rules\n"
+# c: a hurt that lands between the write of hub-rules.md and that of lessons.md: the rule line is taken back at once
+calls.clear(); les.write_text(entry, encoding="utf-8"); rules.write_text("# Rules\n", encoding="utf-8")
+m.planned_promotion = plan
+real_write, writes = m.hc.atomic_write, []
+def write_then_hurt(path, text):
+    real_write(path, text); writes.append(Path(path).name)
+    if Path(path).name == "hub-rules.md" and writes.count("hub-rules.md") == 1:
+        les.write_text(les.read_text(encoding="utf-8") + "- verdict: hub-3 2026-11-03 hurt — it broke Z\n", encoding="utf-8")
+m.hc.atomic_write = write_then_hurt
+got = m.promote_lessons("stage-r", "hub-4", False)
+m.hc.atomic_write = real_write
+assert got == ([], [], ["L-001"]), got
+assert "(L-001, lessons.md" not in rules.read_text() and "hurt — it broke Z" in les.read_text() \
+    and "promoted" not in les.read_text(), (rules.read_text(), les.read_text())
+PY
+check $? 0 "race: a hurt appended between read and write is kept and stops the promotion; two changes write nothing; a hurt between the two writes takes the rule line back"
+cat >> $L <<'MD'
+
+## L-004 — when the rules section is full
+- status: proposed
+- lesson: this one does not fit.
+- verdict: hub-7 2026-11-04 helped — a
+- verdict: hub-8 2026-11-05 helped — b
+MD
+python3 - $RULES <<'PY'
+import sys
+p = sys.argv[1]; t = open(p, encoding="utf-8").read()
+i = 0
+while len(t[t.index("## Promoted lessons"):].encode()) < 1990:   # under the 2048 cap, over it with the L-004 line
+    t += f"- padding rule {i:02d} (L-9{i:02d})\n"; i += 1
+open(p, "w", encoding="utf-8").write(t + "\n## Later section\n- stays last\n")
+PY
+cp $L $R/l.before4
+$B/hub takeover --stage stage-a --session $HUB2 --handoff $C/on3-done.md > $R/pr3.out 2>&1; check $? 0 "promotion: a full section does not stop the takeover"
+grep -q 'ATTENTION: lessons left promotable: .*L-004 (its whole line does not fit ## Promoted lessons' $R/pr3.out; check $? 0 "…the lesson that does not fit is named"
+cmp -s $L $R/l.before4 && ! grep -q 'L-004' $RULES; check $? 0 "…and stays as it was, with no rule line"
+grep -q '^Lessons of earlier shifts.*promotable: .*L-004 (helped ×2)' $R/pr3.out; check $? 0 "…the digest still lists it as promotable"
+# 15. a `hurt` after the promotion: the next takeover takes the rule line back and says so; the other lines stay
+printf -- '- verdict (L-001, hub-9 06.11): hurt — it blocked a merge\n' >> $L
+$B/hub takeover --stage stage-a --session $HUB2 --handoff $C/on3-done.md > $R/pr7.out 2>&1; check $? 0 "hurt after promotion: takeover"
+grep -q '(L-001, lessons.md' $RULES; check $? 1 "…the L-001 rule line is gone"
+grep -q '(L-002, lessons.md, auto)' $RULES && grep -q '^- padding rule 00' $RULES && grep -q '^## Later section' $RULES; check $? 0 "…the other lines and sections stay"
+grep -q 'ATTENTION: ## Promoted lessons of .*: took back the line(s) of L-001 — settle' $R/pr7.out; check $? 0 "…and the takeover says so"
+# 16. the takeover takes back only its own lines (`, auto)`), and only inside the real section: a hand-written line of a
+# hurt lesson stays and is named; a `##<tab>` heading ends the section; a fenced example of the section is not one
+python3 - $B/hub $R/stage-r <<'PY'
+import importlib.machinery, importlib.util, sys
+from pathlib import Path
+loader = importlib.machinery.SourceFileLoader("hubmod", sys.argv[1])
+m = importlib.util.module_from_spec(importlib.util.spec_from_loader("hubmod", loader)); loader.exec_module(m)
+d = Path(sys.argv[2]); les, rules = d / "lessons.md", d / "hub-rules.md"
+les.write_text("## L-001 — when X\n- status: promoted: hub-rules.md 2026-11-01\n- lesson: do Y.\n"
+               "- verdict: hub-3 2026-11-03 hurt — it broke Z\n", encoding="utf-8")
+text = ("# Rules\n\n```markdown\n## Promoted lessons\n- fenced example (L-001, lessons.md, auto)\n```\n\n"
+        "## Promoted lessons\n\n- written by the takeover (L-001, lessons.md, auto)\n"
+        "- Always check the lock holder; replaces the rejected advice (L-001, lessons.md)\n\n"
+        "##\tRelease approvals\n- owner approval required (L-001, lessons.md, auto)\n")
+rules.write_text(text, encoding="utf-8")
+got = m.promote_lessons("stage-r", "hub-4", False)
+assert got == ([], [], ["L-001", "L-001 (hand-written line kept: check it)"]), got
+assert rules.read_text(encoding="utf-8") == text.replace("- written by the takeover (L-001, lessons.md, auto)\n", ""), rules.read_text()
+PY
+check $? 0 "reconcile: only the takeover's own line goes; the hand line, the ##<tab> section and the fenced example stay"
 cp $R/lessons.keep $L
 exit $fail

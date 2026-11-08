@@ -108,7 +108,7 @@ can be woken.
 |---|---|---|
 | R1 | An agent whose process is gone without a result. | The existing line `EXIT <role>: killed (no result)`, written once. |
 | R2 | An open owner question past its due time that has a default. | One journal line `[watchdog] @hub OVERDUE Q-… (due …) default: …` per question and due date; a new due date re-arms it. |
-| R3 | The hub is silent (not busy, no activity for 15 min), lines addressed to it have waited 15 min (or a night-queue item has, inside `AGENT_HUB_NIGHT`), and no `jwait` of its own runs. | Wakes the hub. |
+| R3 | The hub is silent (not busy, no activity for 15 min), lines addressed to it have waited 15 min (or a night-queue item has, inside `AGENT_HUB_NIGHT`), and no `jwait` of its own runs; a prompt line (below) wakes a hub known to be idle at the next tick. | Wakes the hub. |
 | R4 | A Claude hub whose last turn ended on an API error, or a confirmed idle Codex app hub whose last own turn ended with explicit `server_overloaded`, 15 min ago or more. | Wakes the same session/thread, whether or not anything waits. |
 | R5 | The machine, only when `AGENT_HUB_SPAWN_HOLD_LOAD` is set: the 1-minute load average per core above it. | Writes `<state dir>/spawn-hold.json`; see the load hold below. |
 | R6 | Each engine's plan week ([limit pace](reference.md#limit-pace)), for a stage with a hub that is not quiet. | One journal line `[pace] @hub LIMIT …` per forecast crossing, stage, window and level; the owner is notified once per window projected to run out. Forecast context only: each launch compares fresh remaining weekly quota. |
@@ -121,6 +121,19 @@ while it waits; a file whose process is gone is ignored and deleted. When a live
 watchdog does not wake: it writes one journal line (no status word, no `@`) saying that the waiter does not match them.
 A held line (another stage's hub, see `jwait`'s `HELD`) is not a mismatch: a live waiter delivers it within 30 minutes by
 design. The pacer's `[pace]` lines never wake a hub (R3 leaves them out): they are context for the next launch.
+A prompt line does not wait: one that carries a status word of the digest (`hubcore.STATUS_WORDS` with
+`AGENT_HUB_JWAIT_MATCH`), a word that wakes even a held line (`FAILED`, `TIMEOUT`, `CONFLICT`, `URGENT`), a verdict of
+`await` (signed `<tag>-await`, so `PASSED` or any `--ok` word) or a line of the owner (`[owner]`). It wakes a hub that is
+known to be idle (a listed idle or a stopped background session, a headless hub whose run has ended) at the next tick,
+whatever its silence; a busy hub, or one whose state is unknown, still waits for the silence. A wake quotes the lines it
+carries (status words lower-cased, no `@`: `agent send` records the text in the journal) and wakes for each line once:
+when the hub shows activity after the wake, its lines count as delivered and never wake it again, also when it handled
+them without its digest `jwait` (which leaves them unseen; a line is told by its day and jwait's key). The record
+`agent send` journals for a wake (`[cli] @<hub> … [agent-hub watchdog] …`) never counts as waiting. A wake that shows
+no activity is retried with its backoff.
+Activity of a Claude hub is its transcript's last write, but no later than 15 minutes after its newest entry when only
+bookkeeping follows (the same reading as R7, below): the CLI touches an idle background session's transcript, and until
+1.0.27 that touch kept a hub "not silent" (a line of 05:55 woke a hub at 06:44).
 The watchdog's record lines (a wake, a failed wake, the mismatch above) carry no status word and no `@`, so they never count as waiting; the R2 line is addressed to the hub on purpose and does. Times are `AGENT_HUB_WATCHDOG_WAKE_AFTER` (15m).
 
 ### Which host is woken how
@@ -251,8 +264,10 @@ A row of `claude agents --json` is stopped only when all of these hold:
    `turn_duration` or `stop_hook_summary`, followed only by bookkeeping lines, below). The CLI leaves `working` on a
    session whose last turn ended on "waiting for the successor"; until 1.0.25 such a hub was reported every day and never
    stopped. A dormant hub (below) gets no such allowance: its last look wants `idle`/`done` and no journal waiter of
-   any stage below it. An entry dated before one written above it (a clock step, a late write) makes the transcript
-   say nothing: the write time stands and no turn counts as finished. `busy`, `waiting`, a missing value or any other one protects it, and so does
+   any stage below it. The CLI writes entries out of order (an `api-request` stamped after the `user` entry below it, a
+   queued message stamped when it was queued): the newest time is the greatest, and the turn counts as finished only
+   when its end entry is the last one and none is dated later (until 1.0.27 any such pair made the transcript say
+   nothing, so a retired hub stayed "idle/working" for days). `busy`, `waiting`, a missing value or any other one protects it, and so does
    **a live shell among the direct children of its process** that holds anything but MCP servers (a command naming `mcp`,
    such as `npm exec @upstash/context7-mcp`, and what runs below it) and the own waiter:
    Claude Code starts every Bash call and background task as a shell (`/bin/zsh -c …`, the user's shell or

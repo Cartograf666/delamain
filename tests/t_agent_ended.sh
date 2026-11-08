@@ -102,12 +102,15 @@ asst(){ python3 -c 'import json,sys; print(json.dumps({"type": "assistant", "mes
 exit_note review-qv 0 "$(asst $'Review done.\nVERDICT: merge after fixes\nDelegation: nothing delegated, level 3')
 $RES" > /dev/null
 grep -q 'REVIEWED review-qv: .*; last: VERDICT: merge after fixes ' "$(J)"; check $? 0 "last: quotes the VERDICT line, not the delegation line after it"
+grep -q 'REVIEWED review-qv: finished, outcome in its last answer; ' "$(J)"; check $? 0 "…and the line does not claim there is no outcome when the quote is one"
+grep -q 'review-qv: finished, no status word' "$(J)"; check $? 1 "…(no \"no status word\" next to a VERDICT)"
 exit_note quote-r 0 "$(asst $'Wrote the report to /w/x-REPORT.md.\nDelegation: Haiku for the probe')
 $RES" > /dev/null
 grep -q 'ENDED quote-r: .*; last: Wrote the report to /w/x-REPORT.md\. ' "$(J)"; check $? 0 "…a *-REPORT.md path counts too"
 exit_note quote-n 0 "$(asst $'All green.\nSee you.')
 $RES" > /dev/null
 grep -q 'ENDED quote-n: .*; last: See you\. ' "$(J)"; check $? 0 "control: no outcome line anywhere → the last line, as before"
+grep -q 'ENDED quote-n: finished, no status word in the journal; ' "$(J)"; check $? 0 "…and then \"no status word\" is true and said"
 # quoted lines and fenced blocks are not the agent's result; a mid-sentence "VERDICT:" is not a verdict line
 exit_note review-qf 0 "$(asst $'VERDICT: changes requested\n```\nVERDICT: merge\n```\nDelegation: nothing')
 $RES" > /dev/null

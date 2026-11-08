@@ -357,6 +357,12 @@ rows "$X|||idle|working"; tick "idle/working, a request after the end"; stopped 
 X=$(sid e00000f9); retire_hub a "$X" hub-78; quiet_for "$X" 150
 tail_add "$X" "$END" '{"type": "user", "timestamp": "2000-01-01T00:00:00.000Z", "message": {"role": "user", "content": "late"}}'
 rows "$X|||idle|working"; tick "idle/working, an older entry after the end"; stopped "…not with an entry dated before the finished turn written after it (a clock step)" ""
+# retired phase-e 56da4042 (06.11–08.11, 1.0.26): the CLI writes entries out of order inside a turn (an `api-request`
+# stamped after the `user` entry below it); after the finished turn only bookkeeping, and the file touched a minute ago
+X=$(sid e00000fb); retire_hub a "$X" hub-80; quiet_for "$X" 150
+tail_add "$X" '{"type": "api-request", "timestamp": "{T}"}' '{"type": "user", "timestamp": "2000-01-01T00:00:00.000Z", "message": {"role": "user", "content": "queued"}}' "$END" '{"type": "bridge-session", "x": 1}' '{"type": "cost-state", "x": 1}'
+FX age "$CLAUDE_CONFIG_DIR/projects/p/$X.jsonl" 1
+rows "$X|||idle|working"; tick "idle/working, entries out of order inside the turn"; stopped "…an entry older than the one above it inside the last turn, the turn ended, bookkeeping since: stopped" "stop e00000fb "
 X=$(sid e00000f2); retire_hub a "$X" hub-71; quiet_for "$X" 150; tail_add "$X" "$END"
 spawn python3 -c 'import subprocess, time; subprocess.Popen(["sh", "-c", "sleep 3001; true"]); time.sleep(3000)'; ROWPID=$SPAWNED; sleep 1
 rows "$X|||idle|working"; tick "idle/working with a shell child, quiet 150 min"; stopped "…not with a command in flight (a shell child), however quiet" ""

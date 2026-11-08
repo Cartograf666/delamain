@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **A lesson that reaches the helped threshold is promoted by `hub takeover`, not listed and forgotten.** A week after
+  1.0.25 none of 42 lessons in two stages was promoted although nine passed the rule (helped from 2 shifts, no hurt):
+  the digest line naming them was read and dropped. Now each takeover writes every promotable lesson as one line of
+  `## Promoted lessons` in the stage's `hub-rules.md` (cue, the whole lesson, source id), marks the entry
+  `promoted: hub-rules.md DATE hub-N (hub takeover)` and names the ids in its journal start line (owner decision: the
+  hub promotes itself, no question to the owner). A lesson is never cut: one whose line would take the section over
+  the 2 KiB cap stays promotable and the takeover asks to shorten it. Both files are written only while they still
+  match what the plan was made from (one new plan after a change, nothing after a second), and the takeover takes back
+  its own rule line (`, auto)`) of a lesson that has since got a `hurt`. `--dry-run` only plans it.
+
 - **`await` stops giving false verdicts.** The CI-wait recipe said `--ok MERGED`, so a green pipeline was journaled as
   `MERGED MR !N` hours before the merge (dbt-elt 02.11); every recipe and help text now says `--ok PASSED`, and MERGED is
   left for a wait on the merge itself. The line's link is the last CI URL of the output (a GitLab pipeline, job or merge
@@ -9,6 +19,15 @@
   error message. A `--tag` that names the caller's own tag is signed `<tag>-await` like the default, so the hub's own
   jwait no longer drops the line (core-d 05.11: three FAILED lines seen two hours late). A TIMEOUT after 0 s was a bad
   command line (an empty `--pipeline` value, argparse's exit 2 under the recipe's `--on 2=TIMEOUT`): the help says so.
+- **The watchdog wakes a hub at the next tick for a line that needs it, once per line, and stops a retired hub it
+  reported for days.** In the week to 07.11 lines waited 15–49 min for a watchdog wake; the same line woke a hub twice
+  (dolya 05.11 16:32 and 16:52); retired phase-e #9 ran 2 days after its successor took over. Now a waiting line with
+  a status word, an `await` verdict (`PASSED` or any `--ok` word), `FAILED`/`TIMEOUT`/`CONFLICT`/`URGENT` or the owner's
+  tag wakes an idle hub at the next tick (other lines keep the 15/30 min thresholds); a wake quotes its lines and they
+  never wake the hub again once it has acted after the wake. The hub's silence and R7's quiet time no longer count the
+  CLI's touches of an idle transcript (the 49 min: a line of 05:55 woke the hub at 06:44), and R7 reads a transcript
+  whose entries are out of order (an `api-request` stamped after the entry below it, in nearly every turn) instead of
+  treating it as unknown and reporting the hub "idle/working" every day.
 
 - **agent-top shows owner questions on a freshly booted machine; `t_agent_top` is green on CI again.** The question
   reader's first refresh waited until `time.monotonic()` passed its 20 s TTL from 0, and that clock counts from boot:
@@ -16,6 +35,31 @@
   and the test died on a `KeyError` with no FAIL line. The first refresh now always runs. Every check of
   `tests/t_agent_top.sh` prints a FAIL line naming itself, and the pty journal-filter checks wait for the filter's mark
   on the screen instead of reading it before a loaded program redraws (macOS CI).
+
+- **A message to an agent that has just finished resumes it at once; `agent spawn` with no agent says so in the
+  journal; closed hubs no longer sign `[owner]`.** Weekly audit 07.11, § 6 items 6–7.
+  - `agent send` to an agent whose run was winding down (it had said DONE, its process had not exited) queued the
+    message, and nothing delivered it until the hub's next send: 15–33 min in Dolya (03.11, 06.11). The exit wrapper now
+    resumes the agent with a message its run left unread as soon as the run's process is gone (`[inbox] @<role>
+    (session resumed, …, unread replayed: N)`). Only a read of `inbox.md` counts as reading it: a final DONE no longer
+    does (it closes the task the run had, often reported before the message came; also in agent-top). `agent stop`
+    marks the agent `stopping` under its lock before the kill, so such a replay cannot restart a stopped agent. The
+    replay decides under the agent's lock once the run's process is gone (a message queued in the last moments is not
+    missed); a replay whose resume fails before init is not retried: the message stays queued and the hub gets
+    `EXIT <role>: its unread message could not be replayed and stays queued — <why>`.
+  - A spawn whose CLI gives no init event in its window (Codex stuck on Gatekeeper) or exits first still exits 1, and
+    now also journals `EXIT <role>: spawn failed, no agent is running — …` under the agent's tag, naming a worktree it
+    left, so a spawn run in the background wakes the hub. Both engines.
+  - `broadcast` from the hub of a stage since closed (its hub registration retired) signs `[<stage>-<hub tag>]`, not
+    `[owner]` (02.11 16:51, four journals).
+  - The end-of-run line no longer says "no status word in the journal" next to a quoted `VERDICT:` or status-word
+    line: it says `finished, outcome in its last answer`.
+  - `agent send R --file F` (or `--brief`) is a usage error instead of the message text "--file F"; `--` before the
+    role still sends such words as text.
+  - `ask close/withdraw/done/show/revoke/default-taken --stage S ID` picks the entry of stage S when several stages share
+    the id, instead of failing "ambiguous"; a new stage whose default prefix another stage uses gets a longer one
+    (`weekly-audit` → `WEEKLYAUDIT` when `AUDIT` is taken, then `WEEKLYAUDIT2`), chosen under a home-wide lock.
+  - Hub reference: work that continues a stack is spawned with `--base <stack branch>`.
 
 ## 1.1.0 — 2026-11-06
 

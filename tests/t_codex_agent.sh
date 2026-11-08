@@ -33,10 +33,18 @@ FAKE_CODEX_HOLD=2 spawn worker --model gpt-fixture > "$AGENT_HUB_HOME/spawn.out"
 "$B/agent" status worker | grep -Eq 'ALIVE'; check $? 0 'generated session ID does not break liveness'
 "$B/agent" send worker 'queued control' >/dev/null; check $? 0 'alive Codex inbox'
 wait_done worker; check $? 0 'Codex process exits'
-"$B/agent" status worker | grep -Eq 'finished \(success.*unread inbox messages 1'; check $? 0 'Codex success + unread messages'
+handed(){ for i in $(seq 1 60); do grep -q "\[inbox\] @$1 (session resumed, .*unread replayed: 1)" "$AGENT_HUB_HOME"/stage-a/coordinator/work/journal-*.md && return 0; sleep 0.25; done; return 1; }
+handed worker; check $? 0 'Codex: a message left unread is replayed at once by a resume'
+wait_done worker; sleep 0.5; wait_done worker
 SID=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["session_id"])' "$AGENT_HUB_HOME/stage-a/agents/worker/meta.json")
 "$B/agent" send worker 'resume control' >/dev/null; check $? 0 'resume Codex'
 wait_done worker
+# journal DONE → send → final DONE without an inbox read: the final DONE is no receipt, the message is replayed
+FAKE_CODEX_HOLD=3 FAKE_CODEX_FINAL='DONE work/cdn-REPORT.md' spawn cdn >/dev/null; check $? 0 'Codex spawn cdn'
+HUB_TAG=cdn "$B/jlog" "DONE work/cdn-REPORT.md" >/dev/null
+"$B/agent" send cdn 'one more thing' >/dev/null; wait_done cdn
+handed cdn; check $? 0 'Codex: a final DONE does not swallow a message queued after the journal DONE'
+wait_done cdn; sleep 0.5; wait_done cdn
 python3 - "$W" "$SID" <<'PY'
 import json,sys
 from pathlib import Path
@@ -73,6 +81,7 @@ FAKE_CODEX_HOLD=30 spawn stoppable >/dev/null; check $? 0 'Codex uses configured
 FAKE_CODEX=die spawn rejected >/dev/null 2>&1; check $? 1 'CLI rejection fails spawn'
 "$B/roles" get rejected >/dev/null 2>&1; check $? 1 'rejected launch never registered'
 FAKE_CODEX=hang AGENT_INIT_TIMEOUT=1 spawn hanging >/dev/null 2>&1; check $? 1 'init deadline kills hanging CLI'
+grep -rq 'EXIT hanging: spawn failed, no agent is running — codex sent no init event in 1 s' "$AGENT_HUB_HOME"/*/coordinator/work/journal-*.md; check $? 0 'a spawn with no init is journaled as EXIT'
 FAKE_CODEX=error spawn errored >/dev/null; check $? 0 'started thread recorded before API failure'
 wait_done errored
 "$B/agent" status errored | grep -Eq 'finished \(error, error'; check $? 0 'API failure reported as error'

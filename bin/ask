@@ -172,7 +172,20 @@ def open_stages() -> list[str]:
 
 
 def default_prefix(stage: str) -> str:
-    return re.sub(r"[^A-Z0-9]", "", stage.split("-")[-1].upper()) or "X"
+    """The id prefix of a new stage file: its last word (`weekly-audit` → AUDIT), unless another stage's file already
+    uses it; then more of the name (WEEKLYAUDIT), then that with a number (WEEKLYAUDIT2). Ids stay findable by id
+    alone; the caller holds the home's lock (cmd_add), so two new stages cannot both take a free one."""
+    used = set()
+    for other in all_stages():
+        try:
+            used.add(load(other)[0])
+        except (OSError, UnicodeDecodeError):
+            continue
+    words = [re.sub(r"[^A-Z0-9]", "", w.upper()) for w in stage.split("-")]
+    tries = ["".join(words[-n:]) for n in range(1, len(words) + 1)]
+    tries = [t for t in tries if t] or ["X"]
+    return next((t for t in tries if t not in used), None) or next(
+        f"{tries[-1]}{n}" for n in range(2, len(used) + 3) if f"{tries[-1]}{n}" not in used)
 
 
 def parse(stage: str, text: str) -> tuple[str | None, list[Entry]]:
@@ -207,10 +220,11 @@ def load(stage: str) -> tuple[str | None, list[Entry]]:
 
 
 class Locked:
-    """flock on <stage>/.questions.lock for the read-modify-write of one stage file."""
+    """flock on <stage>/.questions.lock for the read-modify-write of one stage file; Locked("") is the home's lock,
+    held by `add` so the prefixes of new stage files stay unique."""
 
     def __init__(self, stage: str):
-        self.dir = ROOT / stage
+        self.dir = ROOT / stage if stage else ROOT
         self.fd = None
 
     def __enter__(self):
@@ -325,7 +339,7 @@ def cmd_add(args, kind_letter: str) -> int:
     stage = args.stage
     path = stage_file(stage)
     when = resolve_when(args.at, args.asked)
-    with Locked(stage):
+    with Locked(stage), Locked(""):  # always stage, then home
         text = path.read_text(encoding="utf-8") if path.exists() else ""
         prefix, entries = parse(stage, text)
         if not text:
@@ -859,6 +873,9 @@ def has_plan(stage: str) -> bool:
     return any(e.kind_letter == "P" for e in load(stage)[1])
 
 
+STAGE_HINT: str | None = None  # --stage of the command: picks the entry when several stages share its id
+
+
 def find_entry(entry_id: str) -> Entry:
     hits = []
     for stage in all_stages():
@@ -869,8 +886,13 @@ def find_entry(entry_id: str) -> Entry:
         hits += [e for e in entries if e.id == entry_id]
     if not hits:
         raise SystemExit(f"ask: {entry_id} not found in {ROOT}/*/{FILENAME}")
+    if STAGE_HINT:
+        mine = [e for e in hits if e.stage == STAGE_HINT]
+        if not mine:
+            raise SystemExit(f"ask: {entry_id} is in stage {', '.join(e.stage for e in hits)}, not {STAGE_HINT}")
+        hits = mine
     if len(hits) > 1:
-        raise SystemExit(f"ask: {entry_id} is ambiguous: stages {[e.stage for e in hits]}")
+        raise SystemExit(f"ask: {entry_id} is ambiguous: stages {[e.stage for e in hits]} — pass --stage")
     return hits[0]
 
 
@@ -1500,7 +1522,7 @@ def main(argv: list[str]) -> int:
 
     rv = sub.add_parser("revoke", help="the owner took a standing permission back")
     rv.add_argument("id")
-    rv.add_argument("--stage", help="optional check: the entry must be in this stage")
+    rv.add_argument("--stage", help="the entry's stage: a check, and the choice when several stages share the id")
     rv.add_argument("--reason", default="revoked by the owner")
     rv.add_argument("--at", default="", help="HH:MM, default now")
 
@@ -1527,28 +1549,28 @@ def main(argv: list[str]) -> int:
 
     c = sub.add_parser("close", help="owner answered")
     c.add_argument("id")
-    c.add_argument("--stage", help="optional check: the entry must be in this stage")
+    c.add_argument("--stage", help="the entry's stage: a check, and the choice when several stages share the id")
     c.add_argument("--answer", required=True)
     c.add_argument("--date", default="", help="YYYY-MM-DD to backfill another day (date only unless --at is given)")
     c.add_argument("--at", default="", help="HH:MM, default now")
 
     w = sub.add_parser("withdraw", help="the owner withdrew the question, or it lost its point")
     w.add_argument("id")
-    w.add_argument("--stage", help="optional check: the entry must be in this stage")
+    w.add_argument("--stage", help="the entry's stage: a check, and the choice when several stages share the id")
     w.add_argument("--reason", default="withdrawn")
 
     t = sub.add_parser("default-taken", help="due passed, the default action was done; still waiting for the owner")
     t.add_argument("id")
-    t.add_argument("--stage", help="optional check: the entry must be in this stage")
+    t.add_argument("--stage", help="the entry's stage: a check, and the choice when several stages share the id")
     t.add_argument("--note", default="")
 
     sh = sub.add_parser("show", help="one entry in full, any status")
     sh.add_argument("id")
-    sh.add_argument("--stage", help="optional check: the entry must be in this stage")
+    sh.add_argument("--stage", help="the entry's stage: a check, and the choice when several stages share the id")
 
     dn = sub.add_parser("done", help="the owner's answer was executed: add a `- done:` line with the evidence")
     dn.add_argument("id")
-    dn.add_argument("--stage", help="optional check: the entry must be in this stage")
+    dn.add_argument("--stage", help="the entry's stage: a check, and the choice when several stages share the id")
     dn.add_argument("--evidence", required=True, help="what was done and where it shows (commit, MR, file, command)")
     dn.add_argument("--at", default="", help="HH:MM, default now")
 
@@ -1584,9 +1606,9 @@ def main(argv: list[str]) -> int:
     args = p.parse_args(argv)
     today = now_local().date().isoformat()
     if args.cmd in ("close", "withdraw", "default-taken", "show", "done", "revoke") and args.stage:
-        found = find_entry(args.id).stage   # ids are unique across stages; --stage only guards against a typo
-        if found != args.stage:
-            raise SystemExit(f"ask: {args.id} is in stage {found}, not {args.stage}")
+        global STAGE_HINT
+        STAGE_HINT = args.stage
+        find_entry(args.id)  # a wrong stage fails here, before anything is written
     if args.cmd == "show":
         return cmd_show(args.id)
     if args.cmd == "add":
