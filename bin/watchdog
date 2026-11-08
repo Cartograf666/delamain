@@ -668,7 +668,7 @@ def waiting_lines(tick: Tick, stage: str, rec: dict) -> list:
                     or wake_record(parsed)):
                 continue
             out.append((stamp, key, text, kind, prompt))
-    return sorted(out)
+    return sorted(out, key=lambda ln: ln[0])  # stable: journal order within a minute
 
 
 def night_work(tick: Tick, stage: str):
@@ -1042,7 +1042,8 @@ def do_act(tick: Tick, stage: str, rec: dict, o: dict, ep: dict, lines: list, de
         tick.journal(stage, f"woke {tag} ({res['how']}, attempt {attempts}): {n}")
         if not tick.dry:
             ep["result"] = "pending"
-            ep["woke"] = {**(ep.get("woke") or {}), **{line_id(ln[0], ln[1]): iso(ln[0]) for ln in lines}}
+            # only the lines the wake quoted (wake_text): one past WAKE_LINES keeps its right to a later wake
+            ep["woke"] = {**(ep.get("woke") or {}), **{line_id(ln[0], ln[1]): iso(ln[0]) for ln in lines[:WAKE_LINES]}}
     else:
         tick.say(stage, rule, f"wake of {tag} failed ({res['how']}): {res['detail']}", argv=res["how"])
         tick.journal(stage, f"wake of {tag} failed ({res['how']}, {res['detail']}); owner notified")

@@ -271,6 +271,20 @@ text = [json.loads(l) for l in open(sys.argv[1]) if "--resume" in l][-1]["argv"]
 assert "1 journal lines" in text and "one more thing" in text and "please look" not in text, text
 PY
 check $? 0 "one wake per line: …and the wake names only the new line"
+# a wake quotes ten lines: those are delivered, an eleventh still wakes the hub later
+B94=$(U 94); mk_bhub sbmany $B94; reset_log
+for i in $(seq 1 11); do FX jline sbmany 16 "[exec-1] @hub-4 item $i"; done
+bm(){ AGENT_HUB_WATCHDOG_NOW=$(utc_iso "$1") WD run --stage sbmany > "$R/tick.out" 2>&1; }
+bm 0; check "$(resumed)" 1 "eleven lines: one wake"
+FX_NOW=$(utc_iso 4) FX transcript $B94 0 ok; bm 5
+bm 25; check "$(resumed)" 2 "eleven lines: …the line past the ten quoted wakes the hub again"
+python3 - "$R/claude.log" <<'PY'
+import json, sys
+text = [json.loads(l) for l in open(sys.argv[1]) if "--resume" in l][-1]["argv"][-1]
+assert "1 journal lines" in text and "item 11" in text and "item 1 " not in text, text
+PY
+check $? 0 "eleven lines: …and that wake names only it"
+bm 35; check "$(resumed)" 2 "eleven lines: …and nothing within that wake's backoff"
 # the same text at the same minute the next day is a new line (jwait's key hashes the text, not the day)
 B93=$(U 93); mk_bhub sbday $B93; FX backdate sbday 3000; FX_NOW=$(utc_iso -1500) FX transcript $B93 0 ok; reset_log
 FX_NOW=$(utc_iso -1440) FX jline sbday 16 "[exec-1] @hub-4 daily check"
