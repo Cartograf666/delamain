@@ -110,6 +110,8 @@ grep -q "\[cli\] @hub-3 (session resumed, pid [0-9]*) \[agent-hub watchdog\] sd:
 check $? 0 "R3 detached: the hub got the wake text (digest jwait --since, the lines themselves, one waiter, quiet)"
 grep -q "\[delamain watchdog\]" "$(J sd)"; check $? 1 "rename: the wake prefix written now is the former name, not the new form (a hub on an older plugin copy reads only it)"
 tick > /dev/null; check "$(runs sd)" 2 "R3 safety: a second tick in the same episode wakes no second time"
+AGENT_HUB_WATCHDOG_NOW=$(utc_iso 20) WD run --stage sd > "$R/tick.out" 2>&1
+check "$(runs sd)" 2 "R3 safety: …nor 20 min later for the record \`agent send\` journaled (\`[cli] @hub-3 … [agent-hub watchdog] …\`)"  # rename:keep
 # R3 held: another stage's hub addressing @hub waits for the stream deadline (30 min), then wakes a hub without a waiter
 mkdir -p "$R/sh-peer"; mk_dhub sh
 FX jline sh 16 "[sh-peer-hub-4] @hub fyi my side is merged"
@@ -268,6 +270,14 @@ text = [json.loads(l) for l in open(sys.argv[1]) if "--resume" in l][-1]["argv"]
 assert "1 journal lines" in text and "one more thing" in text and "please look" not in text, text
 PY
 check $? 0 "one wake per line: …and the wake names only the new line"
+# the same text at the same minute the next day is a new line (jwait's key hashes the text, not the day)
+B93=$(U 93); mk_bhub sbday $B93; FX backdate sbday 3000; FX_NOW=$(utc_iso -1500) FX transcript $B93 0 ok; reset_log
+FX_NOW=$(utc_iso -1440) FX jline sbday 16 "[exec-1] @hub-4 daily check"
+bd(){ AGENT_HUB_WATCHDOG_NOW=$(utc_iso "$1") WD run --stage sbday > "$R/tick.out" 2>&1; }
+bd -1440; check "$(resumed)" 1 "one wake per line, next day: the first day's wake"
+FX_NOW=$(utc_iso -1436) FX transcript $B93 0 ok; bd -1430
+FX_NOW=$(utc_iso 0) FX jline sbday 16 "[exec-1] @hub-4 daily check"
+bd 0; check "$(resumed)" 2 "one wake per line, next day: …the same line a day later wakes it"
 
 # the 49-min wake (dolya 04.11 05:55 → 06:44): an idle background session's transcript is touched by bookkeeping lines
 # with no timestamp (bridge-session, cost-state), which read as activity and kept the hub "not silent"

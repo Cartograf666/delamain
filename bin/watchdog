@@ -612,13 +612,29 @@ def prompt_line(flt, tag: str, text: str) -> bool:
             or first.endswith("-await") or hc.tag_is(first, "owner"))
 
 
+def line_id(stamp: dt.datetime, key: str) -> str:
+    """A journal line's identity across days: jwait's key hashes the text and its occurrence, not the day."""
+    return f"{stamp:%Y-%m-%d}/{key}"
+
+
+def delivered(tick: Tick, stage: str, rec: dict) -> dict:
+    """{line_id: stamp} of the lines that woke this hub and that it acted on afterwards (rule_hub), the last two days."""
+    hs = ((tick.state.get("stages") or {}).get(stage) or {}).get("hub")
+    if not isinstance(hs, dict) or hs.get("session") != rec.get("session") or not isinstance(hs.get("delivered"), dict):
+        return {}
+    cutoff = iso(tick.now - dt.timedelta(days=2))
+    return {k: v for k, v in hs["delivered"].items() if isinstance(v, str) and v >= cutoff}
+
+
 def waiting_lines(tick: Tick, stage: str, rec: dict) -> list:
     """[(stamp, key, text, kind, prompt)] of the journal lines the hub's own digest `jwait` would deliver
     (jwait.hub_filter; kind "wake" or "held"), that no `jwait` of the hub has consumed (its seen-state, under either of its
     caller names), stamped after the hub took over and at least WAKE_AFTER ago (a held line: at least HELD_WAKE_AFTER; a
     prompt line, see prompt_line: at once). The pacer's lines (`[pace] @hub LIMIT …`) are left out: context for the next
-    launch, never a reason to wake a hub."""
+    launch, never a reason to wake a hub, and so are the records of a wake (`agent send` journals the wake text addressed
+    to the hub) and the lines an earlier wake delivered (delivered())."""
     jw = tool("jwait")
+    done = delivered(tick, stage, rec)
     flt = jw.hub_filter(stage, rec.get("tag") or "hub")
     states = [jw.load_state(c) for c in callers_of(rec)]
     set_at = parse_ts(rec.get("set_at"))
@@ -641,7 +657,8 @@ def waiting_lines(tick: Tick, stage: str, rec: dict) -> list:
             # after the stream deadline a waiter would have printed it at, so a plain `tell` is late, never lost
             prompt = kind == "wake" and prompt_line(flt, parsed[1], text)
             after = dt.timedelta(0) if prompt else max(tick.wake_after, HELD_WAKE_AFTER) if kind == "held" else tick.wake_after
-            if (set_at and stamp < set_at) or tick.now - stamp < after:
+            if ((set_at and stamp < set_at) or tick.now - stamp < after or line_id(stamp, key) in done
+                    or any(m in text for m in autopilot.WATCHDOG_MARKERS)):
                 continue
             out.append((stamp, key, text, kind, prompt))
     return sorted(out)
@@ -956,13 +973,12 @@ def rule_hub(tick: Tick, stage: str, st: dict, rec: dict) -> None:
         # the hub showed activity after the last action: that episode is over, and the lines that wake carried were
         # delivered: they never wake it again (a hub that answered them without its digest jwait leaves them unseen).
         # A new API-error record is activity of a hub that is still failing, not recovery: that episode goes on.
-        cutoff = iso(now - dt.timedelta(days=2))
-        hs["delivered"] = {k: v for k, v in {**(hs.get("delivered") or {}), **(ep.get("woke") or {})}.items() if v >= cutoff}
+        hs["delivered"] = {**delivered(tick, stage, rec), **(ep.get("woke") or {})}
+        lines = [ln for ln in lines if line_id(ln[0], ln[1]) not in hs["delivered"]]
         ep = hs["episode"] = None
-    fresh = [ln for ln in lines if ln[1] not in (hs.get("delivered") or {})]
     last = o["last"] or parse_ts(rec.get("set_at")) or now
     # a prompt line (prompt_line) wakes a hub known to be idle at once; anything else waits for WAKE_AFTER of silence
-    silent = o["busy"] is not True and (now - last >= tick.wake_after or (o["busy"] is False and any(ln[4] for ln in fresh)))
+    silent = o["busy"] is not True and (now - last >= tick.wake_after or (o["busy"] is False and any(ln[4] for ln in lines)))
     dead = raw_dead if raw_dead and now - raw_dead[0] >= tick.wake_after else None
     armed = live_waiter(tick, stage, rec)
     unmatched = [ln for ln in lines if ln[3] != "held"]  # a held line waits in a live jwait by design (HELD_MAX)
@@ -983,12 +999,10 @@ def rule_hub(tick: Tick, stage: str, st: dict, rec: dict) -> None:
         tick.journal(stage, f"wake of {tag} failed (no activity of the hub within {VERIFY_AFTER_S // 60} min); owner notified")
         tick.say(stage, "R3", f"wake of {tag} showed no activity")
         tick.notify(stage, "R3", notify_message(stage, "wake-failed"))
-    if not (dead or fresh or night):
-        return  # what waits was delivered by an earlier wake
     nxt = parse_ts(ep.get("next_try_at"))
     if nxt and now < nxt:
         return
-    do_act(tick, stage, rec, o, ep, fresh, dead, night, minutes(now - last))
+    do_act(tick, stage, rec, o, ep, lines, dead, night, minutes(now - last))
 
 
 def do_act(tick: Tick, stage: str, rec: dict, o: dict, ep: dict, lines: list, dead, night, silent_min: int) -> None:
@@ -1021,7 +1035,7 @@ def do_act(tick: Tick, stage: str, rec: dict, o: dict, ep: dict, lines: list, de
         tick.journal(stage, f"woke {tag} ({res['how']}, attempt {attempts}): {n}")
         if not tick.dry:
             ep["result"] = "pending"
-            ep["woke"] = {**(ep.get("woke") or {}), **{ln[1]: iso(ln[0]) for ln in lines}}
+            ep["woke"] = {**(ep.get("woke") or {}), **{line_id(ln[0], ln[1]): iso(ln[0]) for ln in lines}}
     else:
         tick.say(stage, rule, f"wake of {tag} failed ({res['how']}): {res['detail']}", argv=res["how"])
         tick.journal(stage, f"wake of {tag} failed ({res['how']}, {res['detail']}); owner notified")

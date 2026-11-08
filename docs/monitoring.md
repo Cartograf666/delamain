@@ -128,7 +128,9 @@ known to be idle (a listed idle or a stopped background session, a headless hub 
 whatever its silence; a busy hub, or one whose state is unknown, still waits for the silence. A wake quotes the lines it
 carries (status words lower-cased, no `@`: `agent send` records the text in the journal) and wakes for each line once:
 when the hub shows activity after the wake, its lines count as delivered and never wake it again, also when it handled
-them without its digest `jwait` (which leaves them unseen). A wake that shows no activity is retried with its backoff.
+them without its digest `jwait` (which leaves them unseen; a line is told by its day and jwait's key). The record
+`agent send` journals for a wake (`[cli] @<hub> … [agent-hub watchdog] …`) never counts as waiting. A wake that shows
+no activity is retried with its backoff.
 Activity of a Claude hub is its transcript's last write, but no later than 15 minutes after its newest entry when only
 bookkeeping follows (the same reading as R7, below): the CLI touches an idle background session's transcript, and until
 1.0.27 that touch kept a hub "not silent" (a line of 05:55 woke a hub at 06:44).
