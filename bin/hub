@@ -151,7 +151,8 @@ a successor, and `hub takeover` warns (ATTENTION) when the handoff it reads stil
 With AGENT_HUB_HANDOFF_LESSONS on (hub home), the draft also has a § 7, "Lessons of this shift" (entries of
 <stage>/lessons.md, verdicts on earlier ones); a § 7 that is missing, still holds TODO or names neither a lesson id
 nor "none: <reason>" is an ATTENTION line on --finish, `succeed --handoff` and takeover, never a refusal, and the
-takeover digest points at lessons.md whenever the file exists.
+takeover digest points at lessons.md whenever the file exists. Whatever the setting, takeover promotes each promotable
+lesson (helped from 2 shifts, no hurt): a line in `## Promoted lessons` of <stage>/hub-rules.md, status `promoted`.
 succeed starts the successor of an automatic handoff (autopilot, AGENT_HUB_AUTO_HANDOFF; bin/autopilot.py): it checks the
 chain (AGENT_HUB_AUTO_HANDOFF_CHAIN automatic handoffs in a row without the owner; at the limit it journals that and
 exits 3), then starts `claude --bg --remote-control <stage>-hub-<n+1>` from the main checkout of --cwd (default: the
@@ -460,6 +461,9 @@ LESSON_WORD_RE = re.compile(r"\b(helped|hurt|no effect|confounded)\b", re.IGNORE
 LESSON_SHIFT_RE = re.compile(r"\bhub-\d+\b", re.IGNORECASE)
 LESSON_DATE_RE = re.compile(r"\b\d{4}-\d\d-\d\d\b|(?<![\d.])\d{1,2}\.\d\d(?![\d.])")
 LESSON_PROMOTE_AT = 2   # `helped` from this many different shifts (and no `hurt`) makes a lesson promotable
+LESSON_TEXT_RE = re.compile(r"^- lesson:(.*)$")
+PROMOTED_MAX_BYTES = 2048   # the cap hooks/handoff_size.py puts on hand edits of `## Promoted lessons`
+PROMOTED_HEAD_RE = re.compile(r"##[ \t]+Promoted lessons\b", re.IGNORECASE)
 
 
 def lesson_verdict(rest: str):
@@ -482,38 +486,179 @@ def lesson_verdict(rest: str):
     return ids, words.pop(), shift.group(0).lower() if shift else "?"   # no shift named: all such verdicts count as one
 
 
-def lessons_entries(stage: str):
-    """[(id, cue, status word, helped, hurt, status as written)] of <stage>/lessons.md, in file order; None when the file
-    is absent or unreadable. `helped` / `hurt` count the different shifts that gave that verdict. The status word is the first word of
+def lessons_entries(stage: str, text: str = None):
+    """[(id, cue, status word, helped, hurt, status as written, heading line, status line or 0, lesson text)] of
+    <stage>/lessons.md (or of `text`, read from it), in file order; None when the file is absent or unreadable. Line
+    numbers are 1-based. `helped` / `hurt` count the different shifts that gave that verdict. The status word is the first word of
     the entry's first `- status:` line (proposed | confirmed | promoted | retired), "" when it has none, derived from
     the verdicts: `promoted` and `retired` written by hand stay; otherwise any `hurt` makes it `retired` and `helped`
     from LESSON_PROMOTE_AT shifts makes it `promotable`. Bytes that are not UTF-8 are replaced: a damaged file must not
     stop a handoff or a takeover."""
     try:
-        text = lessons_path(stage).read_text(encoding="utf-8", errors="replace")
+        text = lessons_path(stage).read_text(encoding="utf-8", errors="replace") if text is None else text
     except OSError:
         return None
-    out, shifts, current = [], {}, None   # shifts: id -> {word: {shift}}
+    out, shifts, current, in_lesson = [], {}, None, False   # shifts: id -> {word: {shift}}
     for lineno, line in outside_markup(text):
+        if in_lesson and line[:1].isspace() and line.strip() and not re.match(r"\s*[-*]\s", line):   # a wrapped `- lesson:`
+            out[-1][5] += " " + line.strip()
+            continue
+        in_lesson = False
         if m := LESSON_HEAD_RE.match(line):
-            out.append([m.group(1), m.group(2).strip(), ""])
+            out.append([m.group(1), m.group(2).strip(), "", lineno, 0, ""])
             current = m.group(1)
         elif line.startswith("## "):   # another section: a verdict without an id there belongs to no lesson
             current = None
-        elif out and not out[-1][2] and (m := LESSON_STATUS_RE.match(line)):
-            out[-1][2] = m.group(1).lower()
+        elif out and current and not out[-1][2] and (m := LESSON_STATUS_RE.match(line)):
+            out[-1][2], out[-1][4] = m.group(1).lower(), lineno
+        elif out and current and not out[-1][5] and (m := LESSON_TEXT_RE.match(line)):
+            out[-1][5], in_lesson = m.group(1).strip(), True
         elif (m := LESSON_VERDICT_RE.match(line)) and (v := lesson_verdict(m.group(1))):
             for lid in v[0] or ([current] if current else []):
                 shifts.setdefault(lid, {}).setdefault(v[1], set()).add(v[2])
     result = []
-    for lid, cue, written in out:
+    for lid, cue, written, head_line, status_line, lesson in out:
         status = written
         by_word = shifts.get(lid, {})
         helped, hurt = len(by_word.get("helped", ())), len(by_word.get("hurt", ()))
         if status not in ("promoted", "retired"):   # a hand-written promotion stays; a later `hurt` is for the hub to act on
             status = "retired" if hurt else "promotable" if helped >= LESSON_PROMOTE_AT else status
-        result.append((lid, cue, status, helped, hurt, written))
+        result.append((lid, cue, status, helped, hurt, written, head_line, status_line, lesson))
     return result
+
+
+def lesson_rule(entry) -> str:
+    """The `## Promoted lessons` line of a lesson: its cue, its whole instruction and its source id. Never cut: a cut
+    instruction can lose the condition that limits it."""
+    # `## L-019 (proposed, hub-45 02.11): …`, `## L-MC-001 … (23.10, hub-16)`: the bookkeeping is not part of the rule
+    cue = re.sub(r"\((?:proposed|confirmed)\b[^)]*\)\s*:?|\s*\([^)]*\bhub-\d+[^)]*\)\s*$", "", entry[1], flags=re.IGNORECASE)
+    lid, cue, lesson = entry[0], re.sub(r"\s+", " ", cue).strip().rstrip(".:"), re.sub(r"\s+", " ", entry[8]).strip()
+    return (f"- {cue}: {lesson}" if cue and lesson else f"- {cue or lesson}") + f" ({lid}, lessons.md, auto)"
+
+
+def promoted_bounds(text: str):
+    """(heading start, body start, end) of the real `## Promoted lessons` section of a hub-rules.md, None when it has
+    none: a `##` heading with a space or a tab, outside fenced blocks; it ends at the next `#` or `##` heading."""
+    pos, fence, found = 0, None, None
+    for line in text.splitlines(keepends=True):
+        bare, m = line.rstrip("\r\n"), FENCE_RE.match(line)
+        if fence:
+            if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence) and not bare[m.end():].strip():
+                fence = None
+        elif m:
+            fence = m.group(1)
+        elif found is None and PROMOTED_HEAD_RE.match(bare):
+            found = (pos, pos + len(line))
+        elif found and re.match(r"#{1,2}[ \t]", bare):
+            return found + (pos,)
+        pos += len(line)
+    return found + (len(text),) if found else None
+
+
+def promoted_section_bytes(text: str) -> int:
+    """Bytes of the `## Promoted lessons` section of a hub-rules.md (the cap of hooks/handoff_size.py)."""
+    b = promoted_bounds(text)
+    return len(text[b[0]:b[2]].encode("utf-8")) if b else 0
+
+
+def with_promoted_rule(text: str, rule: str) -> str:
+    """`text` of a hub-rules.md with `rule` appended to its `## Promoted lessons` section (created at the end)."""
+    b = promoted_bounds(text)
+    if not b:
+        return (text.rstrip("\n") + "\n\n" if text.strip() else "") + "## Promoted lessons\n\n" + rule + "\n"
+    return text[:b[2]].rstrip("\n") + "\n" + rule + "\n" + ("\n" + text[b[2]:] if b[2] < len(text) else "")
+
+
+def lessons_snapshot(lessons: Path, rules_path: Path) -> tuple:
+    """(lessons.md text, hub-rules.md text or None when absent). Raises OSError / UnicodeDecodeError."""
+    return (lessons.read_text(encoding="utf-8"),
+            rules_path.read_text(encoding="utf-8") if rules_path.exists() else None)
+
+
+def without_harmful_rules(rules: str, entries) -> tuple:
+    """(`rules` without the lines the takeover wrote — `(L-…, lessons.md, auto)` — in `## Promoted lessons` for lessons
+    that a `hurt` verdict or a written `retired` status took back, [their ids; a hand-written line of such a lesson is
+    kept and named "L-… (hand-written line kept: check it)"]). Heals a promotion that raced a `hurt` and a `hurt`
+    that came after it."""
+    b = promoted_bounds(rules)
+    if not b:
+        return rules, []
+    gone = {e[0] for e in entries if e[4] or e[5] == "retired"}
+    kept, out, changed = [], [], False
+    for line in rules[b[1]:b[2]].splitlines(keepends=True):
+        hit = re.search(rf"\(({LESSON_ID_PAT}), lessons\.md(, auto)?\)\s*$", line)
+        if hit and hit.group(1) in gone and hit.group(2):
+            out.append(hit.group(1))
+            changed = True
+            continue
+        if hit and hit.group(1) in gone:
+            out.append(f"{hit.group(1)} (hand-written line kept: check it)")
+        kept.append(line)
+    return (rules[:b[1]] + "".join(kept) + rules[b[2]:] if changed else rules), out
+
+
+def planned_promotion(stage: str, tag: str, snap: tuple, rules_path: Path) -> tuple:
+    """([ids], [left, with why], [ids whose rule line was taken back], new lessons.md text, new hub-rules.md text) of
+    promoting the promotable lessons of `snap`. A lesson whose whole line would take the section over
+    PROMOTED_MAX_BYTES stays promotable."""
+    text, rules = snap[0], snap[1] or ""
+    entries = lessons_entries(stage, text)
+    rules, removed = without_harmful_rules(rules, entries)
+    lines, done, left = text.splitlines(keepends=True), [], []
+    status = f"- status: promoted: hub-rules.md {hc.now():%Y-%m-%d} {tag} (hub takeover)\n"
+    for e in (e for e in entries if e[2] == "promotable"):
+        b = promoted_bounds(rules)   # already there (a hand edit, a write of lessons.md that failed): no second line
+        listed = b and re.search(rf"\({re.escape(e[0])}, lessons\.md(?:, auto)?\)", rules[b[1]:b[2]])
+        candidate = rules if listed else with_promoted_rule(rules, lesson_rule(e))
+        if promoted_section_bytes(candidate) > PROMOTED_MAX_BYTES:
+            left.append(f"{e[0]} (its whole line does not fit ## Promoted lessons of {rules_path}: shorten {e[0]}'s "
+                        "lesson in lessons.md by hand, or retire or merge a line there)")
+            continue
+        rules = candidate
+        if e[7]:
+            lines[e[7] - 1] = status
+        else:   # no `- status:` line: one goes right under the heading
+            lines[e[6] - 1] = lines[e[6] - 1].rstrip("\n") + "\n" + status
+        done.append(e[0])
+    return done, left, removed, "".join(lines), rules
+
+
+def promote_lessons(stage: str, tag: str, dry_run: bool) -> tuple:
+    """Promote every promotable lesson of <stage>/lessons.md (helped from LESSON_PROMOTE_AT shifts, no hurt): its whole
+    line in the `## Promoted lessons` section of <stage>/hub-rules.md and the entry's status `promoted: hub-rules.md
+    DATE hub-N`; first, the rule line of a lesson that got a `hurt` (or a written `retired`) leaves the section. Returns
+    ([ids promoted, or that would be on a dry run], [ids left promotable, with why], [ids whose line left]). Never
+    raises: a takeover does not stop on it.
+    Both files have other writers and no lock (a hub that still runs may append a `hurt` verdict by hand), so the plan
+    is made from a snapshot and written only while both files still match it: a change means one new plan from a new
+    snapshot; a second change means nothing is written this time."""
+    lessons, rules_path = lessons_path(stage), hc.root() / stage / "hub-rules.md"
+    if not lessons.exists():
+        return [], [], []
+    for _ in range(2):
+        try:
+            snap = lessons_snapshot(lessons, rules_path)
+        except (OSError, UnicodeDecodeError) as err:
+            ids = [e[0] for e in lessons_entries(stage) or [] if e[2] == "promotable"]
+            return [], [f"{', '.join(ids)} (cannot read: {type(err).__name__})"] if ids else [], []
+        done, left, removed, new_lessons, new_rules = planned_promotion(stage, tag, snap, rules_path)
+        if not (done or removed) or dry_run:
+            return done, left, removed
+        try:
+            if lessons_snapshot(lessons, rules_path) != snap:
+                continue
+            if new_rules != snap[1]:   # the rule first: if lessons.md is not written, the next plan finds the line
+                hc.atomic_write(rules_path, new_rules)   # listed and writes only the status
+                snap = (snap[0], new_rules)
+            if lessons_snapshot(lessons, rules_path) != snap:
+                continue   # the new plan takes back a line just written for a lesson that got a `hurt` meanwhile
+            if new_lessons != snap[0]:
+                hc.atomic_write(lessons, new_lessons)
+        except (OSError, UnicodeDecodeError) as err:
+            return [], [f"{', '.join(done or removed)} (cannot write: {err})"] + left, []
+        return done, left, removed
+    return [], [f"{', '.join(done or removed)} (lessons.md or hub-rules.md changed twice while the takeover promoted "
+                "them; the next takeover tries again)"] + left, []
 
 
 def lessons_digest_line(stage: str) -> str:
@@ -1637,6 +1782,22 @@ def _cmd_takeover(a) -> int:
             hc.record_stage_closed(stage, None)
             notes.append(reopened)
 
+    promoted, left, taken_back = promote_lessons(stage, tag, a.dry_run)
+    if taken_back:
+        warns.append(f"## Promoted lessons of {hc.root() / stage / 'hub-rules.md'}, lessons with a `hurt` verdict or a "
+                     f"`retired` status: {'would take' if a.dry_run else 'took'} back the line(s) of "
+                     f"{', '.join(taken_back)} — settle the entry (lessons.md § Promoting a lesson)")
+        print(f"ATTENTION: {warns[-1]}")
+    if promoted:   # the hub promotes a lesson at the helped threshold itself (owner, Q-AUDIT-001); this does it for it
+        done = (f"{'would promote' if a.dry_run else 'promoted'} lessons {', '.join(promoted)} to "
+                f"{hc.root() / stage / 'hub-rules.md'} § Promoted lessons — reword a line there if it reads badly, or "
+                "move a mechanical one to the plugin backlog (lessons.md § Promoting a lesson)")
+        print(f"[plan] {done}" if a.dry_run else done)
+        if not a.dry_run:
+            notes.append(done)
+    if left:
+        warns.append("lessons left promotable: " + "; ".join(left))
+        print(f"ATTENTION: {warns[-1]}")
     lock_names = ", ".join(sorted({r["kind"] for r in to_take + mine})) or "none"
     start_text = (f"start: \"{name}\" ({session}, sid {cli[:8]}) "
                   + (f"started stage {stage}" if first else (retake or f"took over from \"{prev_label}\""))

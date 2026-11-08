@@ -1,7 +1,8 @@
 # § 7 Lessons of this shift
 
 Read this when the draft has a `## 7. Lessons of this shift` (the hub home's `AGENT_HUB_HANDOFF_LESSONS` is on), and,
-whatever that setting is, § "Promoting a lesson" when the takeover digest lists promotable, hurt or retired lessons. At a
+whatever that setting is, § "Promoting a lesson" when the takeover promoted lessons or its digest lists promotable, hurt
+or retired ones. At a
 handoff your context still holds the whole shift; after it that is gone and the journal keeps only events. A lesson is
 what you would tell the next hub about how to work, with the moment it rests on.
 
@@ -43,29 +44,35 @@ The hub derives the status from the verdict lines (`hub takeover` reads them; no
 
 | verdicts | effect |
 |---|---|
-| `helped` from 2 different shifts, no `hurt` | promotable: the digest lists "promotable: L-… (helped ×N)" |
+| `helped` from 2 different shifts, no `hurt` | promotable: the next `hub takeover` promotes it (below) |
 | any `hurt` | retired: it leaves "Open lessons to judge"; the digest lists "retired by hurt: L-…" until you settle it (below) |
 | `no effect`, `confounded`, `ignored`, or two words in one verdict | counts for nothing |
 
 ## Promoting a lesson
 
-When the takeover digest lists promotable lessons (its line ends with a pointer here), promote each yourself before
-planning; it does not go to the owner. This part does not depend on `AGENT_HUB_HANDOFF_LESSONS`.
+`hub takeover` promotes every promotable lesson itself; it does not go to the owner, and it does not depend on
+`AGENT_HUB_HANDOFF_LESSONS`. Each becomes one line in the `## Promoted lessons` section of the stage's
+`<hub home>/<stage>/hub-rules.md` (created when absent): the cue, the whole lesson and the source id, e.g.
+`- handing a ready MR to merge-coord: send … (L-003, lessons.md, auto)`; a lesson is never cut. The entry's first `- status:` line becomes
+`- status: promoted: hub-rules.md DATE hub-N (hub takeover)` (one is added under the heading when it has none), and
+the takeover's start line in the journal names the ids. Before planning, read the new lines:
 
-1. A lesson a tool could catch (a hook, a script, a check in `hub`) is not a prose rule. Put a pointer in the plugin
-   backlog instead: an entry in the plugin repository's `ROADMAP.md` or a GitHub issue, naming the lesson and its
-   evidence. Replace the entry's `- status:` line with
-   `- status: promoted: backlog <entry or issue URL> DATE`.
-2. Any other lesson becomes one line in the stage's `<hub home>/<stage>/hub-rules.md`, in the section
-   `## Promoted lessons` (create it): the instruction, with its cue, and the source id, e.g.
-   `- Before briefing an executor, say "stop at DONE, do not wait for CI" (L-002, lessons.md)`. Replace the entry's
-   `- status:` line with `- status: promoted: hub-rules.md DATE` (only the first `- status:` line counts). The
-   `handoff_size` hook refuses a section over 2 KiB: when it is full, retire the line that acts least or merge two,
-   never lengthen a line.
-3. Journal it with `jlog` (the id and where it went).
+1. A line that reads badly: reword it in place, never longer (the `handoff_size` hook refuses a section over 2 KiB);
+   keep its `(L-…, lessons.md, auto)` tail, so that a later `hurt` takes it back.
+2. A lesson a tool could catch (a hook, a script, a check in `hub`) is not a prose rule: delete its line, put a pointer
+   in the plugin backlog (an entry in the plugin repository's `ROADMAP.md` or a GitHub issue, naming the lesson and its
+   evidence) and change the status to `- status: promoted: backlog <entry or issue URL> DATE`.
 
-A promoted lesson keeps its entry. If a later shift gives it a `hurt` verdict, the digest lists it under "promoted but
-hurt": delete its line from `hub-rules.md` (or the backlog entry), replace its `- status:` line with `retired: DATE hub-N — reason`, and journal it. A
+A line that would take the section over 2 KiB is not written: the lesson stays promotable, the takeover prints
+"lessons left promotable: L-… (its whole line does not fit …)" and the digest keeps listing it. Shorten the lesson in
+lessons.md by hand, keeping its conditions, or retire or merge a line; the next takeover promotes it. If lessons.md or
+hub-rules.md changes while the takeover writes (a hub that still runs adds a verdict), it plans again once, and after a
+second change writes nothing and says so.
+
+A promoted lesson keeps its entry. If a later shift gives it a `hurt` verdict, the next takeover takes its line out of
+`## Promoted lessons` itself (only a line it wrote, ending `, auto)`, of a lesson with a `hurt` or a written `retired`,
+which also heals a promotion that raced a `hurt`; a line you wrote is kept and named) and says so; the digest lists it under "promoted but hurt": delete the backlog
+entry if it went there, replace its `- status:` line with `retired: DATE hub-N — reason`, and journal it. A
 `hurt` on any other lesson retires it in the derived view, and the digest lists it as "retired by hurt" so that you look
 at it once: if the `hurt` was right, replace the entry's `- status:` line with `retired: DATE hub-N — reason` (the digest
 stops listing it); if it was not (another cause, a misread), change that verdict's word to `confounded` and add the

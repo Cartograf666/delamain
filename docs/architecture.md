@@ -165,7 +165,8 @@ handoffs; procedure and rules in `skills/handoff/references/lessons.md`):
 ```
 
 The status is derived from the verdicts when `hub takeover` reads the file: `helped` from two different shifts and no `hurt`
-is promotable (the hub promotes it into the stage `hub-rules.md`), any `hurt` retires it.
+is promotable, and the same takeover promotes it: one line in `## Promoted lessons` of the stage `hub-rules.md`, status
+`promoted`. Any `hurt` retires it.
 
 **Question register entry** (`questions.md`, kept by `ask`):
 
