@@ -81,10 +81,10 @@ A stopped `jwait` loses no lines once its caller has run before: the next one de
 - `jwait --until 20:23 --note "check the nightly import"` — an alarm; exit 3 and a line `ALARM …`.
 - Sources and filters combine in one command.
 
-A CI, merge or lock wait is never a background Bash of the hub itself: run `await --ok MERGED --label "MR !N" --on
+A CI, merge or lock wait is never a background Bash of the hub itself: run `await --ok PASSED --label "MR !N" --on
 2=TIMEOUT -- <the repo's wait command>` (santinel: `python -m scripts.ci_wait --mr N`; `bin/await`, a foreground call
 that returns at once; if `command -v await` finds nothing, an executor does the wait). Silent while it runs,
-it journals one line `@hub MERGED|DONE|FAILED|TIMEOUT|<--on word> … <link>` when it ends: that is the wake, and
+it journals one line `@hub PASSED|DONE|FAILED|TIMEOUT|<--on word> … <link>` when it ends: that is the wake, and
 FAILED/TIMEOUT/CONFLICT are decisions, not retries; a superseded wait you `kill` journals CANCELLED, no wake. An
 executor that waits on CI uses the same `await`.
 
