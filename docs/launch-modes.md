@@ -166,19 +166,21 @@ a result it must decide on. `await` does the waiting outside the hub's context:
 
 ```bash
 # an ordinary foreground call: it returns in a moment with the supervisor's pid and the log path
-await --ok MERGED --label "MR !12" --on 2=TIMEOUT -- python -m scripts.ci_wait --mr 12
+await --ok PASSED --label "MR !12" --on 2=TIMEOUT -- python -m scripts.ci_wait --mr 12
 ```
 
 The supervisor runs the command in its own session with its output in a log (`<stage>/coordinator/work/await/`),
 journals nothing while it runs and, when it ends, one line:
 
 ```
-- 14:07 [hub-3-await] @hub MERGED MR !12 — https://gitlab.example/mr/12 (exit 0, 11m, log …/await/….log)
+- 14:07 [hub-3-await] @hub PASSED MR !12 — https://gitlab.example/g/p/-/pipelines/812 (exit 0, 11m, log …/await/….log)
 ```
 
 The hub's single `jwait` (`--tag hub-<N> --tag hub --hub-events`) wakes on it: `@hub` addresses the hub, and the tag
-`<tag>-await` is neither the hub's own tag nor its sub-tag `<tag>/…`, which `jwait` drops. Outcomes: exit 0 → the
-`--ok` word (`DONE`, or `MERGED` for a merge); exit 124 or `--timeout` (default 2h; the command's process group
+`<tag>-await` is neither the hub's own tag nor its sub-tag `<tag>/…`, which `jwait` drops (a `--tag` that names your own
+tag is signed `<tag>-await` as well). Outcomes: exit 0 → the
+`--ok` word (`DONE`; `PASSED` for a CI wait — a green pipeline is not a merge; `MERGED` only for a wait on the merge
+itself); exit 124 or `--timeout` (default 2h; the command's process group
 gets SIGTERM, then SIGKILL after 5 s, also for a grandchild that ignores SIGTERM) → `TIMEOUT`; any other exit code,
 a command that cannot start or is killed by a signal → `FAILED`; a supervisor stopped by SIGTERM/SIGHUP/SIGINT (`kill
 <pid>` of a superseded wait) → `CANCELLED`, journaled without `@hub` and without a status word, so no `jwait` wakes on
